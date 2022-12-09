@@ -113,8 +113,6 @@ fn write_file_header(buffer: &mut BytesMut, image_count: u16) {
 
 fn write_image_header(buffer: &mut BytesMut, width: u16, height: u16, line_offsets: Vec<u32>) {
 	if line_offsets.len() > 1 {
-		println!("IMAGE HEADER");
-		println!("first line offset: {}", line_offsets[0]);
 		buffer.put_u32_le(line_offsets[0]);
 		buffer.put_u16_le(width);
 		buffer.put_u16_le(height);

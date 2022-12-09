@@ -1,5 +1,6 @@
 mod agent;
 mod c16;
+mod blk;
 
 use std::env;
 use std::fs;
@@ -14,6 +15,13 @@ fn main() {
 	if let (Some(action), Some(filepath)) = (&args.get(1), &args.get(2)) {
 		let filepath_pattern = Regex::new(r"^(.*[\\/])?(.+)\.(.+)$").unwrap();
 		if let Some(captures) = filepath_pattern.captures(filepath) {
+
+			println!("num captures: {}", captures.len());
+			for i in 0..captures.len() {
+				if let Some(capture) = captures.get(i) {
+					println!("capture: {:?}", capture);
+				}
+			}
 
 			let path = &captures[1];
 			let filename = &captures[2];
@@ -72,6 +80,47 @@ fn main() {
 							}
 						},
 						Ok(_file) => println!("ERROR: file already exists: {}", &output_filepath)
+					}
+				},
+				"blk_to_png" => {
+					match fs::read(filepath) {
+						Ok(contents) => {
+							println!("READ BLK FROM: {}", filepath);
+							if let Some(image) = blk::decode(&contents) {
+								let output_filepath = format!("{}{}.png", path, filename);
+								match File::open(&output_filepath) {
+									Err(_why) => {
+										image.save(&output_filepath);
+									},
+									Ok(_file) => println!("ERROR: file already exists: {}", &output_filepath)
+								}
+							}
+						},
+						Err(error) => {
+							println!("ERROR: {}", error)
+						}
+					}
+				},
+				"png_to_blk" => {
+					match fs::read(filepath) {
+						Ok(contents) => {
+							println!("WRITE BLK FROM: {}", filepath);
+							if let Ok(image) = ImageReader::open(filepath) {
+								if let Ok(image) = image.decode() {
+									let blk_data = blk::encode(image.into_rgba8());
+									let output_filepath = format!("{}{}.blk", path, filename);
+									match File::create(&output_filepath) {
+										Err(why) => println!("ERROR: {} cannot be created: {}", &output_filepath, why),
+										Ok(mut file) => {
+											file.write_all(&blk_data);
+										}
+									}
+								}
+							}
+						},
+						Err(error) => {
+							println!("ERROR: {}", error)
+						}
 					}
 				},
 				_ => ()
