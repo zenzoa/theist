@@ -35,11 +35,9 @@ fn main() {
 					match fs::read_to_string(filepath) {
 						Ok(contents) => {
 							let mut tags = agent::parse_source(&contents, path);
-							agent::compile(&mut tags);
+							agent::compile(tags);
 						},
-						Err(error) => {
-							println!("ERROR: {}", error)
-						}
+						Err(error) => println!("ERROR: {}", error)
 					}
 				},
 				"c16_to_png" => {
@@ -100,16 +98,14 @@ fn main() {
 								}
 							}
 						},
-						Err(error) => {
-							println!("ERROR: {}", error)
-						}
+						Err(error) => println!("ERROR: {}", error)
 					}
 				},
 				"png_to_blk" => {
-					match fs::read(filepath) {
-						Ok(contents) => {
-							if let Ok(image) = ImageReader::open(filepath) {
-								if let Ok(image) = image.decode() {
+					match ImageReader::open(filepath) {
+						Ok(image) => {
+							match image.decode() {
+								Ok(image) => {
 									let blk_data = blk::encode(image.into_rgba8());
 									let output_filepath = format!("{}{}.blk", path, filename);
 									match File::create(&output_filepath) {
@@ -119,12 +115,11 @@ fn main() {
 											println!("SUCCESS: Saved file as {}", &output_filepath);
 										}
 									}
-								}
+								},
+								Err(error) => println!("ERROR: {}", error)
 							}
 						},
-						Err(error) => {
-							println!("ERROR: {}", error)
-						}
+						Err(error) => println!("ERROR: {}", error)
 					}
 				},
 				_ => ()

@@ -37,6 +37,7 @@ impl fmt::Display for Filename {
 	}
 }
 
+#[derive(Clone)]
 enum SupportedGame {
 	C3,
 	DS,
@@ -65,6 +66,7 @@ impl SupportedGame {
 	}
 }
 
+#[derive(Clone)]
 enum Script {
 	File { filename: Filename, supported_game: SupportedGame },
 	//Inline { contents: String, supported_game: SupportedGame }
@@ -84,7 +86,7 @@ impl Script {
 				let filepath = format!("{}{}", path, filename);
 				match fs::read(&filepath) {
 					Ok(contents) => {
-						println!("Got data from {}", &filepath);
+						println!("  Got data from {}", &filepath);
 						Some(Bytes::copy_from_slice(&contents))
 					},
 					Err(error) => {
@@ -97,6 +99,7 @@ impl Script {
 	}
 }
 
+#[derive(Clone)]
 struct SpriteFrame {
 	filename: Filename
 }
@@ -109,6 +112,7 @@ impl SpriteFrame {
 	}
 }
 
+#[derive(Clone)]
 enum Sprite {
 	C16 { filename: Filename },
 	Frames { filename: Filename, frames: Vec<SpriteFrame> },
@@ -142,7 +146,7 @@ impl Sprite {
 				let filepath = format!("{}{}", path, filename);
 				match fs::read(&filepath) {
 					Ok(contents) => {
-						println!("Got data from {}", &filepath);
+						println!("  Got data from {}", &filepath);
 						Some(Bytes::copy_from_slice(&contents))
 					},
 					Err(error) => {
@@ -159,7 +163,7 @@ impl Sprite {
 						Ok(image) => {
 							match image.decode() {
 								Ok(image) => {
-									println!("Got data from {}", &filepath);
+									println!("  Got data from {}", &filepath);
 									images.push(image.into_rgba8());
 								},
 								Err(error) => {
@@ -178,6 +182,7 @@ impl Sprite {
 	}
 }
 
+#[derive(Clone)]
 enum Background {
 	BLK { filename: Filename },
 	PNG { filename: Filename }
@@ -198,7 +203,7 @@ impl Background {
 				let filepath = format!("{}{}", path, filename);
 				match fs::read(&filepath) {
 					Ok(contents) => {
-						println!("Got data from {}", &filepath);
+						println!("  Got data from {}", &filepath);
 						Some(Bytes::copy_from_slice(&contents))
 					},
 					Err(error) => {
@@ -213,7 +218,7 @@ impl Background {
 					Ok(image) => {
 						match image.decode() {
 							Ok(image) => {
-								println!("Got data from {}", &filepath);
+								println!("  Got data from {}", &filepath);
 								Some(Bytes::from(blk::encode(image.into_rgba8())))
 							},
 							Err(error) => {
@@ -232,6 +237,7 @@ impl Background {
 	}
 }
 
+#[derive(Clone)]
 struct Sound {
 	filename: Filename
 }
@@ -247,7 +253,7 @@ impl Sound {
 		let filepath = format!("{}{}", path, self.filename);
 		match fs::read(&filepath) {
 			Ok(contents) => {
-				println!("Got data from {}", &filepath);
+				println!("  Got data from {}", &filepath);
 				Some(Bytes::copy_from_slice(&contents))
 			},
 			Err(error) => {
@@ -258,6 +264,7 @@ impl Sound {
 	}
 }
 
+#[derive(Clone)]
 struct CatalogueEntry {
 	classifier: String,
 	name: String,
@@ -274,6 +281,7 @@ impl CatalogueEntry {
 	}
 }
 
+#[derive(Clone)]
 enum Catalogue {
 	File { filename: Filename },
 	Inline { filename: Filename, entries: Vec<CatalogueEntry> }
@@ -306,7 +314,7 @@ impl Catalogue {
 				let filepath = format!("{}{}", path, filename);
 				match fs::read(&filepath) {
 					Ok(contents) => {
-						println!("Got data from {}", &filepath);
+						println!("  Got data from {}", &filepath);
 						Some(Bytes::copy_from_slice(&contents))
 					},
 					Err(error) => {
@@ -325,7 +333,7 @@ impl Catalogue {
 						entry.description
 					).as_str();
 				}
-				println!("Catalogue created: {}", filename);
+				println!("  Catalogue created: {}", filename);
 				Some(Bytes::copy_from_slice(contents.as_bytes()))
 			}
 		}
@@ -336,6 +344,7 @@ impl Catalogue {
 //	filename: Filename
 //}
 
+#[derive(Clone)]
 enum RemoveScript {
 	None,
 	Auto,
@@ -352,11 +361,13 @@ impl fmt::Display for RemoveScript {
 	}
 }
 
+#[derive(Clone)]
 enum InjectorPreview {
 	Auto,
 	Manual { sprite: String, animation: String }
 }
 
+#[derive(Clone)]
 struct AgentTag {
 	filepath: String,
 	name: String,
@@ -416,6 +427,7 @@ impl AgentTag {
 //	sprites: Vec<Sprite>
 //}
 
+#[derive(Clone)]
 pub enum Tag {
 	Empty,
 	Agent(AgentTag),
@@ -426,6 +438,8 @@ impl Tag {
 	fn add_data(&mut self) {
 		match self {
 			Tag::Agent(tag) => {
+				println!("Get data for agent tag \"{}\"", tag.name);
+
 				let path = &tag.filepath;
 
 				// script files
@@ -482,7 +496,7 @@ impl Tag {
 												let remove_script = String::from(
 													remove_newlines_pattern.replace_all(remove_script.as_str(), " ").trim()
 												);
-												println!("Remove script extracted from first script: \"{}\"", &remove_script);
+												println!("  Remove script extracted from first script");
 												tag.remove_script = RemoveScript::Manual(remove_script);
 											},
 											None => {
@@ -517,7 +531,7 @@ impl Tag {
 							sprite: String::from(sprite_name),
 							animation: String::from("0")
 						};
-						println!("Injector preview generated: {} \"0\"", sprite_name);
+						println!("  Injector preview generated");
 					}
 				}
 			},
@@ -599,13 +613,13 @@ pub fn parse_source(contents: &str, path: &str) -> Vec<Tag> {
 						if let Some(i) = tokens.get(1) {
 							tag.version = String::from(i);
 						}
-						println!("> Version: {}", tag.version);
+						println!("  Version: {}", tag.version);
 					},
 					"description" => {
 						if let Some(i) = tokens.get(1) {
 							tag.description = String::from(i);
 						}
-						println!("> Description: {}", tag.description);
+						println!("  Description: {}", tag.description);
 					},
 					"preview" => {
 						let sprite = match tokens.get(1) {
@@ -629,7 +643,7 @@ pub fn parse_source(contents: &str, path: &str) -> Vec<Tag> {
 								_ => RemoveScript::Manual(i.to_string())
 							}
 						};
-						println!("> Remove script: {}", tag.remove_script)
+						println!("  Remove script: {}", tag.remove_script)
 					},
 					"script" => {
 						if let Some(filename) = tokens.get(1) {
@@ -639,14 +653,14 @@ pub fn parse_source(contents: &str, path: &str) -> Vec<Tag> {
 							};
 							let script = Script::new(filename, supported_game);
 							tag.scripts.push(script);
-							println!("> Add script (total: {})", tag.scripts.len());
+							println!("  Add script (total: {})", tag.scripts.len());
 						}
 					},
 					"sprite" => {
 						if let Some(filename) = tokens.get(1) {
 							let sprite = Sprite::new(filename);
 							tag.sprites.push(sprite);
-							println!("> Add sprite (total: {})", tag.scripts.len());
+							println!("  Add sprite (total: {})", tag.scripts.len());
 						}
 					},
 					"frame" => {
@@ -656,7 +670,7 @@ pub fn parse_source(contents: &str, path: &str) -> Vec<Tag> {
 								let frame = SpriteFrame::new(filename);
 								current_sprite.add_frame(frame);
 								if let Sprite::Frames { frames, .. } = current_sprite {
-									println!("> > Add frame (total: {})", frames.len());
+									println!("    Add frame (total: {})", frames.len());
 								}
 							}
 						}
@@ -665,21 +679,21 @@ pub fn parse_source(contents: &str, path: &str) -> Vec<Tag> {
 						if let Some(filename) = tokens.get(1) {
 							let background = Background::new(filename);
 							tag.backgrounds.push(background);
-							println!("> Add background (total: {})", tag.backgrounds.len());
+							println!("  Add background (total: {})", tag.backgrounds.len());
 						}
 					},
 					"sound" => {
 						if let Some(filename) = tokens.get(1) {
 							let sound = Sound::new(filename);
 							tag.sounds.push(sound);
-							println!("> Add sound (total: {})", tag.sounds.len());
+							println!("  Add sound (total: {})", tag.sounds.len());
 						}
 					},
 					"catalogue" => {
 						if let Some(filename) = tokens.get(1) {
 							let catalogue = Catalogue::new(filename);
 							tag.catalogues.push(catalogue);
-							println!("> Add catalogue (total: {})", tag.catalogues.len());
+							println!("  Add catalogue (total: {})", tag.catalogues.len());
 						}
 					},
 					"entry" => {
@@ -689,7 +703,7 @@ pub fn parse_source(contents: &str, path: &str) -> Vec<Tag> {
 								let entry = CatalogueEntry::new(classifier, name, description);
 								current_catalogue.add_entry(entry);
 								if let Catalogue::Inline { entries, .. } = current_catalogue {
-									println!("> > Add entry (total: {})", entries.len());
+									println!("    Add entry (total: {})", entries.len());
 								}
 							}
 						}
@@ -709,8 +723,8 @@ pub fn parse_source(contents: &str, path: &str) -> Vec<Tag> {
 						}
 						tag.filepath = String::from(path);
 						println!("Add agent \"{}\"", tag.name);
-						println!("> Path: {}", tag.filepath);
-						println!("> Supported game: {}", tag.supported_game);
+						println!("  Path: {}", tag.filepath);
+						println!("  Supported game: {}", tag.supported_game);
 						tags.push(Tag::Agent(tag));
 					},
 					"egg" => {
@@ -725,8 +739,72 @@ pub fn parse_source(contents: &str, path: &str) -> Vec<Tag> {
 	return tags;
 }
 
-pub fn compile(tags: &mut Vec<Tag>) {
+fn split_c3ds_tags(tags: &Vec<Tag>) -> Vec<Tag> {
+	let mut new_tags: Vec<Tag> = Vec::new();
 	for tag in tags {
+		match tag {
+			Tag::Agent(agent_tag) => {
+				match agent_tag.supported_game {
+					SupportedGame::C3DS => {
+						let mut c3_scripts: Vec<Script> = Vec::new();
+						let mut ds_scripts: Vec<Script> = Vec::new();
+						let mut c3_script_files: Vec<Bytes> = Vec::new();
+						let mut ds_script_files: Vec<Bytes> = Vec::new();
+
+						for (i, script) in agent_tag.scripts.iter().enumerate() {
+							if let Script::File { supported_game, .. } = script {
+								match supported_game {
+									SupportedGame::C3 => {
+										c3_scripts.push(script.clone());
+										c3_script_files.push(agent_tag.script_files.get(i).unwrap().clone());
+									},
+									SupportedGame::DS => {
+										ds_scripts.push(script.clone());
+										ds_script_files.push(agent_tag.script_files.get(i).unwrap().clone());
+									},
+									SupportedGame::C3DS => {
+										c3_scripts.push(script.clone());
+										ds_scripts.push(script.clone());
+										c3_script_files.push(agent_tag.script_files.get(i).unwrap().clone());
+										ds_script_files.push(agent_tag.script_files.get(i).unwrap().clone());
+									}
+								}
+							}
+						}
+
+						println!("Split \"{}\" into \"{} C3\" and \"{} DS\"", agent_tag.name, agent_tag.name, agent_tag.name);
+
+						let mut c3_tag = agent_tag.clone();
+						c3_tag.name = format!("{} C3", agent_tag.name);
+						c3_tag.supported_game = SupportedGame::C3;
+						c3_tag.scripts = c3_scripts;
+						c3_tag.script_files = c3_script_files;
+						new_tags.push(Tag::Agent(c3_tag));
+
+						let mut ds_tag = agent_tag.clone();
+						ds_tag.name = format!("{} DS", agent_tag.name);
+						ds_tag.supported_game = SupportedGame::DS;
+						ds_tag.scripts = ds_scripts;
+						ds_tag.script_files = ds_script_files;
+						new_tags.push(Tag::Agent(ds_tag));
+
+					},
+					_ => {
+						new_tags.push(tag.clone());
+					}
+				}
+			}
+			_ => {
+				new_tags.push(tag.clone());
+			}
+		}
+	}
+	return new_tags;
+}
+
+pub fn compile(mut tags: Vec<Tag>) {
+	for tag in &mut tags {
 		tag.add_data();
 	}
+	let tags = split_c3ds_tags(&tags);
 }
