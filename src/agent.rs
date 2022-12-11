@@ -1,5 +1,6 @@
 use crate::c16;
 use crate::blk;
+use crate::pray;
 
 use std::fmt;
 use std::fs;
@@ -7,10 +8,10 @@ use std::str;
 use regex::Regex;
 use image::RgbaImage;
 use image::io::Reader as ImageReader;
-use bytes::{ Bytes, BytesMut, Buf, BufMut };
+use bytes::Bytes;
 
 #[derive(Clone)]
-struct Filename {
+pub struct Filename {
 	title: String,
 	extension: String
 }
@@ -27,7 +28,10 @@ impl Filename {
 				extension: String::from(&captures[2])
 			}
 		}
+	}
 
+	pub fn as_string(&self) -> String {
+		format!("{}.{}", &self.title, &self.extension)
 	}
 }
 
@@ -38,7 +42,7 @@ impl fmt::Display for Filename {
 }
 
 #[derive(Clone)]
-enum SupportedGame {
+pub enum SupportedGame {
 	C3,
 	DS,
 	C3DS
@@ -67,7 +71,7 @@ impl SupportedGame {
 }
 
 #[derive(Clone)]
-enum Script {
+pub enum Script {
 	File { filename: Filename, supported_game: SupportedGame },
 	//Inline { contents: String, supported_game: SupportedGame }
 }
@@ -80,6 +84,18 @@ impl Script {
 		}
 	}
 
+	pub fn get_filename(&self) -> String {
+		match self {
+			Script::File { filename, .. } => filename.as_string()
+		}
+	}
+
+	pub fn get_title(&self) -> String {
+		match self {
+			Script::File { filename, .. } => filename.title.clone()
+		}
+	}
+
 	fn get_data(&self, path: &str) -> Option<Bytes> {
 		match self {
 			Script::File { filename, .. } => {
@@ -89,8 +105,8 @@ impl Script {
 						println!("  Got data from {}", &filepath);
 						Some(Bytes::copy_from_slice(&contents))
 					},
-					Err(error) => {
-						println!("ERROR: Unable to get data from {}: {}", &filepath, error);
+					Err(why) => {
+						println!("ERROR: Unable to get data from {}: {}", &filepath, why);
 						None
 					}
 				}
@@ -100,7 +116,7 @@ impl Script {
 }
 
 #[derive(Clone)]
-struct SpriteFrame {
+pub struct SpriteFrame {
 	filename: Filename
 }
 
@@ -113,7 +129,7 @@ impl SpriteFrame {
 }
 
 #[derive(Clone)]
-enum Sprite {
+pub enum Sprite {
 	C16 { filename: Filename },
 	Frames { filename: Filename, frames: Vec<SpriteFrame> },
 	//Spritesheet { filename: Filename, spritesheet_filename: Filename, cols: u32, rows: u32 }
@@ -140,6 +156,20 @@ impl Sprite {
 		}
 	}
 
+	pub fn get_filename(&self) -> String {
+		match self {
+			Sprite::C16 { filename } => filename.as_string(),
+			Sprite::Frames { filename, .. } => filename.as_string()
+		}
+	}
+
+	pub fn get_title(&self) -> String {
+		match self {
+			Sprite::C16 { filename } => filename.title.clone(),
+			Sprite::Frames { filename, .. } => filename.title.clone()
+		}
+	}
+
 	fn get_data(&self, path: &str) -> Option<Bytes> {
 		match self {
 			Sprite::C16 { filename, .. } => {
@@ -149,8 +179,8 @@ impl Sprite {
 						println!("  Got data from {}", &filepath);
 						Some(Bytes::copy_from_slice(&contents))
 					},
-					Err(error) => {
-						println!("ERROR: Unable to get data from {}: {}", &filepath, error);
+					Err(why) => {
+						println!("ERROR: Unable to get data from {}: {}", &filepath, why);
 						None
 					}
 				}
@@ -166,14 +196,10 @@ impl Sprite {
 									println!("  Got data from {}", &filepath);
 									images.push(image.into_rgba8());
 								},
-								Err(error) => {
-									println!("ERROR: Unable to get data from {}: {}", &filepath, error);
-								}
+								Err(why) => println!("ERROR: Unable to get data from {}: {}", &filepath, why)
 							}
 						},
-						Err(error) => {
-							println!("ERROR: Unable to get data from {}: {}", &filepath, error);
-						}
+						Err(why) => println!("ERROR: Unable to get data from {}: {}", &filepath, why)
 					}
 				}
 				return Some(Bytes::from(c16::encode(images)));
@@ -183,7 +209,7 @@ impl Sprite {
 }
 
 #[derive(Clone)]
-enum Background {
+pub enum Background {
 	BLK { filename: Filename },
 	PNG { filename: Filename }
 }
@@ -197,6 +223,20 @@ impl Background {
 		}
 	}
 
+	pub fn get_filename(&self) -> String {
+		match self {
+			Background::BLK { filename } => filename.as_string(),
+			Background::PNG { filename } => filename.as_string()
+		}
+	}
+
+	pub fn get_title(&self) -> String {
+		match self {
+			Background::BLK { filename } => filename.title.clone(),
+			Background::PNG { filename } => filename.title.clone()
+		}
+	}
+
 	fn get_data(&self, path: &str) -> Option<Bytes> {
 		match self {
 			Background::BLK { filename } => {
@@ -206,8 +246,8 @@ impl Background {
 						println!("  Got data from {}", &filepath);
 						Some(Bytes::copy_from_slice(&contents))
 					},
-					Err(error) => {
-						println!("ERROR: Unable to get data from {}: {}", &filepath, error);
+					Err(why) => {
+						println!("ERROR: Unable to get data from {}: {}", &filepath, why);
 						None
 					}
 				}
@@ -221,14 +261,14 @@ impl Background {
 								println!("  Got data from {}", &filepath);
 								Some(Bytes::from(blk::encode(image.into_rgba8())))
 							},
-							Err(error) => {
-								println!("ERROR: Unable to get data from {}: {}", &filepath, error);
+							Err(why) => {
+								println!("ERROR: Unable to get data from {}: {}", &filepath, why);
 								None
 							}
 						}
 					},
-					Err(error) => {
-						println!("ERROR: Unable to get data from {}: {}", &filepath, error);
+					Err(why) => {
+						println!("ERROR: Unable to get data from {}: {}", &filepath, why);
 						None
 					}
 				}
@@ -238,8 +278,8 @@ impl Background {
 }
 
 #[derive(Clone)]
-struct Sound {
-	filename: Filename
+pub struct Sound {
+	pub filename: Filename
 }
 
 impl Sound {
@@ -249,6 +289,14 @@ impl Sound {
 		}
 	}
 
+	pub fn get_filename(&self) -> String {
+		self.filename.as_string()
+	}
+
+	pub fn get_title(&self) -> String {
+		self.filename.title.clone()
+	}
+
 	fn get_data(&self, path: &str) -> Option<Bytes> {
 		let filepath = format!("{}{}", path, self.filename);
 		match fs::read(&filepath) {
@@ -256,8 +304,8 @@ impl Sound {
 				println!("  Got data from {}", &filepath);
 				Some(Bytes::copy_from_slice(&contents))
 			},
-			Err(error) => {
-				println!("ERROR: Unable to get data from {}: {}", &filepath, error);
+			Err(why) => {
+				println!("ERROR: Unable to get data from {}: {}", &filepath, why);
 				None
 			}
 		}
@@ -282,7 +330,7 @@ impl CatalogueEntry {
 }
 
 #[derive(Clone)]
-enum Catalogue {
+pub enum Catalogue {
 	File { filename: Filename },
 	Inline { filename: Filename, entries: Vec<CatalogueEntry> }
 }
@@ -308,6 +356,20 @@ impl Catalogue {
 		}
 	}
 
+	pub fn get_filename(&self) -> String {
+		match self {
+			Catalogue::File { filename } => filename.as_string(),
+			Catalogue::Inline { filename, .. } => filename.as_string()
+		}
+	}
+
+	pub fn get_title(&self) -> String {
+		match self {
+			Catalogue::File { filename } => filename.title.clone(),
+			Catalogue::Inline { filename, .. } => filename.title.clone()
+		}
+	}
+
 	fn get_data(&self, path: &str) -> Option<Bytes> {
 		match self {
 			Catalogue::File { filename } => {
@@ -317,8 +379,8 @@ impl Catalogue {
 						println!("  Got data from {}", &filepath);
 						Some(Bytes::copy_from_slice(&contents))
 					},
-					Err(error) => {
-						println!("ERROR: Unable to get data from {}: {}", &filepath, error);
+					Err(why) => {
+						println!("ERROR: Unable to get data from {}: {}", &filepath, why);
 						None
 					}
 				}
@@ -345,7 +407,7 @@ impl Catalogue {
 //}
 
 #[derive(Clone)]
-enum RemoveScript {
+pub enum RemoveScript {
 	None,
 	Auto,
 	Manual(String)
@@ -362,32 +424,32 @@ impl fmt::Display for RemoveScript {
 }
 
 #[derive(Clone)]
-enum InjectorPreview {
+pub enum InjectorPreview {
 	Auto,
 	Manual { sprite: String, animation: String }
 }
 
 #[derive(Clone)]
-struct AgentTag {
-	filepath: String,
-	name: String,
-	version: String,
-	description: String,
-	supported_game: SupportedGame,
-	remove_script: RemoveScript,
-	injector_preview: InjectorPreview,
+pub struct AgentTag {
+	pub filepath: String,
+	pub name: String,
+	pub version: String,
+	pub description: String,
+	pub supported_game: SupportedGame,
+	pub remove_script: RemoveScript,
+	pub injector_preview: InjectorPreview,
 
-	scripts: Vec<Script>,
-	sprites: Vec<Sprite>,
-	backgrounds: Vec<Background>,
-	sounds: Vec<Sound>,
-	catalogues: Vec<Catalogue>,
+	pub scripts: Vec<Script>,
+	pub sprites: Vec<Sprite>,
+	pub backgrounds: Vec<Background>,
+	pub sounds: Vec<Sound>,
+	pub catalogues: Vec<Catalogue>,
 
-	script_files: Vec<Bytes>,
-	sprite_files: Vec<Bytes>,
-	background_files: Vec<Bytes>,
-	sound_files: Vec<Bytes>,
-	catalogue_files: Vec<Bytes>
+	pub script_files: Vec<Bytes>,
+	pub sprite_files: Vec<Bytes>,
+	pub background_files: Vec<Bytes>,
+	pub sound_files: Vec<Bytes>,
+	pub catalogue_files: Vec<Bytes>
 }
 
 impl AgentTag {
@@ -459,11 +521,17 @@ impl Tag {
 				}
 
 				// background files
-				for background in &tag.backgrounds {
+				for background in &mut tag.backgrounds {
 					tag.background_files.push(match background.get_data(&path) {
 						Some(data) => data,
 						None => Bytes::new()
 					});
+					*background = Background::BLK {
+						filename: Filename {
+							title: background.get_title(),
+							extension: String::from("blk")
+						}
+					}
 				}
 
 				// sound files
@@ -512,8 +580,8 @@ impl Tag {
 									}
 								}
 							},
-							Err(error) => {
-								println!("ERROR: Unable to extract remove script from first script: {}", error);
+							Err(why) => {
+								println!("ERROR: Unable to extract remove script from first script: {}", why);
 								tag.remove_script = RemoveScript::None;
 							}
 						}
@@ -523,10 +591,7 @@ impl Tag {
 				// injector preview
 				if tag.sprites.len() > 0 {
 					if let InjectorPreview::Auto = tag.injector_preview {
-						let sprite_name = match &tag.sprites[0] {
-							Sprite::C16 { filename, .. } => &filename.title,
-							Sprite::Frames { filename, .. } => &filename.title
-						};
+						let sprite_name = &tag.sprites[0].get_title();
 						tag.injector_preview = InjectorPreview::Manual {
 							sprite: String::from(sprite_name),
 							animation: String::from("0")
@@ -802,9 +867,13 @@ fn split_c3ds_tags(tags: &Vec<Tag>) -> Vec<Tag> {
 	return new_tags;
 }
 
-pub fn compile(mut tags: Vec<Tag>) {
+pub fn compile(mut tags: Vec<Tag>) -> Bytes {
 	for tag in &mut tags {
 		tag.add_data();
 	}
+	println!("");
 	let tags = split_c3ds_tags(&tags);
+	println!("");
+	let data = pray::encode(&tags);
+	return data;
 }

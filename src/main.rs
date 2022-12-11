@@ -1,6 +1,7 @@
-mod agent;
 mod c16;
 mod blk;
+mod agent;
+mod pray;
 
 use std::env;
 use std::fs;
@@ -32,12 +33,27 @@ fn main() {
 
 			match action.as_str() {
 				"compile" => {
-					match fs::read_to_string(filepath) {
-						Ok(contents) => {
-							let mut tags = agent::parse_source(&contents, path);
-							agent::compile(tags);
+					let output_filepath = format!("{}{}.agents", path, filename);
+					match File::open(&output_filepath) {
+						Err(_why) => {
+							match fs::read_to_string(filepath) {
+								Ok(contents) => {
+									let tags = agent::parse_source(&contents, path);
+									println!("");
+									let data = agent::compile(tags);
+									println!("");
+									match File::create(&output_filepath) {
+										Err(why) => println!("ERROR: {} cannot be created: {}", &output_filepath, why),
+										Ok(mut file) => {
+											file.write_all(&data);
+											println!("Saved file as {}", &output_filepath);
+										}
+									}
+								},
+								Err(why) => println!("ERROR: {}", why)
+							}
 						},
-						Err(error) => println!("ERROR: {}", error)
+						Ok(_file) => println!("ERROR: file already exists: {}", &output_filepath)
 					}
 				},
 				"c16_to_png" => {
@@ -49,20 +65,18 @@ fn main() {
 								match File::open(&output_filepath) {
 									Err(_why) => {
 										image.save(&output_filepath);
-										println!("SUCCESS: Saved file as {}", &output_filepath);
+										println!("Saved file as {}", &output_filepath);
 									},
-									Ok(_file) => println!("ERROR: file already exists: {}", &output_filepath)
+									Ok(_file) => println!("ERROR: File already exists: {}", &output_filepath)
 								}
 							}
 						},
-						Err(error) => {
-							println!("ERROR: {}", error)
-						}
+						Err(why) => println!("ERROR: Unable to read file: {}", why)
 					}
 				},
 				"png_to_c16" => {
 					let output_filepath = format!("{}{}.c16", path, filename); // TODO: use regex to ignore any end numbers
-					match File::open(format!("{}{}.c16", path, filename)) {
+					match File::open(&output_filepath) {
 						Err(_why) => {
 							let mut images: Vec<RgbaImage> = Vec::new();
 							for i in 2..args.len() {
@@ -79,47 +93,55 @@ fn main() {
 									file.write_all(&c16_data);
 								}
 							}
-							println!("SUCCESS: Saved file as {}", &output_filepath);
+							println!("Saved file as {}", &output_filepath);
 						},
 						Ok(_file) => println!("ERROR: file already exists: {}", &output_filepath)
 					}
 				},
 				"blk_to_png" => {
-					match fs::read(filepath) {
-						Ok(contents) => {
-							if let Some(image) = blk::decode(&contents) {
-								let output_filepath = format!("{}{}.png", path, filename);
-								match File::open(&output_filepath) {
-									Err(_why) => {
-										image.save(&output_filepath);
-										println!("SUCCESS: Saved file as {}", &output_filepath);
-									},
-									Ok(_file) => println!("ERROR: file already exists: {}", &output_filepath)
-								}
+					let output_filepath = format!("{}{}.png", path, filename);
+					match File::open(&output_filepath) {
+						Err(_why) => {
+							match fs::read(filepath) {
+								Ok(contents) => {
+									match blk::decode(&contents) {
+										Some(image) => {
+											image.save(&output_filepath);
+											println!("Saved file as {}", &output_filepath);
+										},
+										None => println!("ERROR: Unable to save file: {}", &output_filepath)
+									}
+								},
+								Err(why) => println!("ERROR: Unable to read file: {}", why)
 							}
 						},
-						Err(error) => println!("ERROR: {}", error)
+						Ok(_file) => println!("ERROR: File already exists: {}", &output_filepath)
 					}
 				},
 				"png_to_blk" => {
-					match ImageReader::open(filepath) {
-						Ok(image) => {
-							match image.decode() {
+					let output_filepath = format!("{}{}.blk", path, filename);
+					match File::open(&output_filepath) {
+						Err(_why) => {
+							match ImageReader::open(filepath) {
 								Ok(image) => {
-									let blk_data = blk::encode(image.into_rgba8());
-									let output_filepath = format!("{}{}.blk", path, filename);
-									match File::create(&output_filepath) {
-										Err(why) => println!("ERROR: {} cannot be created: {}", &output_filepath, why),
-										Ok(mut file) => {
-											file.write_all(&blk_data);
-											println!("SUCCESS: Saved file as {}", &output_filepath);
-										}
+									match image.decode() {
+										Ok(image) => {
+											let blk_data = blk::encode(image.into_rgba8());
+											match File::create(&output_filepath) {
+												Err(why) => println!("ERROR: {} cannot be created: {}", &output_filepath, why),
+												Ok(mut file) => {
+													file.write_all(&blk_data);
+													println!("Saved file as {}", &output_filepath);
+												}
+											}
+										},
+										Err(why) => println!("ERROR: Unable to read file: {}", why)
 									}
 								},
-								Err(error) => println!("ERROR: {}", error)
+								Err(why) => println!("ERROR: Unable to open file: {}", why)
 							}
 						},
-						Err(error) => println!("ERROR: {}", error)
+						Ok(_file) => println!("ERROR: File already exists: {}", &output_filepath)
 					}
 				},
 				_ => ()
