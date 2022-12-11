@@ -1,5 +1,13 @@
+use crate::c16;
+use crate::blk;
+
 use std::fmt;
+use std::fs;
+use std::str;
 use regex::Regex;
+use image::RgbaImage;
+use image::io::Reader as ImageReader;
+use bytes::{ Bytes, BytesMut, Buf, BufMut };
 
 #[derive(Clone)]
 struct Filename {
@@ -28,8 +36,6 @@ impl fmt::Display for Filename {
 		write!(f, "{}.{}", &self.title, &self.extension)
 	}
 }
-
-struct Filepath(String);
 
 enum SupportedGame {
 	C3,
@@ -69,6 +75,24 @@ impl Script {
 		Script::File {
 			filename: Filename::new(filename, "cos"),
 			supported_game: SupportedGame::new(supported_game)
+		}
+	}
+
+	fn get_data(&self, path: &str) -> Option<Bytes> {
+		match self {
+			Script::File { filename, .. } => {
+				let filepath = format!("{}{}", path, filename);
+				match fs::read(&filepath) {
+					Ok(contents) => {
+						println!("Got data from {}", &filepath);
+						Some(Bytes::copy_from_slice(&contents))
+					},
+					Err(error) => {
+						println!("ERROR: Unable to get data from {}: {}", &filepath, error);
+						None
+					}
+				}
+			}
 		}
 	}
 }
@@ -111,6 +135,47 @@ impl Sprite {
 			}
 		}
 	}
+
+	fn get_data(&self, path: &str) -> Option<Bytes> {
+		match self {
+			Sprite::C16 { filename, .. } => {
+				let filepath = format!("{}{}", path, filename);
+				match fs::read(&filepath) {
+					Ok(contents) => {
+						println!("Got data from {}", &filepath);
+						Some(Bytes::copy_from_slice(&contents))
+					},
+					Err(error) => {
+						println!("ERROR: Unable to get data from {}: {}", &filepath, error);
+						None
+					}
+				}
+			},
+			Sprite::Frames { frames, .. } => {
+				let mut images: Vec<RgbaImage> = Vec::new();
+				for frame in frames {
+					let filepath = format!("{}{}", path, frame.filename);
+					match ImageReader::open(&filepath) {
+						Ok(image) => {
+							match image.decode() {
+								Ok(image) => {
+									println!("Got data from {}", &filepath);
+									images.push(image.into_rgba8());
+								},
+								Err(error) => {
+									println!("ERROR: Unable to get data from {}: {}", &filepath, error);
+								}
+							}
+						},
+						Err(error) => {
+							println!("ERROR: Unable to get data from {}: {}", &filepath, error);
+						}
+					}
+				}
+				return Some(Bytes::from(c16::encode(images)));
+			}
+		}
+	}
 }
 
 enum Background {
@@ -126,8 +191,46 @@ impl Background {
 			_ => Background::PNG { filename }
 		}
 	}
-}
 
+	fn get_data(&self, path: &str) -> Option<Bytes> {
+		match self {
+			Background::BLK { filename } => {
+				let filepath = format!("{}{}", path, filename);
+				match fs::read(&filepath) {
+					Ok(contents) => {
+						println!("Got data from {}", &filepath);
+						Some(Bytes::copy_from_slice(&contents))
+					},
+					Err(error) => {
+						println!("ERROR: Unable to get data from {}: {}", &filepath, error);
+						None
+					}
+				}
+			},
+			Background::PNG { filename } => {
+				let filepath = format!("{}{}", path, filename);
+				match ImageReader::open(&filepath) {
+					Ok(image) => {
+						match image.decode() {
+							Ok(image) => {
+								println!("Got data from {}", &filepath);
+								Some(Bytes::from(blk::encode(image.into_rgba8())))
+							},
+							Err(error) => {
+								println!("ERROR: Unable to get data from {}: {}", &filepath, error);
+								None
+							}
+						}
+					},
+					Err(error) => {
+						println!("ERROR: Unable to get data from {}: {}", &filepath, error);
+						None
+					}
+				}
+			}
+		}
+	}
+}
 
 struct Sound {
 	filename: Filename
@@ -137,6 +240,20 @@ impl Sound {
 	fn new(filename: &str) -> Sound {
 		Sound {
 			filename: Filename::new(filename, "wav")
+		}
+	}
+
+	fn get_data(&self, path: &str) -> Option<Bytes> {
+		let filepath = format!("{}{}", path, self.filename);
+		match fs::read(&filepath) {
+			Ok(contents) => {
+				println!("Got data from {}", &filepath);
+				Some(Bytes::copy_from_slice(&contents))
+			},
+			Err(error) => {
+				println!("ERROR: Unable to get data from {}: {}", &filepath, error);
+				None
+			}
 		}
 	}
 }
@@ -182,6 +299,37 @@ impl Catalogue {
 			}
 		}
 	}
+
+	fn get_data(&self, path: &str) -> Option<Bytes> {
+		match self {
+			Catalogue::File { filename } => {
+				let filepath = format!("{}{}", path, filename);
+				match fs::read(&filepath) {
+					Ok(contents) => {
+						println!("Got data from {}", &filepath);
+						Some(Bytes::copy_from_slice(&contents))
+					},
+					Err(error) => {
+						println!("ERROR: Unable to get data from {}: {}", &filepath, error);
+						None
+					}
+				}
+			},
+			Catalogue::Inline { filename, entries } => {
+				let mut contents = String::new();
+				for entry in entries {
+					contents += format!(
+						"TAG \"Agent Help {}\"\n\"{}\"\n\"{}\"\n\n",
+						entry.classifier,
+						entry.name,
+						entry.description
+					).as_str();
+				}
+				println!("Catalogue created: {}", filename);
+				Some(Bytes::copy_from_slice(contents.as_bytes()))
+			}
+		}
+	}
 }
 
 //struct Genetics {
@@ -210,41 +358,55 @@ enum InjectorPreview {
 }
 
 struct AgentTag {
-	filepath: Filepath,
+	filepath: String,
 	name: String,
 	version: String,
 	description: String,
 	supported_game: SupportedGame,
 	remove_script: RemoveScript,
 	injector_preview: InjectorPreview,
+
 	scripts: Vec<Script>,
 	sprites: Vec<Sprite>,
 	backgrounds: Vec<Background>,
 	sounds: Vec<Sound>,
-	catalogues: Vec<Catalogue>
+	catalogues: Vec<Catalogue>,
+
+	script_files: Vec<Bytes>,
+	sprite_files: Vec<Bytes>,
+	background_files: Vec<Bytes>,
+	sound_files: Vec<Bytes>,
+	catalogue_files: Vec<Bytes>
 }
 
 impl AgentTag {
 	fn new() -> AgentTag {
 		AgentTag {
-			filepath: Filepath(String::from("")),
+			filepath: String::from(""),
 			name: String::from(""),
 			version: String::from(""),
 			description: String::from(""),
 			supported_game: SupportedGame::C3DS,
 			remove_script: RemoveScript::None,
 			injector_preview: InjectorPreview::Auto,
+
 			scripts: Vec::new(),
 			sprites: Vec::new(),
 			backgrounds: Vec::new(),
 			sounds: Vec::new(),
 			catalogues: Vec::new(),
+
+			script_files: Vec::new(),
+			sprite_files: Vec::new(),
+			background_files: Vec::new(),
+			sound_files: Vec::new(),
+			catalogue_files: Vec::new()
 		}
 	}
 }
 
 //struct EggTag {
-//	filepath: Filepath,
+//	filepath: String,
 //	name: String,
 //	version: String,
 //	preview_sprite_male: String,
@@ -254,13 +416,118 @@ impl AgentTag {
 //	sprites: Vec<Sprite>
 //}
 
-enum Tag {
+pub enum Tag {
 	Empty,
 	Agent(AgentTag),
 	//Egg(EggTag)
 }
 
-fn parse_tokens(s:&str) -> Vec<String> {
+impl Tag {
+	fn add_data(&mut self) {
+		match self {
+			Tag::Agent(tag) => {
+				let path = &tag.filepath;
+
+				// script files
+				for script in &tag.scripts {
+					tag.script_files.push(match script.get_data(&path) {
+						Some(data) => data,
+						None => Bytes::new()
+					});
+				}
+
+				// sprite files
+				for sprite in &tag.sprites {
+					tag.sprite_files.push(match sprite.get_data(&path) {
+						Some(data) => data,
+						None => Bytes::new()
+					});
+				}
+
+				// background files
+				for background in &tag.backgrounds {
+					tag.background_files.push(match background.get_data(&path) {
+						Some(data) => data,
+						None => Bytes::new()
+					});
+				}
+
+				// sound files
+				for sound in &tag.sounds {
+					tag.sound_files.push(match sound.get_data(&path) {
+						Some(data) => data,
+						None => Bytes::new()
+					});
+				}
+
+				// catalogue files
+				for catalogue in &tag.catalogues {
+					tag.catalogue_files.push(match catalogue.get_data(&path) {
+						Some(data) => data,
+						None => Bytes::new()
+					});
+				}
+
+				// remove script
+				if tag.script_files.len() > 0 {
+					if let RemoveScript::Auto = tag.remove_script {
+						match str::from_utf8(&tag.script_files[0]) {
+							Ok(script) => {
+								let remove_script_pattern = Regex::new(r"[\n\r]rscr[\n\r]([\s\S]*)").unwrap();
+								match remove_script_pattern.captures(script) {
+									Some(captures) => {
+										match captures.get(1) {
+											Some(remove_script) => {
+												let remove_newlines_pattern = Regex::new(r"\s+").unwrap();
+												let remove_script = String::from(
+													remove_newlines_pattern.replace_all(remove_script.as_str(), " ").trim()
+												);
+												println!("Remove script extracted from first script: \"{}\"", &remove_script);
+												tag.remove_script = RemoveScript::Manual(remove_script);
+											},
+											None => {
+												println!("ERROR: No remove script found in first script.");
+												tag.remove_script = RemoveScript::None;
+											}
+										}
+
+									},
+									None => {
+										println!("ERROR: No remove script found in first script.");
+										tag.remove_script = RemoveScript::None;
+									}
+								}
+							},
+							Err(error) => {
+								println!("ERROR: Unable to extract remove script from first script: {}", error);
+								tag.remove_script = RemoveScript::None;
+							}
+						}
+					}
+				}
+
+				// injector preview
+				if tag.sprites.len() > 0 {
+					if let InjectorPreview::Auto = tag.injector_preview {
+						let sprite_name = match &tag.sprites[0] {
+							Sprite::C16 { filename, .. } => &filename.title,
+							Sprite::Frames { filename, .. } => &filename.title
+						};
+						tag.injector_preview = InjectorPreview::Manual {
+							sprite: String::from(sprite_name),
+							animation: String::from("0")
+						};
+						println!("Injector preview generated: {} \"0\"", sprite_name);
+					}
+				}
+			},
+
+			Tag::Empty => ()
+		}
+	}
+}
+
+fn parse_tokens(s: &str) -> Vec<String> {
 	let mut tokens: Vec<String> = Vec::new();
 	let mut current_token = String::from("");
 	let mut is_in_quote = false;
@@ -310,10 +577,10 @@ fn parse_tokens(s:&str) -> Vec<String> {
 	return tokens;
 }
 
-pub fn parse_source(contents: &str) {
+pub fn parse_source(contents: &str, path: &str) -> Vec<Tag> {
 	//let contents = "agent \"Aibo Ball\" c3ds\n\nversion \"1.0.4\"\ndescription \"We took the iconic pink ball away from an aibo so your norns can play with it instead.\"\npreview \"aibo_ball.c16\" \"1 2 3 3\"\nremovescript \"enum 000\"\nscript \"aibo_ball.cos\" ds\nsprite \"aibo_ball.c16\"\nframe \"aibo_ball1.png\"\nframe \"aibo_ball2.png\"\nframe \"aibo_ball3.png\"\nbackground \"bg.png\"\nsound \"blop.wav\"\ncatalogue \"aibo_ball.catalogue\"\nentry \"2 21 21212\" \"Aibo Ball\" \"We took the iconic pink ball away from an aibo so your norns can play with it instead.\"";
-
 	let mut tags: Vec<Tag> = Vec::new();
+
 	for line in contents.lines() {
 		let tokens = parse_tokens(line.trim());
 		if tokens.len() == 0 {
@@ -332,13 +599,13 @@ pub fn parse_source(contents: &str) {
 						if let Some(i) = tokens.get(1) {
 							tag.version = String::from(i);
 						}
-						println!("set version: {}", tag.version);
+						println!("> Version: {}", tag.version);
 					},
 					"description" => {
 						if let Some(i) = tokens.get(1) {
 							tag.description = String::from(i);
 						}
-						println!("set description: {}", tag.description);
+						println!("> Description: {}", tag.description);
 					},
 					"preview" => {
 						let sprite = match tokens.get(1) {
@@ -350,7 +617,7 @@ pub fn parse_source(contents: &str) {
 							Some(i) => String::from(i)
 						};
 						if sprite.len() > 0 {
-							println!("set preview: {} \"{}\"", sprite, animation);
+							println!("Preview: {} \"{}\"", sprite, animation);
 							tag.injector_preview = InjectorPreview::Manual{ sprite, animation };
 						}
 					},
@@ -362,7 +629,7 @@ pub fn parse_source(contents: &str) {
 								_ => RemoveScript::Manual(i.to_string())
 							}
 						};
-						println!("set remove script: {}", tag.remove_script)
+						println!("> Remove script: {}", tag.remove_script)
 					},
 					"script" => {
 						if let Some(filename) = tokens.get(1) {
@@ -372,14 +639,14 @@ pub fn parse_source(contents: &str) {
 							};
 							let script = Script::new(filename, supported_game);
 							tag.scripts.push(script);
-							println!("add script! script count: {}", tag.scripts.len());
+							println!("> Add script (total: {})", tag.scripts.len());
 						}
 					},
 					"sprite" => {
 						if let Some(filename) = tokens.get(1) {
 							let sprite = Sprite::new(filename);
 							tag.sprites.push(sprite);
-							println!("add sprite! sprite count: {}", tag.scripts.len());
+							println!("> Add sprite (total: {})", tag.scripts.len());
 						}
 					},
 					"frame" => {
@@ -389,7 +656,7 @@ pub fn parse_source(contents: &str) {
 								let frame = SpriteFrame::new(filename);
 								current_sprite.add_frame(frame);
 								if let Sprite::Frames { frames, .. } = current_sprite {
-									println!("> add frame {}", frames.len());
+									println!("> > Add frame (total: {})", frames.len());
 								}
 							}
 						}
@@ -398,21 +665,21 @@ pub fn parse_source(contents: &str) {
 						if let Some(filename) = tokens.get(1) {
 							let background = Background::new(filename);
 							tag.backgrounds.push(background);
-							println!("add background! background count: {}", tag.backgrounds.len());
+							println!("> Add background (total: {})", tag.backgrounds.len());
 						}
 					},
 					"sound" => {
 						if let Some(filename) = tokens.get(1) {
 							let sound = Sound::new(filename);
 							tag.sounds.push(sound);
-							println!("add sound! sound count: {}", tag.sounds.len());
+							println!("> Add sound (total: {})", tag.sounds.len());
 						}
 					},
 					"catalogue" => {
 						if let Some(filename) = tokens.get(1) {
 							let catalogue = Catalogue::new(filename);
 							tag.catalogues.push(catalogue);
-							println!("add catalogue! catalogue count: {}", tag.catalogues.len());
+							println!("> Add catalogue (total: {})", tag.catalogues.len());
 						}
 					},
 					"entry" => {
@@ -422,7 +689,7 @@ pub fn parse_source(contents: &str) {
 								let entry = CatalogueEntry::new(classifier, name, description);
 								current_catalogue.add_entry(entry);
 								if let Catalogue::Inline { entries, .. } = current_catalogue {
-									println!("> add entry {}", entries.len());
+									println!("> > Add entry (total: {})", entries.len());
 								}
 							}
 						}
@@ -440,16 +707,26 @@ pub fn parse_source(contents: &str) {
 						if let Some(i) = tokens.get(2) {
 							tag.supported_game = SupportedGame::new(i.as_str());
 						}
-						println!("agent name: {}", tag.name);
-						println!("supported game: {}", tag.supported_game);
+						tag.filepath = String::from(path);
+						println!("Add agent \"{}\"", tag.name);
+						println!("> Path: {}", tag.filepath);
+						println!("> Supported game: {}", tag.supported_game);
 						tags.push(Tag::Agent(tag));
 					},
 					"egg" => {
-						println!("create egg tag");
+						println!("Add egg");
 					},
 					_ => ()
 				}
 			}
 		}
+	}
+
+	return tags;
+}
+
+pub fn compile(tags: &mut Vec<Tag>) {
+	for tag in tags {
+		tag.add_data();
 	}
 }

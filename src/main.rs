@@ -15,24 +15,27 @@ fn main() {
 	if let (Some(action), Some(filepath)) = (&args.get(1), &args.get(2)) {
 		let filepath_pattern = Regex::new(r"^(.*[\\/])?(.+)\.(.+)$").unwrap();
 		if let Some(captures) = filepath_pattern.captures(filepath) {
+			let path = match captures.get(1) {
+				Some(m) => m.as_str(),
+				None => ""
+			};
 
-			println!("num captures: {}", captures.len());
-			for i in 0..captures.len() {
-				if let Some(capture) = captures.get(i) {
-					println!("capture: {:?}", capture);
-				}
-			}
+			let filename = match captures.get(2) {
+				Some(m) => m.as_str(),
+				None => ""
+			};
 
-			let path = &captures[1];
-			let filename = &captures[2];
-			let extension = &captures[3];
+			let extension = match captures.get(3) {
+				Some(m) => m.as_str(),
+				None => ""
+			};
 
 			match action.as_str() {
 				"compile" => {
 					match fs::read_to_string(filepath) {
 						Ok(contents) => {
-							println!("COMPILE AGENT FROM: {}", filepath);
-							agent::parse_source(&contents);
+							let mut tags = agent::parse_source(&contents, path);
+							agent::compile(&mut tags);
 						},
 						Err(error) => {
 							println!("ERROR: {}", error)
@@ -42,13 +45,13 @@ fn main() {
 				"c16_to_png" => {
 					match fs::read(filepath) {
 						Ok(contents) => {
-							println!("READ C16 FROM: {}", filepath);
 							let images = c16::decode(&contents);
 							for (i, image) in images.iter().enumerate() {
 								let output_filepath = format!("{}{}-{}.png", path, filename, i);
 								match File::open(&output_filepath) {
 									Err(_why) => {
 										image.save(&output_filepath);
+										println!("SUCCESS: Saved file as {}", &output_filepath);
 									},
 									Ok(_file) => println!("ERROR: file already exists: {}", &output_filepath)
 								}
@@ -78,6 +81,7 @@ fn main() {
 									file.write_all(&c16_data);
 								}
 							}
+							println!("SUCCESS: Saved file as {}", &output_filepath);
 						},
 						Ok(_file) => println!("ERROR: file already exists: {}", &output_filepath)
 					}
@@ -85,12 +89,12 @@ fn main() {
 				"blk_to_png" => {
 					match fs::read(filepath) {
 						Ok(contents) => {
-							println!("READ BLK FROM: {}", filepath);
 							if let Some(image) = blk::decode(&contents) {
 								let output_filepath = format!("{}{}.png", path, filename);
 								match File::open(&output_filepath) {
 									Err(_why) => {
 										image.save(&output_filepath);
+										println!("SUCCESS: Saved file as {}", &output_filepath);
 									},
 									Ok(_file) => println!("ERROR: file already exists: {}", &output_filepath)
 								}
@@ -104,7 +108,6 @@ fn main() {
 				"png_to_blk" => {
 					match fs::read(filepath) {
 						Ok(contents) => {
-							println!("WRITE BLK FROM: {}", filepath);
 							if let Ok(image) = ImageReader::open(filepath) {
 								if let Ok(image) = image.decode() {
 									let blk_data = blk::encode(image.into_rgba8());
@@ -113,6 +116,7 @@ fn main() {
 										Err(why) => println!("ERROR: {} cannot be created: {}", &output_filepath, why),
 										Ok(mut file) => {
 											file.write_all(&blk_data);
+											println!("SUCCESS: Saved file as {}", &output_filepath);
 										}
 									}
 								}
