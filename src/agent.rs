@@ -77,22 +77,10 @@ pub enum Script {
 }
 
 impl Script {
-	fn new(filename: &str, supported_game: &str) -> Script {
+	pub fn new(filename: &str, supported_game: &str) -> Script {
 		Script::File {
 			filename: Filename::new(filename, "cos"),
 			supported_game: SupportedGame::new(supported_game)
-		}
-	}
-
-	pub fn get_filename(&self) -> String {
-		match self {
-			Script::File { filename, .. } => filename.as_string()
-		}
-	}
-
-	pub fn get_title(&self) -> String {
-		match self {
-			Script::File { filename, .. } => filename.title.clone()
 		}
 	}
 
@@ -293,10 +281,6 @@ impl Sound {
 		self.filename.as_string()
 	}
 
-	pub fn get_title(&self) -> String {
-		self.filename.title.clone()
-	}
-
 	fn get_data(&self, path: &str) -> Option<Bytes> {
 		let filepath = format!("{}{}", path, self.filename);
 		match fs::read(&filepath) {
@@ -313,7 +297,7 @@ impl Sound {
 }
 
 #[derive(Clone)]
-struct CatalogueEntry {
+pub struct CatalogueEntry {
 	classifier: String,
 	name: String,
 	description: String
@@ -360,13 +344,6 @@ impl Catalogue {
 		match self {
 			Catalogue::File { filename } => filename.as_string(),
 			Catalogue::Inline { filename, .. } => filename.as_string()
-		}
-	}
-
-	pub fn get_title(&self) -> String {
-		match self {
-			Catalogue::File { filename } => filename.title.clone(),
-			Catalogue::Inline { filename, .. } => filename.title.clone()
 		}
 	}
 
@@ -453,7 +430,7 @@ pub struct AgentTag {
 }
 
 impl AgentTag {
-	fn new() -> AgentTag {
+	pub fn new() -> AgentTag {
 		AgentTag {
 			filepath: String::from(""),
 			name: String::from(""),
@@ -804,6 +781,10 @@ pub fn parse_source(contents: &str, path: &str) -> Vec<Tag> {
 	return tags;
 }
 
+// pub encode_source(tags: Vec<Tag>) -> String {
+
+// }
+
 fn split_c3ds_tags(tags: &Vec<Tag>) -> Vec<Tag> {
 	let mut new_tags: Vec<Tag> = Vec::new();
 	for tag in tags {
@@ -817,22 +798,21 @@ fn split_c3ds_tags(tags: &Vec<Tag>) -> Vec<Tag> {
 						let mut ds_script_files: Vec<Bytes> = Vec::new();
 
 						for (i, script) in agent_tag.scripts.iter().enumerate() {
-							if let Script::File { supported_game, .. } = script {
-								match supported_game {
-									SupportedGame::C3 => {
-										c3_scripts.push(script.clone());
-										c3_script_files.push(agent_tag.script_files.get(i).unwrap().clone());
-									},
-									SupportedGame::DS => {
-										ds_scripts.push(script.clone());
-										ds_script_files.push(agent_tag.script_files.get(i).unwrap().clone());
-									},
-									SupportedGame::C3DS => {
-										c3_scripts.push(script.clone());
-										ds_scripts.push(script.clone());
-										c3_script_files.push(agent_tag.script_files.get(i).unwrap().clone());
-										ds_script_files.push(agent_tag.script_files.get(i).unwrap().clone());
-									}
+							let Script::File { supported_game, .. } = script;
+							match supported_game {
+								SupportedGame::C3 => {
+									c3_scripts.push(script.clone());
+									c3_script_files.push(agent_tag.script_files.get(i).unwrap().clone());
+								},
+								SupportedGame::DS => {
+									ds_scripts.push(script.clone());
+									ds_script_files.push(agent_tag.script_files.get(i).unwrap().clone());
+								},
+								SupportedGame::C3DS => {
+									c3_scripts.push(script.clone());
+									ds_scripts.push(script.clone());
+									c3_script_files.push(agent_tag.script_files.get(i).unwrap().clone());
+									ds_script_files.push(agent_tag.script_files.get(i).unwrap().clone());
 								}
 							}
 						}
@@ -876,4 +856,9 @@ pub fn compile(mut tags: Vec<Tag>) -> Bytes {
 	println!("");
 	let data = pray::encode(&tags);
 	return data;
+}
+
+pub fn decompile(contents: &[u8]) -> (Vec<Tag>, Vec<(String, Bytes)>) {
+	let (tags, files) = pray::decode(contents);
+	return (tags, files)
 }

@@ -26,10 +26,10 @@ fn main() {
 				None => ""
 			};
 
-			let extension = match captures.get(3) {
-				Some(m) => m.as_str(),
-				None => ""
-			};
+			// let _extension = match captures.get(3) {
+			// 	Some(m) => m.as_str(),
+			// 	None => ""
+			// };
 
 			match action.as_str() {
 				"compile" => {
@@ -43,17 +43,47 @@ fn main() {
 									let data = agent::compile(tags);
 									println!("");
 									match File::create(&output_filepath) {
-										Err(why) => println!("ERROR: {} cannot be created: {}", &output_filepath, why),
 										Ok(mut file) => {
-											file.write_all(&data);
-											println!("Saved file as {}", &output_filepath);
-										}
+											let result = file.write_all(&data);
+											match result {
+												Ok(_) => println!("Saved file: {}", &output_filepath),
+												Err(why) => println!("ERROR: {} cannot be created: {}", &output_filepath, why)
+											}
+										},
+										Err(why) => println!("ERROR: {} cannot be created: {}", &output_filepath, why)
 									}
 								},
 								Err(why) => println!("ERROR: {}", why)
 							}
 						},
 						Ok(_file) => println!("ERROR: file already exists: {}", &output_filepath)
+					}
+				},
+				"decompile" => {
+					match fs::read(filepath) {
+						Ok(contents) => {
+							let path = format!("{}{} files/", path, filename);
+							match fs::create_dir(&path) {
+								Ok(()) => {
+									let (_tags, files) = agent::decompile(&contents);
+									for (filename, data) in files {
+										let output_filepath = format!("{}{}", path, filename);
+										match File::create(&output_filepath) {
+											Ok(mut file) => {
+												let result = file.write_all(&data);
+												match result {
+													Ok(_) => println!("Saved file: {}", &output_filepath),
+													Err(why) => println!("ERROR: {} could not be saved: {}", &output_filepath, why)
+												}
+											},
+											Err(why) => println!("ERROR: {} cannot be created: {}", &output_filepath, why)
+										}
+									}
+								},
+								Err(why) => println!("ERROR: Unable to create folder {}: {}", path, why)
+							}
+						},
+						Err(why) => println!("ERROR: Unable to read file: {}", why)
 					}
 				},
 				"c16_to_png" => {
@@ -63,11 +93,14 @@ fn main() {
 							for (i, image) in images.iter().enumerate() {
 								let output_filepath = format!("{}{}-{}.png", path, filename, i);
 								match File::open(&output_filepath) {
+									Ok(_file) => println!("ERROR: File already exists: {}", &output_filepath),
 									Err(_why) => {
-										image.save(&output_filepath);
-										println!("Saved file as {}", &output_filepath);
+										let result = image.save(&output_filepath);
+										match result {
+											Ok(_) => println!("Saved file: {}", &output_filepath),
+											Err(why) => println!("ERROR: {} could not be saved: {}", &output_filepath, why)
+										}
 									},
-									Ok(_file) => println!("ERROR: File already exists: {}", &output_filepath)
 								}
 							}
 						},
@@ -88,12 +121,16 @@ fn main() {
 							}
 							let c16_data = c16::encode(images);
 							match File::create(&output_filepath) {
-								Err(why) => println!("ERROR: {} cannot be created: {}", &output_filepath, why),
 								Ok(mut file) => {
-									file.write_all(&c16_data);
-								}
+									let result = file.write_all(&c16_data);
+									match result {
+										Ok(_) => println!("Saved file: {}", &output_filepath),
+										Err(why) => println!("ERROR: {} could not be saved: {}", &output_filepath, why)
+									}
+								},
+								Err(why) => println!("ERROR: {} cannot be created: {}", &output_filepath, why)
 							}
-							println!("Saved file as {}", &output_filepath);
+							println!("Saved file: {}", &output_filepath);
 						},
 						Ok(_file) => println!("ERROR: file already exists: {}", &output_filepath)
 					}
@@ -106,8 +143,11 @@ fn main() {
 								Ok(contents) => {
 									match blk::decode(&contents) {
 										Some(image) => {
-											image.save(&output_filepath);
-											println!("Saved file as {}", &output_filepath);
+											let result = image.save(&output_filepath);
+											match result {
+												Ok(_) => println!("Saved file: {}", &output_filepath),
+												Err(why) => println!("ERROR: {} could not be saved: {}", &output_filepath, why)
+											}
 										},
 										None => println!("ERROR: Unable to save file: {}", &output_filepath)
 									}
@@ -130,8 +170,11 @@ fn main() {
 											match File::create(&output_filepath) {
 												Err(why) => println!("ERROR: {} cannot be created: {}", &output_filepath, why),
 												Ok(mut file) => {
-													file.write_all(&blk_data);
-													println!("Saved file as {}", &output_filepath);
+													let result = file.write_all(&blk_data);
+													match result {
+														Ok(_) => println!("Saved file: {}", &output_filepath),
+														Err(why) => println!("ERROR: {} could not be saved: {}", &output_filepath, why)
+													}
 												}
 											}
 										},

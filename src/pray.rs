@@ -1,7 +1,16 @@
 use crate::agent::*;
 
 use std::str;
+use std::collections::HashMap;
 use bytes::{ Bytes, BytesMut, Buf, BufMut };
+
+struct BlockHeader {
+	block_type: String,
+	name: String,
+	size: usize,
+	size_compressed: usize,
+	is_compressed: bool
+}
 
 struct IntValue {
 	name: String,
@@ -11,6 +20,167 @@ struct IntValue {
 struct StrValue {
 	name: String,
 	value: String
+}
+
+enum InfoValue {
+	Int(u32),
+	Str(String)
+}
+
+fn read_string(buffer: &mut Bytes, num_bytes: usize) -> String {
+	let mut string = String::from("");
+	for _i in 0..num_bytes {
+		let byte = buffer.get_u8();
+		if byte != 0 {
+			if let Ok(char) = str::from_utf8(&[byte]) {
+				string += char;
+			}
+		}
+	}
+	return string;
+}
+
+fn read_info_block(buffer: &mut Bytes) -> HashMap<String, InfoValue> {
+	let mut info: HashMap<String, InfoValue> = HashMap::new();
+
+	let int_value_count = buffer.get_u32_le();
+	for _i in 0..int_value_count {
+		let name_length = buffer.get_u32_le();
+		let name = read_string(buffer, name_length as usize);
+		let value = buffer.get_u32_le();
+		info.insert(name, InfoValue::Int(value));
+	}
+
+	let str_value_count = buffer.get_u32_le();
+	for _i in 0..str_value_count {
+		let name_length = buffer.get_u32_le();
+		let name = read_string(buffer, name_length as usize);
+		let value_length = buffer.get_u32_le();
+		let value = read_string(buffer, value_length as usize);
+		info.insert(name, InfoValue::Str(value));
+	}
+
+	return info;
+}
+
+fn read_block_header(buffer: &mut Bytes) -> BlockHeader {
+	BlockHeader {
+		block_type: read_string(buffer, 4),
+		name: read_string(buffer, 128),
+		size: buffer.get_u32_le() as usize,
+		size_compressed: buffer.get_u32_le() as usize,
+		is_compressed: buffer.get_u32_le() == 1
+	}
+}
+
+fn read_agent_block(buffer: &mut Bytes, files: &mut Vec<(String, Bytes)>, block_name: String, supported_game: SupportedGame) -> AgentTag {
+	let mut tag = AgentTag::new();
+	tag.name = block_name.clone();
+	tag.supported_game = supported_game;
+
+	let mut preview_sprite = String::from("");
+	let mut preview_animation = String::from("");
+
+	let info = read_info_block(buffer);
+	for (key, value) in info {
+		match key.as_str() {
+			"Agent Description" => {
+				if let InfoValue::Str(value) = value {
+					tag.description = value.clone();
+				}
+			},
+			"Agent Animation Gallery" => {
+				if let InfoValue::Str(value) = value {
+					preview_sprite = value.clone();
+				}
+			},
+			"Agent Animation String" => {
+				if let InfoValue::Str(value) = value {
+					preview_animation = value.clone();
+				}
+			},
+			"Remove script" => {
+				if let InfoValue::Str(value) = value {
+					tag.remove_script = RemoveScript::Manual(value.clone());
+				}
+			},
+			_ => {
+				if key.starts_with("Script") {
+					if let InfoValue::Str(value) = value {
+						let supported_game_string = format!("{}", &tag.supported_game);
+						tag.scripts.push(Script::new(&block_name, supported_game_string.as_str()));
+
+						println!("Extracted file: {}", &block_name);
+						let data = Bytes::from(value);
+						files.push((format!("{}.cos", &block_name), data));
+					}
+
+				} else if key.starts_with("Dependency") {
+					//
+				}
+			}
+		}
+	}
+
+	if preview_sprite != "" && preview_animation != "" {
+		tag.injector_preview = InjectorPreview::Manual {
+			sprite: preview_sprite,
+			animation: preview_animation
+		};
+	}
+
+	return tag;
+}
+
+pub fn decode(contents: &[u8]) -> (Vec<Tag>, Vec<(String, Bytes)>) {
+	let mut tags: Vec<Tag> = Vec::new();
+	let mut files: Vec<(String, Bytes)> = Vec::new();
+
+	let mut buffer = Bytes::copy_from_slice(contents);
+	if buffer.len() >= 4 {
+		let file_id = read_string(&mut buffer, 4);
+		if file_id == "PRAY" {
+			while buffer.len() >= 144 {
+				let block_header = read_block_header(&mut buffer);
+				if block_header.is_compressed {
+					println!("ERROR: Unable to extract compressed data from block {} {}", block_header.block_type, block_header.name);
+					if buffer.len() >= block_header.size_compressed {
+						buffer.advance(block_header.size_compressed);
+					} else {
+						println!("ERROR: File ends before block {} {} ends", block_header.block_type, block_header.name);
+						break;
+					}
+				} else if buffer.len() >= block_header.size {
+					match block_header.block_type.as_str() {
+						"FILE" => {
+							println!("Extracted file: {}", &block_header.name);
+							let data = Bytes::from(buffer.copy_to_bytes(block_header.size));
+							files.push((block_header.name, data));
+						},
+						"AGNT" => {
+							println!("Agent Block: {}", &block_header.name);
+							let agent_tag = read_agent_block(&mut buffer, &mut files, block_header.name, SupportedGame::C3);
+							tags.push(Tag::Agent(agent_tag));
+						},
+						"DSAG" => {
+							println!("Agent Block: {}", &block_header.name);
+							let agent_tag = read_agent_block(&mut buffer, &mut files, block_header.name, SupportedGame::DS);
+							tags.push(Tag::Agent(agent_tag));
+						},
+						_ => {
+							println!("ERROR: Unknown block {} {}", block_header.block_type, block_header.name);
+							buffer.advance(block_header.size);
+						}
+					}
+				} else {
+					println!("ERROR: File ends before block {} {} ends", block_header.block_type, block_header.name);
+					break;
+				}
+			}
+		}
+	}
+
+	return (tags, files);
 }
 
 fn write_string(buffer: &mut BytesMut, num_bytes: usize, string: &str) {
@@ -31,7 +201,7 @@ fn write_block_header(buffer: &mut BytesMut, block_type: &str, block_name: &Stri
 	buffer.put_u32_le(0); // compression flag - it's off, we're not compressing anything
 }
 
-fn write_tags_block(buffer: &mut BytesMut, int_values: Vec<IntValue>, str_values: Vec<StrValue>) {
+fn write_info_block(buffer: &mut BytesMut, int_values: Vec<IntValue>, str_values: Vec<StrValue>) {
 	buffer.put_u32_le(int_values.len() as u32);
 	for val in int_values {
 		buffer.put_u32_le(val.name.len() as u32);
@@ -98,7 +268,7 @@ fn write_agent_block(buffer: &mut BytesMut, tag: &AgentTag) {
 		name: String::from("Script Count"),
 		value: tag.scripts.len() as u32
 	});
-	for (i, script) in tag.scripts.iter().enumerate() {
+	for i in 0..tag.scripts.len() {
 		str_values.push(StrValue{
 			name: format!("Script {}", i + 1),
 			value: str::from_utf8(&tag.script_files[0]).unwrap().to_string()
@@ -173,7 +343,7 @@ fn write_agent_block(buffer: &mut BytesMut, tag: &AgentTag) {
 	});
 
 	let mut block_buffer = BytesMut::new();
-	write_tags_block(&mut block_buffer, int_values, str_values);
+	write_info_block(&mut block_buffer, int_values, str_values);
 
 	write_block_header(buffer, block_type, &tag.name, block_buffer.len() as u32);
 	buffer.unsplit(block_buffer);
