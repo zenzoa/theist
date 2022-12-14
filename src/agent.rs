@@ -12,12 +12,12 @@ use bytes::Bytes;
 
 #[derive(Clone)]
 pub struct Filename {
-	title: String,
-	extension: String
+	pub title: String,
+	pub extension: String
 }
 
 impl Filename {
-	fn new(filename_string: &str, fallback_extension: &str) -> Filename {
+	pub fn new(filename_string: &str, fallback_extension: &str) -> Filename {
 		let filename_pattern = Regex::new(r"^(.+)\.(.+)$").unwrap();
 		match filename_pattern.captures(filename_string) {
 			None => Filename {
@@ -105,7 +105,7 @@ impl Script {
 
 #[derive(Clone)]
 pub struct SpriteFrame {
-	filename: Filename
+	pub filename: Filename
 }
 
 impl SpriteFrame {
@@ -673,7 +673,7 @@ pub fn parse_source(contents: &str, path: &str) -> Vec<Tag> {
 							Some(i) => String::from(i)
 						};
 						if sprite.len() > 0 {
-							println!("Preview: {} \"{}\"", sprite, animation);
+							println!("  Preview: {} \"{}\"", sprite, animation);
 							tag.injector_preview = InjectorPreview::Manual{ sprite, animation };
 						}
 					},
@@ -781,53 +781,108 @@ pub fn parse_source(contents: &str, path: &str) -> Vec<Tag> {
 	return tags;
 }
 
-// pub encode_source(tags: Vec<Tag>) -> String {
+pub fn encode_source(tags: Vec<Tag>) -> Bytes {
+	let mut source = String::from("");
 
-// }
+	for tag in tags {
+		match tag {
+			Tag::Agent(tag) => {
+				source += format!("agent \"{}\" {}\n", &tag.name, &tag.supported_game).as_str();
+
+				if tag.description.len() > 0 {
+					source += format!("\tdescription \"{}\"\n", &tag.description).as_str();
+				}
+
+				if let InjectorPreview::Manual { sprite, animation } = tag.injector_preview {
+					source += format!("\tpreview \"{}\" \"{}\"\n", &sprite, &animation).as_str();
+				}
+
+				match tag.remove_script {
+					RemoveScript::Manual(remove_script) => {
+						source += format!("\tremovescript \"{}\"\n", &remove_script).as_str();
+					},
+					RemoveScript::Auto => {
+						source += "\tremovescript auto\n";
+					},
+					_ => ()
+				}
+
+				for script in tag.scripts {
+					let Script::File { filename, supported_game } = script;
+					source += format!("\tdescription \"{}\" {}\n", &filename, &supported_game).as_str();
+				}
+
+				for sprite in tag.sprites {
+					source += format!("\tsprite \"{}\"\n", sprite.get_filename()).as_str();
+					if let Sprite::Frames { frames, .. } = sprite {
+						for frame in frames {
+							source += format!("\t\tframe \"{}\"\n", frame.filename).as_str();
+						}
+					}
+				}
+
+				for background in tag.backgrounds {
+					source += format!("\tbackground \"{}\"\n", &background.get_filename()).as_str();
+				}
+
+				for sound in tag.sounds {
+					source += format!("\tsound \"{}\"\n", &sound.get_filename()).as_str();
+				}
+
+				for catalogue in tag.catalogues {
+					source += format!("\tcatalogue \"{}\"\n", &catalogue.get_filename()).as_str();
+				}
+			},
+			_ => ()
+		}
+	}
+
+	return Bytes::from(source);
+}
 
 fn split_c3ds_tags(tags: &Vec<Tag>) -> Vec<Tag> {
 	let mut new_tags: Vec<Tag> = Vec::new();
 	for tag in tags {
 		match tag {
-			Tag::Agent(agent_tag) => {
-				match agent_tag.supported_game {
+			Tag::Agent(tag) => {
+				match tag.supported_game {
 					SupportedGame::C3DS => {
 						let mut c3_scripts: Vec<Script> = Vec::new();
 						let mut ds_scripts: Vec<Script> = Vec::new();
 						let mut c3_script_files: Vec<Bytes> = Vec::new();
 						let mut ds_script_files: Vec<Bytes> = Vec::new();
 
-						for (i, script) in agent_tag.scripts.iter().enumerate() {
+						for (i, script) in tag.scripts.iter().enumerate() {
 							let Script::File { supported_game, .. } = script;
 							match supported_game {
 								SupportedGame::C3 => {
 									c3_scripts.push(script.clone());
-									c3_script_files.push(agent_tag.script_files.get(i).unwrap().clone());
+									c3_script_files.push(tag.script_files.get(i).unwrap().clone());
 								},
 								SupportedGame::DS => {
 									ds_scripts.push(script.clone());
-									ds_script_files.push(agent_tag.script_files.get(i).unwrap().clone());
+									ds_script_files.push(tag.script_files.get(i).unwrap().clone());
 								},
 								SupportedGame::C3DS => {
 									c3_scripts.push(script.clone());
 									ds_scripts.push(script.clone());
-									c3_script_files.push(agent_tag.script_files.get(i).unwrap().clone());
-									ds_script_files.push(agent_tag.script_files.get(i).unwrap().clone());
+									c3_script_files.push(tag.script_files.get(i).unwrap().clone());
+									ds_script_files.push(tag.script_files.get(i).unwrap().clone());
 								}
 							}
 						}
 
-						println!("Split \"{}\" into \"{} C3\" and \"{} DS\"", agent_tag.name, agent_tag.name, agent_tag.name);
+						println!("Split \"{}\" into \"{} C3\" and \"{} DS\"", tag.name, tag.name, tag.name);
 
-						let mut c3_tag = agent_tag.clone();
-						c3_tag.name = format!("{} C3", agent_tag.name);
+						let mut c3_tag = tag.clone();
+						c3_tag.name = format!("{} C3", tag.name);
 						c3_tag.supported_game = SupportedGame::C3;
 						c3_tag.scripts = c3_scripts;
 						c3_tag.script_files = c3_script_files;
 						new_tags.push(Tag::Agent(c3_tag));
 
-						let mut ds_tag = agent_tag.clone();
-						ds_tag.name = format!("{} DS", agent_tag.name);
+						let mut ds_tag = tag.clone();
+						ds_tag.name = format!("{} DS", tag.name);
 						ds_tag.supported_game = SupportedGame::DS;
 						ds_tag.scripts = ds_scripts;
 						ds_tag.script_files = ds_script_files;
@@ -835,7 +890,7 @@ fn split_c3ds_tags(tags: &Vec<Tag>) -> Vec<Tag> {
 
 					},
 					_ => {
-						new_tags.push(tag.clone());
+						new_tags.push(Tag::Agent(tag.clone()));
 					}
 				}
 			}
@@ -858,7 +913,8 @@ pub fn compile(mut tags: Vec<Tag>) -> Bytes {
 	return data;
 }
 
-pub fn decompile(contents: &[u8]) -> (Vec<Tag>, Vec<(String, Bytes)>) {
-	let (tags, files) = pray::decode(contents);
-	return (tags, files)
+pub fn decompile(contents: &[u8], filename: &str) -> Vec<(String, Bytes)> {
+	let (tags, mut files) = pray::decode(contents);
+	files.push((format!("{}.the", filename), encode_source(tags)));
+	return files;
 }

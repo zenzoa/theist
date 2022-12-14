@@ -1,8 +1,12 @@
+use crate::c16;
+use crate::blk;
 use crate::agent::*;
 
 use std::str;
+use std::io::Cursor;
 use std::collections::HashMap;
 use bytes::{ Bytes, BytesMut, Buf, BufMut };
+use image::{ ImageOutputFormat };
 
 struct BlockHeader {
 	block_type: String,
@@ -107,22 +111,31 @@ fn read_agent_block(buffer: &mut Bytes, files: &mut Vec<(String, Bytes)>, block_
 			_ => {
 				if key.starts_with("Script") {
 					if let InfoValue::Str(value) = value {
+						let filename = format!("{}.cos", &block_name);
 						let supported_game_string = format!("{}", &tag.supported_game);
-						tag.scripts.push(Script::new(&block_name, supported_game_string.as_str()));
-
-						println!("Extracted file: {}", &block_name);
+						tag.scripts.push(Script::new(filename.as_str(), supported_game_string.as_str()));
+						println!("Extracted file: {}", &filename);
 						let data = Bytes::from(value);
-						files.push((format!("{}.cos", &block_name), data));
+						files.push((filename.clone(), data));
 					}
 
 				} else if key.starts_with("Dependency") {
-					//
+					if let InfoValue::Str(value) = value {
+						let filename = Filename::new(value.as_str(), "");
+						match filename.extension.as_str() {
+							"c16" => tag.sprites.push(Sprite::Frames { filename, frames: Vec::new() }),
+							"blk" => tag.backgrounds.push(Background::BLK { filename: Filename::new(&filename.title, "png") }),
+							"wav" => tag.sounds.push(Sound { filename }),
+							"catalogue" => tag.catalogues.push(Catalogue::File { filename }),
+							_ => ()
+						}
+					}
 				}
 			}
 		}
 	}
 
-	if preview_sprite != "" && preview_animation != "" {
+	if preview_sprite.len() > 0 && preview_animation.len() > 0 {
 		tag.injector_preview = InjectorPreview::Manual {
 			sprite: preview_sprite,
 			animation: preview_animation
@@ -152,11 +165,6 @@ pub fn decode(contents: &[u8]) -> (Vec<Tag>, Vec<(String, Bytes)>) {
 					}
 				} else if buffer.len() >= block_header.size {
 					match block_header.block_type.as_str() {
-						"FILE" => {
-							println!("Extracted file: {}", &block_header.name);
-							let data = Bytes::from(buffer.copy_to_bytes(block_header.size));
-							files.push((block_header.name, data));
-						},
 						"AGNT" => {
 							println!("Agent Block: {}", &block_header.name);
 							let agent_tag = read_agent_block(&mut buffer, &mut files, block_header.name, SupportedGame::C3);
@@ -166,6 +174,57 @@ pub fn decode(contents: &[u8]) -> (Vec<Tag>, Vec<(String, Bytes)>) {
 							println!("Agent Block: {}", &block_header.name);
 							let agent_tag = read_agent_block(&mut buffer, &mut files, block_header.name, SupportedGame::DS);
 							tags.push(Tag::Agent(agent_tag));
+						},
+						"FILE" => {
+							let filename = Filename::new(block_header.name.as_str(), "unknown");
+							let data = buffer.copy_to_bytes(block_header.size);
+							match filename.extension.as_str() {
+								"c16" => {
+									let images = c16::decode(&data);
+									for (i, image) in images.iter().enumerate() {
+										let png_filename = format!("{}-{}.png", &filename.title, i + 1);
+										for tag in &mut tags {
+											if let Tag::Agent(tag) = tag {
+												for sprite in &mut tag.sprites {
+													if let Sprite::Frames { filename: sprite_filename, frames } = sprite {
+														if sprite_filename.title.starts_with(&filename.title) {
+															frames.push(SpriteFrame { filename: Filename::new(png_filename.as_str(), "png") });
+														}
+													}
+												}
+											}
+										}
+										let mut png_data = Cursor::new(Vec::new());
+										let result = image.write_to(&mut png_data, ImageOutputFormat::Png);
+										match result {
+											Ok(()) => {
+												println!("Extracted file: {}", &png_filename);
+												files.push((png_filename, Bytes::from(png_data.into_inner())));
+											},
+											Err(why) => println!("ERROR: Unable to convert image {}: {}", filename, why)
+										}
+									}
+								},
+								"blk" => {
+									let image = blk::decode(&data);
+									if let Some(image) = image {
+										let blk_filename = format!("{}.png", filename.title);
+										let mut blk_data = Cursor::new(Vec::new());
+										let result = image.write_to(&mut blk_data, ImageOutputFormat::Png);
+										match result {
+											Ok(()) => {
+												println!("Extracted file: {}", &blk_filename);
+												files.push((blk_filename, Bytes::from(blk_data.into_inner())));
+											},
+											Err(why) => println!("ERROR: Unable to convert image {}: {}", filename, why)
+										}
+									}
+								},
+								_ => {
+									println!("Extracted file: {}", &filename);
+									files.push((filename.to_string(), Bytes::from(data)));
+								}
+							}
 						},
 						_ => {
 							println!("ERROR: Unknown block {} {}", block_header.block_type, block_header.name);
@@ -359,13 +418,13 @@ pub fn encode(tags: &Vec<Tag>) -> Bytes {
 
 	for tag in tags {
 		match tag {
-			Tag::Agent(agent_tag) => {
+			Tag::Agent(tag) => {
 				// agent info
-				write_agent_block(&mut buffer, agent_tag);
+				write_agent_block(&mut buffer, tag);
 
 				// sprite files
-				for (i, data) in agent_tag.sprite_files.iter().enumerate() {
-					let filename = agent_tag.sprites.get(i).unwrap().get_filename();
+				for (i, data) in tag.sprite_files.iter().enumerate() {
+					let filename = tag.sprites.get(i).unwrap().get_filename();
 					if !files_written.contains(&filename) {
 						write_file_block(&mut files_buffer, &filename, data);
 						files_written.push(filename);
@@ -373,8 +432,8 @@ pub fn encode(tags: &Vec<Tag>) -> Bytes {
 				}
 
 				// background files
-				for (i, data) in agent_tag.background_files.iter().enumerate() {
-					let filename = agent_tag.backgrounds.get(i).unwrap().get_filename();
+				for (i, data) in tag.background_files.iter().enumerate() {
+					let filename = tag.backgrounds.get(i).unwrap().get_filename();
 					if !files_written.contains(&filename) {
 						write_file_block(&mut files_buffer, &filename, data);
 						files_written.push(filename);
@@ -382,8 +441,8 @@ pub fn encode(tags: &Vec<Tag>) -> Bytes {
 				}
 
 				// sound files
-				for (i, data) in agent_tag.sound_files.iter().enumerate() {
-					let filename = agent_tag.sounds.get(i).unwrap().get_filename();
+				for (i, data) in tag.sound_files.iter().enumerate() {
+					let filename = tag.sounds.get(i).unwrap().get_filename();
 					if !files_written.contains(&filename) {
 						write_file_block(&mut files_buffer, &filename, data);
 						files_written.push(filename);
@@ -391,8 +450,8 @@ pub fn encode(tags: &Vec<Tag>) -> Bytes {
 				}
 
 				// catalogue files
-				for (i, data) in agent_tag.catalogue_files.iter().enumerate() {
-					let filename = agent_tag.catalogues.get(i).unwrap().get_filename();
+				for (i, data) in tag.catalogue_files.iter().enumerate() {
+					let filename = tag.catalogues.get(i).unwrap().get_filename();
 					if !files_written.contains(&filename) {
 						write_file_block(&mut files_buffer, &filename, data);
 						files_written.push(filename);

@@ -65,7 +65,7 @@ fn main() {
 							let path = format!("{}{} files/", path, filename);
 							match fs::create_dir(&path) {
 								Ok(()) => {
-									let (_tags, files) = agent::decompile(&contents);
+									let files = agent::decompile(&contents, filename);
 									for (filename, data) in files {
 										let output_filepath = format!("{}{}", path, filename);
 										match File::create(&output_filepath) {
