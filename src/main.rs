@@ -19,7 +19,7 @@ struct Filepath {
 }
 
 impl Filepath {
-	fn new(string: &String) -> Filepath {
+	fn new(string: &str) -> Filepath {
 		let filepath_pattern = Regex::new(r"(.*[\\/])?([^\.]+)(\..*)?").unwrap();
 		let captures = filepath_pattern.captures(string);
 		match captures {
@@ -30,22 +30,18 @@ impl Filepath {
 				};
 				let title = match captures.get(2) {
 					Some(m) => m.as_str(),
-					None => string.as_str()
+					None => string
 				};
 				let extension = match captures.get(3) {
 					Some(m) => &(m.as_str()[1..]),
 					None => ""
 				};
-				return Filepath { path: path.to_string(), title: title.to_string(), extension: extension.to_string() };
+				Filepath { path: path.to_string(), title: title.to_string(), extension: extension.to_string() }
 			},
 			None => {
-				return Filepath { path: String::from(""), title: string.clone(), extension: String::from("") };
+				Filepath { path: String::from(""), title: string.to_owned(), extension: String::from("") }
 			}
 		}
-	}
-
-	fn to_string(&self) -> String {
-		format!("{}{}.{}", &self.path, &self.title, &self.extension)
 	}
 }
 
@@ -70,9 +66,9 @@ fn main() {
 			},
 			_ => {
 				if get_output {
-					output_filepath = Some(Filepath::new(&arg));
-				} else if action.len() > 0 {
-					filepaths.push(Filepath::new(&arg));
+					output_filepath = Some(Filepath::new(arg));
+				} else if !action.is_empty() {
+					filepaths.push(Filepath::new(arg));
 				} else {
 					action = arg.to_string();
 				}
@@ -84,17 +80,17 @@ fn main() {
 		let mut output_path_specified = true;
 		let mut output_filepath = match output_filepath {
 			Some(output) => {
-				if output.path.len() == 0 {
+				if output.path.is_empty() {
 					Filepath {
 						path: filepath.path.clone(),
 						title: output.title.clone(),
-						extension: output.extension.clone()
+						extension: output.extension
 					}
 				} else {
 					Filepath {
 						path: output.path.clone(),
 						title: output.title.clone(),
-						extension: output.extension.clone()
+						extension: output.extension
 					}
 				}
 			},
@@ -111,15 +107,15 @@ fn main() {
 		match action.as_str() {
 			"compile" => {
 				output_filepath.extension = String::from("agents");
-				match File::open(&output_filepath.to_string()) {
+				match File::open(output_filepath.to_string()) {
 					Err(_why) => {
 						match fs::read_to_string(filepath.to_string()) {
 							Ok(contents) => {
 								let tags = agent::parse_source(&contents, &filepath.path);
-								println!("");
+								println!();
 								let data = agent::compile(tags);
-								println!("");
-								match File::create(&output_filepath.to_string()) {
+								println!();
+								match File::create(output_filepath.to_string()) {
 									Ok(mut file) => {
 										let result = file.write_all(&data);
 										match result {
@@ -193,7 +189,7 @@ fn main() {
 
 			"png_to_c16" => {
 				output_filepath.extension = String::from("c16");
-				match File::open(&output_filepath.to_string()) {
+				match File::open(output_filepath.to_string()) {
 					Err(_why) => {
 						let mut images: Vec<RgbaImage> = Vec::new();
 						for image_filepath in filepaths {
@@ -204,7 +200,7 @@ fn main() {
 							}
 						}
 						let c16_data = c16::encode(images);
-						match File::create(&output_filepath.to_string()) {
+						match File::create(output_filepath.to_string()) {
 							Ok(mut file) => {
 								let result = file.write_all(&c16_data);
 								match result {
@@ -221,7 +217,7 @@ fn main() {
 
 			"blk_to_png" => {
 				output_filepath.extension = String::from("png");
-				match File::open(&output_filepath.to_string()) {
+				match File::open(output_filepath.to_string()) {
 					Err(_why) => {
 						match fs::read(filepath.to_string()) {
 							Ok(contents) => {
@@ -245,14 +241,14 @@ fn main() {
 
 			"png_to_blk" => {
 				output_filepath.extension = String::from("blk");
-				match File::open(&output_filepath.to_string()) {
+				match File::open(output_filepath.to_string()) {
 					Err(_why) => {
 						match ImageReader::open(filepath.to_string()) {
 							Ok(image) => {
 								match image.decode() {
 									Ok(image) => {
 										let blk_data = blk::encode(image.into_rgba8());
-										match File::create(&output_filepath.to_string()) {
+										match File::create(output_filepath.to_string()) {
 											Err(why) => println!("ERROR: {} cannot be created: {}", &output_filepath, why),
 											Ok(mut file) => {
 												let result = file.write_all(&blk_data);

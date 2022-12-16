@@ -19,7 +19,7 @@ fn read_file_header(buffer: &mut Bytes) -> Option<FileHeader> {
 			image_count: buffer.get_u16_le()
 		});
 	}
-	return None;
+	None
 }
 
 fn read_image_header(buffer: &mut Bytes) -> Option<ImageHeader> {
@@ -38,12 +38,12 @@ fn read_image_header(buffer: &mut Bytes) -> Option<ImageHeader> {
 			});
 		}
 	}
-	return None;
+	None
 }
 
 fn read_image_data(contents: &[u8], header: &ImageHeader, pixel_format: u32) -> RgbaImage {
 	let mut image = RgbaImage::new(header.width as u32, header.height as u32);
-	for (y, line_offset) in (&header.line_offsets).iter().enumerate() {
+	for (y, line_offset) in header.line_offsets.iter().enumerate() {
 		let mut buffer = Bytes::copy_from_slice(contents);
 		buffer.advance(*line_offset as usize);
 		let mut x: u16 = 0;
@@ -66,7 +66,7 @@ fn read_image_data(contents: &[u8], header: &ImageHeader, pixel_format: u32) -> 
 			}
 		}
 	}
-	return image;
+	image
 }
 
 fn read_pixel_data(pixel: u16, pixel_format: u32) -> Rgba<u8> {
@@ -99,11 +99,11 @@ pub fn decode(contents: &[u8]) -> Vec<RgbaImage> {
 			}
 		}
 		for image_header in image_headers {
-			let image = read_image_data(&contents, &image_header, file_header.pixel_format);
+			let image = read_image_data(contents, &image_header, file_header.pixel_format);
 			images.push(image);
 		}
 	}
-	return images;
+	images
 }
 
 fn write_file_header(buffer: &mut BytesMut, image_count: u16) {
@@ -138,7 +138,7 @@ fn write_image_data(image: &RgbaImage, image_offset: u32) -> (BytesMut, Vec<u32>
 			let pixel = image.get_pixel(x, y);
 			if pixel[3] == 0 {
 				// transparent pixel
-				if color_run.len() > 0 {
+				if !color_run.is_empty() {
 					// end active color run
 					write_color_run(&mut buffer, &color_run);
 					color_run.clear();
@@ -155,24 +155,24 @@ fn write_image_data(image: &RgbaImage, image_offset: u32) -> (BytesMut, Vec<u32>
 			}
 		}
 		// wrap up active run
-		if color_run.len() > 0 {
+		if !color_run.is_empty() {
 			write_color_run(&mut buffer, &color_run);
 		} else if transparent_run > 0 {
 			write_transparent_run(&mut buffer, transparent_run);
 		}
 		// end of line
 		buffer.put_u16_le(0);
-		last_line_offset += (buffer.len() as u32) - (last_buffer_size as u32);
+		last_line_offset += (buffer.len() as u32) - last_buffer_size;
 		last_buffer_size = buffer.len() as u32;
 	}
 	// end of image
 	buffer.put_u16_le(0);
 
-	return (buffer, line_offsets);
+	(buffer, line_offsets)
 }
 
 fn write_color_run(buffer: &mut BytesMut, color_run: &Vec<Rgba<u8>>) {
-	let run_header = (1 & 0x1) | ((color_run.len() << 1) & 0xfffe);
+	let run_header = 1 | ((color_run.len() << 1) & 0xfffe);
 	buffer.put_u16_le(run_header as u16);
 	for pixel in color_run {
 		write_pixel_data(buffer, pixel[0].into(), pixel[1].into(), pixel[2].into());
@@ -180,7 +180,7 @@ fn write_color_run(buffer: &mut BytesMut, color_run: &Vec<Rgba<u8>>) {
 }
 
 fn write_transparent_run(buffer: &mut BytesMut, transparent_run: u16) {
-	let run_header: u16 = (0 & 0x1) | ((transparent_run << 1) & 0xfffe);
+	let run_header: u16 = (transparent_run << 1) & 0xfffe;
 	buffer.put_u16_le(run_header);
 }
 
@@ -194,12 +194,11 @@ pub fn encode(images: Vec<RgbaImage>) -> BytesMut {
 	let mut buffer = BytesMut::new();
 	write_file_header(&mut buffer, images.len() as u16);
 
-
 	// calculate initial offset of image data (= file header + image headers)
 	let mut image_offset = buffer.len() as u32;
 	for image in &images {
 		let image_header_size = (image.height() * 4) + 4;
-		image_offset += image_header_size as u32;
+		image_offset += image_header_size;
 	}
 
 	// get image data
@@ -216,5 +215,5 @@ pub fn encode(images: Vec<RgbaImage>) -> BytesMut {
 	buffer.unsplit(image_headers_buffer);
 	buffer.unsplit(images_buffer);
 
-	return buffer;
+	buffer
 }

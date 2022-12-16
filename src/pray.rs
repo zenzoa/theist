@@ -41,7 +41,7 @@ fn read_string(buffer: &mut Bytes, num_bytes: usize) -> String {
 			}
 		}
 	}
-	return string;
+	string
 }
 
 fn read_info_block(buffer: &mut Bytes) -> HashMap<String, InfoValue> {
@@ -64,7 +64,7 @@ fn read_info_block(buffer: &mut Bytes) -> HashMap<String, InfoValue> {
 		info.insert(name, InfoValue::Str(value));
 	}
 
-	return info;
+	info
 }
 
 fn read_block_header(buffer: &mut Bytes) -> BlockHeader {
@@ -124,7 +124,7 @@ fn read_agent_block(buffer: &mut Bytes, files: &mut Vec<(String, Bytes)>, block_
 						let filename = Filename::new(value.as_str(), "");
 						match filename.extension.as_str() {
 							"c16" => tag.sprites.push(Sprite::Frames { filename, frames: Vec::new() }),
-							"blk" => tag.backgrounds.push(Background::BLK { filename: Filename::new(&filename.title, "png") }),
+							"blk" => tag.backgrounds.push(Background::Blk { filename: Filename::new(&filename.title, "png") }),
 							"wav" => tag.sounds.push(Sound { filename }),
 							"catalogue" => tag.catalogues.push(Catalogue::File { filename }),
 							_ => ()
@@ -135,14 +135,14 @@ fn read_agent_block(buffer: &mut Bytes, files: &mut Vec<(String, Bytes)>, block_
 		}
 	}
 
-	if preview_sprite.len() > 0 && preview_animation.len() > 0 {
+	if !preview_sprite.is_empty() && !preview_animation.is_empty() {
 		tag.injector_preview = InjectorPreview::Manual {
 			sprite: preview_sprite,
 			animation: preview_animation
 		};
 	}
 
-	return tag;
+	tag
 }
 
 pub fn decode(contents: &[u8]) -> (Vec<Tag>, Vec<(String, Bytes)>) {
@@ -222,7 +222,7 @@ pub fn decode(contents: &[u8]) -> (Vec<Tag>, Vec<(String, Bytes)>) {
 								},
 								_ => {
 									println!("Extracted file: {}", &filename);
-									files.push((filename.to_string(), Bytes::from(data)));
+									files.push((filename.to_string(), data));
 								}
 							}
 						},
@@ -239,7 +239,7 @@ pub fn decode(contents: &[u8]) -> (Vec<Tag>, Vec<(String, Bytes)>) {
 		}
 	}
 
-	return (tags, files);
+	(tags, files)
 }
 
 fn write_string(buffer: &mut BytesMut, num_bytes: usize, string: &str) {
@@ -247,7 +247,7 @@ fn write_string(buffer: &mut BytesMut, num_bytes: usize, string: &str) {
 		if i >= string.len() {
 			buffer.put_u8(0);
 		} else {
-			buffer.put_u8(string.bytes().nth(i).unwrap());
+			buffer.put_u8(*string.as_bytes().get(i).unwrap());
 		}
 	}
 }
@@ -299,7 +299,7 @@ fn write_agent_block(buffer: &mut BytesMut, tag: &AgentTag) {
 		value: 0
 	});
 
-	if tag.description.len() > 0 {
+	if !tag.description.is_empty() {
 		str_values.push(StrValue{
 			name: String::from("Agent Description"),
 			value: tag.description.to_string()
@@ -417,51 +417,48 @@ pub fn encode(tags: &Vec<Tag>) -> Bytes {
 	write_string(&mut buffer, 4, "PRAY");
 
 	for tag in tags {
-		match tag {
-			Tag::Agent(tag) => {
-				// agent info
-				write_agent_block(&mut buffer, tag);
+		if let Tag::Agent(tag) = tag {
+			// agent info
+			write_agent_block(&mut buffer, tag);
 
-				// sprite files
-				for (i, data) in tag.sprite_files.iter().enumerate() {
-					let filename = tag.sprites.get(i).unwrap().get_filename();
-					if !files_written.contains(&filename) {
-						write_file_block(&mut files_buffer, &filename, data);
-						files_written.push(filename);
-					}
+			// sprite files
+			for (i, data) in tag.sprite_files.iter().enumerate() {
+				let filename = tag.sprites.get(i).unwrap().get_filename();
+				if !files_written.contains(&filename) {
+					write_file_block(&mut files_buffer, &filename, data);
+					files_written.push(filename);
 				}
+			}
 
-				// background files
-				for (i, data) in tag.background_files.iter().enumerate() {
-					let filename = tag.backgrounds.get(i).unwrap().get_filename();
-					if !files_written.contains(&filename) {
-						write_file_block(&mut files_buffer, &filename, data);
-						files_written.push(filename);
-					}
+			// background files
+			for (i, data) in tag.background_files.iter().enumerate() {
+				let filename = tag.backgrounds.get(i).unwrap().get_filename();
+				if !files_written.contains(&filename) {
+					write_file_block(&mut files_buffer, &filename, data);
+					files_written.push(filename);
 				}
+			}
 
-				// sound files
-				for (i, data) in tag.sound_files.iter().enumerate() {
-					let filename = tag.sounds.get(i).unwrap().get_filename();
-					if !files_written.contains(&filename) {
-						write_file_block(&mut files_buffer, &filename, data);
-						files_written.push(filename);
-					}
+			// sound files
+			for (i, data) in tag.sound_files.iter().enumerate() {
+				let filename = tag.sounds.get(i).unwrap().get_filename();
+				if !files_written.contains(&filename) {
+					write_file_block(&mut files_buffer, &filename, data);
+					files_written.push(filename);
 				}
+			}
 
-				// catalogue files
-				for (i, data) in tag.catalogue_files.iter().enumerate() {
-					let filename = tag.catalogues.get(i).unwrap().get_filename();
-					if !files_written.contains(&filename) {
-						write_file_block(&mut files_buffer, &filename, data);
-						files_written.push(filename);
-					}
+			// catalogue files
+			for (i, data) in tag.catalogue_files.iter().enumerate() {
+				let filename = tag.catalogues.get(i).unwrap().get_filename();
+				if !files_written.contains(&filename) {
+					write_file_block(&mut files_buffer, &filename, data);
+					files_written.push(filename);
 				}
-			},
-			_ => ()
+			}
 		}
 	}
 
 	buffer.unsplit(files_buffer);
-	return Bytes::copy_from_slice(&buffer);
+	Bytes::copy_from_slice(&buffer)
 }

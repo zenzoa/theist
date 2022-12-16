@@ -190,7 +190,7 @@ impl Sprite {
 						Err(why) => println!("ERROR: Unable to get data from {}: {}", &filepath, why)
 					}
 				}
-				return Some(Bytes::from(c16::encode(images)));
+				Some(Bytes::from(c16::encode(images)))
 			}
 		}
 	}
@@ -198,36 +198,36 @@ impl Sprite {
 
 #[derive(Clone)]
 pub enum Background {
-	BLK { filename: Filename },
-	PNG { filename: Filename }
+	Blk { filename: Filename },
+	Png { filename: Filename }
 }
 
 impl Background {
 	fn new(filename: &str) -> Background {
 		let filename = Filename::new(filename, "png");
 		match filename.extension.as_str() {
-			"blk" => Background::BLK { filename },
-			_ => Background::PNG { filename }
+			"blk" => Background::Blk { filename },
+			_ => Background::Png { filename }
 		}
 	}
 
 	pub fn get_filename(&self) -> String {
 		match self {
-			Background::BLK { filename } => filename.as_string(),
-			Background::PNG { filename } => filename.as_string()
+			Background::Blk { filename } => filename.as_string(),
+			Background::Png { filename } => filename.as_string()
 		}
 	}
 
 	pub fn get_title(&self) -> String {
 		match self {
-			Background::BLK { filename } => filename.title.clone(),
-			Background::PNG { filename } => filename.title.clone()
+			Background::Blk { filename } => filename.title.clone(),
+			Background::Png { filename } => filename.title.clone()
 		}
 	}
 
 	fn get_data(&self, path: &str) -> Option<Bytes> {
 		match self {
-			Background::BLK { filename } => {
+			Background::Blk { filename } => {
 				let filepath = format!("{}{}", path, filename);
 				match fs::read(&filepath) {
 					Ok(contents) => {
@@ -240,7 +240,7 @@ impl Background {
 					}
 				}
 			},
-			Background::PNG { filename } => {
+			Background::Png { filename } => {
 				let filepath = format!("{}{}", path, filename);
 				match ImageReader::open(&filepath) {
 					Ok(image) => {
@@ -483,7 +483,7 @@ impl Tag {
 
 				// script files
 				for script in &tag.scripts {
-					tag.script_files.push(match script.get_data(&path) {
+					tag.script_files.push(match script.get_data(path) {
 						Some(data) => data,
 						None => Bytes::new()
 					});
@@ -491,7 +491,7 @@ impl Tag {
 
 				// sprite files
 				for sprite in &tag.sprites {
-					tag.sprite_files.push(match sprite.get_data(&path) {
+					tag.sprite_files.push(match sprite.get_data(path) {
 						Some(data) => data,
 						None => Bytes::new()
 					});
@@ -499,11 +499,11 @@ impl Tag {
 
 				// background files
 				for background in &mut tag.backgrounds {
-					tag.background_files.push(match background.get_data(&path) {
+					tag.background_files.push(match background.get_data(path) {
 						Some(data) => data,
 						None => Bytes::new()
 					});
-					*background = Background::BLK {
+					*background = Background::Blk {
 						filename: Filename {
 							title: background.get_title(),
 							extension: String::from("blk")
@@ -513,7 +513,7 @@ impl Tag {
 
 				// sound files
 				for sound in &tag.sounds {
-					tag.sound_files.push(match sound.get_data(&path) {
+					tag.sound_files.push(match sound.get_data(path) {
 						Some(data) => data,
 						None => Bytes::new()
 					});
@@ -521,14 +521,14 @@ impl Tag {
 
 				// catalogue files
 				for catalogue in &tag.catalogues {
-					tag.catalogue_files.push(match catalogue.get_data(&path) {
+					tag.catalogue_files.push(match catalogue.get_data(path) {
 						Some(data) => data,
 						None => Bytes::new()
 					});
 				}
 
 				// remove script
-				if tag.script_files.len() > 0 {
+				if !tag.script_files.is_empty() {
 					if let RemoveScript::Auto = tag.remove_script {
 						match str::from_utf8(&tag.script_files[0]) {
 							Ok(script) => {
@@ -566,7 +566,7 @@ impl Tag {
 				}
 
 				// injector preview
-				if tag.sprites.len() > 0 {
+				if !tag.sprites.is_empty() {
 					if let InjectorPreview::Auto = tag.injector_preview {
 						let sprite_name = &tag.sprites[0].get_title();
 						tag.injector_preview = InjectorPreview::Manual {
@@ -597,7 +597,7 @@ fn parse_tokens(s: &str) -> Vec<String> {
 				' ' => {
 					if is_in_quote {
 						current_token.push(c);
-					} else if current_token.len() > 0 {
+					} else if !current_token.is_empty() {
 						tokens.push(current_token.clone());
 						current_token.clear();
 					}
@@ -627,10 +627,10 @@ fn parse_tokens(s: &str) -> Vec<String> {
 			}
 		}
 	}
-	if current_token.len() > 0 {
+	if !current_token.is_empty() {
 		tokens.push(current_token.clone());
 	}
-	return tokens;
+	tokens
 }
 
 pub fn parse_source(contents: &str, path: &str) -> Vec<Tag> {
@@ -639,7 +639,7 @@ pub fn parse_source(contents: &str, path: &str) -> Vec<Tag> {
 
 	for line in contents.lines() {
 		let tokens = parse_tokens(line.trim());
-		if tokens.len() == 0 {
+		if tokens.is_empty() {
 			continue;
 		}
 		let token = tokens.get(0).unwrap().as_str();
@@ -672,7 +672,7 @@ pub fn parse_source(contents: &str, path: &str) -> Vec<Tag> {
 							None => String::from("0"),
 							Some(i) => String::from(i)
 						};
-						if sprite.len() > 0 {
+						if !sprite.is_empty() {
 							println!("  Preview: {} \"{}\"", sprite, animation);
 							tag.injector_preview = InjectorPreview::Manual{ sprite, animation };
 						}
@@ -778,66 +778,63 @@ pub fn parse_source(contents: &str, path: &str) -> Vec<Tag> {
 		}
 	}
 
-	return tags;
+	tags
 }
 
 pub fn encode_source(tags: Vec<Tag>) -> Bytes {
 	let mut source = String::from("");
 
 	for tag in tags {
-		match tag {
-			Tag::Agent(tag) => {
-				source += format!("agent \"{}\" {}\n", &tag.name, &tag.supported_game).as_str();
+		if let Tag::Agent(tag) = tag {
+			source += format!("agent \"{}\" {}\n", &tag.name, &tag.supported_game).as_str();
 
-				if tag.description.len() > 0 {
-					source += format!("\tdescription \"{}\"\n", &tag.description).as_str();
-				}
+			if !tag.description.is_empty() {
+				source += format!("\tdescription \"{}\"\n", &tag.description).as_str();
+			}
 
-				if let InjectorPreview::Manual { sprite, animation } = tag.injector_preview {
-					source += format!("\tpreview \"{}\" \"{}\"\n", &sprite, &animation).as_str();
-				}
+			if let InjectorPreview::Manual { sprite, animation } = tag.injector_preview {
+				source += format!("\tpreview \"{}\" \"{}\"\n", &sprite, &animation).as_str();
+			}
 
-				match tag.remove_script {
-					RemoveScript::Manual(remove_script) => {
-						source += format!("\tremovescript \"{}\"\n", &remove_script).as_str();
-					},
-					RemoveScript::Auto => {
-						source += "\tremovescript auto\n";
-					},
-					_ => ()
-				}
+			match tag.remove_script {
+				RemoveScript::Manual(remove_script) => {
+					source += format!("\tremovescript \"{}\"\n", &remove_script).as_str();
+				},
+				RemoveScript::Auto => {
+					source += "\tremovescript auto\n";
+				},
+				_ => ()
+			}
 
-				for script in tag.scripts {
-					let Script::File { filename, supported_game } = script;
-					source += format!("\tdescription \"{}\" {}\n", &filename, &supported_game).as_str();
-				}
+			for script in tag.scripts {
+				let Script::File { filename, supported_game } = script;
+				source += format!("\tdescription \"{}\" {}\n", &filename, &supported_game).as_str();
+			}
 
-				for sprite in tag.sprites {
-					source += format!("\tsprite \"{}\"\n", sprite.get_filename()).as_str();
-					if let Sprite::Frames { frames, .. } = sprite {
-						for frame in frames {
-							source += format!("\t\tframe \"{}\"\n", frame.filename).as_str();
-						}
+			for sprite in tag.sprites {
+				source += format!("\tsprite \"{}\"\n", sprite.get_filename()).as_str();
+				if let Sprite::Frames { frames, .. } = sprite {
+					for frame in frames {
+						source += format!("\t\tframe \"{}\"\n", frame.filename).as_str();
 					}
 				}
+			}
 
-				for background in tag.backgrounds {
-					source += format!("\tbackground \"{}\"\n", &background.get_filename()).as_str();
-				}
+			for background in tag.backgrounds {
+				source += format!("\tbackground \"{}\"\n", &background.get_filename()).as_str();
+			}
 
-				for sound in tag.sounds {
-					source += format!("\tsound \"{}\"\n", &sound.get_filename()).as_str();
-				}
+			for sound in tag.sounds {
+				source += format!("\tsound \"{}\"\n", &sound.get_filename()).as_str();
+			}
 
-				for catalogue in tag.catalogues {
-					source += format!("\tcatalogue \"{}\"\n", &catalogue.get_filename()).as_str();
-				}
-			},
-			_ => ()
+			for catalogue in tag.catalogues {
+				source += format!("\tcatalogue \"{}\"\n", &catalogue.get_filename()).as_str();
+			}
 		}
 	}
 
-	return Bytes::from(source);
+	Bytes::from(source)
 }
 
 fn split_c3ds_tags(tags: &Vec<Tag>) -> Vec<Tag> {
@@ -899,22 +896,21 @@ fn split_c3ds_tags(tags: &Vec<Tag>) -> Vec<Tag> {
 			}
 		}
 	}
-	return new_tags;
+	new_tags
 }
 
 pub fn compile(mut tags: Vec<Tag>) -> Bytes {
 	for tag in &mut tags {
 		tag.add_data();
 	}
-	println!("");
+	println!();
 	let tags = split_c3ds_tags(&tags);
-	println!("");
-	let data = pray::encode(&tags);
-	return data;
+	println!();
+	pray::encode(&tags)
 }
 
 pub fn decompile(contents: &[u8], filename: &str) -> Vec<(String, Bytes)> {
 	let (tags, mut files) = pray::decode(contents);
 	files.push((format!("{}.the", filename), encode_source(tags)));
-	return files;
+	files
 }

@@ -23,7 +23,7 @@ fn read_file_header(buffer: &mut Bytes) -> Option<FileHeader> {
 			image_count: buffer.get_u16_le() // TODO: assert that this is cols * rows
 		});
 	}
-	return None;
+	None
 }
 
 fn read_image_header(buffer: &mut Bytes) -> Option<ImageHeader> {
@@ -39,7 +39,7 @@ fn read_image_header(buffer: &mut Bytes) -> Option<ImageHeader> {
 			});
 		}
 	}
-	return None;
+	None
 }
 
 fn read_image_data(contents: &[u8], header: &ImageHeader, pixel_format: u32) -> RgbaImage {
@@ -49,10 +49,10 @@ fn read_image_data(contents: &[u8], header: &ImageHeader, pixel_format: u32) -> 
 	for y in 0..image.height() {
 		for x in 0..image.width() {
 			let color = read_pixel_data(buffer.get_u16_le(), pixel_format);
-			image.put_pixel(x as u32, y as u32, color);
+			image.put_pixel(x, y, color);
 		}
 	}
-	return image;
+	image
 }
 
 fn read_pixel_data(pixel: u16, pixel_format: u32) -> Rgba<u8> {
@@ -88,7 +88,7 @@ fn combine_image_data(images: Vec<RgbaImage>, cols: u32, rows: u32) -> RgbaImage
 			}
 		}
 	}
-	return output_image;
+	output_image
 }
 
 pub fn decode(contents: &[u8]) -> Option<RgbaImage> {
@@ -102,13 +102,13 @@ pub fn decode(contents: &[u8]) -> Option<RgbaImage> {
 		}
 		let mut images: Vec<RgbaImage> = Vec::new();
 		for image_header in image_headers {
-			let image = read_image_data(&contents, &image_header, file_header.pixel_format);
+			let image = read_image_data(contents, &image_header, file_header.pixel_format);
 			images.push(image);
 		}
 		let output_image = combine_image_data(images, file_header.cols as u32, file_header.rows as u32);
 		return Some(output_image);
 	}
-	return None;
+	None
 }
 
 fn write_file_header(buffer: &mut BytesMut, cols: u16, rows: u16) {
@@ -132,7 +132,7 @@ fn write_image_data(image: &RgbaImage, image_x: u32, image_y: u32) -> BytesMut {
 			write_pixel_data(&mut buffer, pixel[0].into(), pixel[1].into(), pixel[2].into());
 		}
 	}
-	return buffer;
+	buffer
 }
 
 fn write_pixel_data(buffer: &mut BytesMut, r: u16, g: u16, b: u16) {
@@ -163,5 +163,5 @@ pub fn encode(image: RgbaImage) -> BytesMut {
 	}
 	buffer.unsplit(images_buffer);
 
-	return buffer;
+	buffer
 }
