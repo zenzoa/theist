@@ -1,3 +1,4 @@
+use std::io;
 use bytes::{ Bytes, BytesMut, Buf, BufMut };
 use image::{ RgbaImage, Rgba };
 
@@ -14,32 +15,36 @@ struct ImageHeader {
 	height: u16
 }
 
-fn read_file_header(buffer: &mut Bytes) -> Option<FileHeader> {
+fn read_file_header(buffer: &mut Bytes) -> Result<FileHeader, io::Error> {
 	if buffer.remaining() >= 10 {
-		return Some(FileHeader {
+		Ok(FileHeader {
 			pixel_format: buffer.get_u32_le(),
 			cols: buffer.get_u16_le(),
 			rows: buffer.get_u16_le(),
 			image_count: buffer.get_u16_le() // TODO: assert that this is cols * rows
-		});
+		})
+	} else {
+		Err(io::Error::from(io::ErrorKind::InvalidData))
 	}
-	None
 }
 
-fn read_image_header(buffer: &mut Bytes) -> Option<ImageHeader> {
+fn read_image_header(buffer: &mut Bytes) -> Result<ImageHeader, io::Error> {
 	if buffer.remaining() >= 8 {
 		let first_line_offset = buffer.get_u32_le() + 4;
 		let width = buffer.get_u16_le();
 		let height = buffer.get_u16_le();
 		if width == 128 && height == 128 {
-			return Some(ImageHeader {
+			Ok(ImageHeader {
 				width,
 				height,
 				first_line_offset
-			});
+			})
+		} else {
+			Err(io::Error::from(io::ErrorKind::InvalidData))
 		}
+	} else {
+		Err(io::Error::from(io::ErrorKind::InvalidData))
 	}
-	None
 }
 
 fn read_image_data(contents: &[u8], header: &ImageHeader, pixel_format: u32) -> RgbaImage {
@@ -91,24 +96,21 @@ fn combine_image_data(images: Vec<RgbaImage>, cols: u32, rows: u32) -> RgbaImage
 	output_image
 }
 
-pub fn decode(contents: &[u8]) -> Option<RgbaImage> {
+pub fn decode(contents: &[u8]) -> Result<RgbaImage, io::Error> {
 	let mut buffer = Bytes::copy_from_slice(contents);
-	if let Some(file_header) = read_file_header(&mut buffer) {
-		let mut image_headers: Vec<ImageHeader> = Vec::new();
-		for _ in 0..file_header.image_count {
-			if let Some(image_header) = read_image_header(&mut buffer) {
-				image_headers.push(image_header);
-			}
-		}
-		let mut images: Vec<RgbaImage> = Vec::new();
-		for image_header in image_headers {
-			let image = read_image_data(contents, &image_header, file_header.pixel_format);
-			images.push(image);
-		}
-		let output_image = combine_image_data(images, file_header.cols as u32, file_header.rows as u32);
-		return Some(output_image);
+	let file_header = read_file_header(&mut buffer)?;
+	let mut image_headers: Vec<ImageHeader> = Vec::new();
+	for _ in 0..file_header.image_count {
+		let image_header = read_image_header(&mut buffer)?;
+		image_headers.push(image_header);
 	}
-	None
+	let mut images: Vec<RgbaImage> = Vec::new();
+	for image_header in image_headers {
+		let image = read_image_data(contents, &image_header, file_header.pixel_format);
+		images.push(image);
+	}
+	let output_image = combine_image_data(images, file_header.cols as u32, file_header.rows as u32);
+	Ok(output_image)
 }
 
 fn write_file_header(buffer: &mut BytesMut, cols: u16, rows: u16) {

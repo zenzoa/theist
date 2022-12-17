@@ -4,11 +4,18 @@ use crate::pray;
 
 use std::fmt;
 use std::fs;
+use std::io;
 use std::str;
+use std::error::Error;
 use regex::Regex;
 use image::RgbaImage;
 use image::io::Reader as ImageReader;
 use bytes::Bytes;
+
+pub struct FileData {
+	pub name: String,
+	pub data: Bytes
+}
 
 #[derive(Clone)]
 pub struct Filename {
@@ -84,20 +91,13 @@ impl Script {
 		}
 	}
 
-	fn get_data(&self, path: &str) -> Option<Bytes> {
+	fn get_data(&self, path: &str) -> Result<Bytes, io::Error> {
 		match self {
 			Script::File { filename, .. } => {
 				let filepath = format!("{}{}", path, filename);
-				match fs::read(&filepath) {
-					Ok(contents) => {
-						println!("  Got data from {}", &filepath);
-						Some(Bytes::copy_from_slice(&contents))
-					},
-					Err(why) => {
-						println!("ERROR: Unable to get data from {}: {}", &filepath, why);
-						None
-					}
-				}
+				let contents = fs::read(&filepath)?;
+				println!("  Got data from {}", &filepath);
+				Ok(Bytes::copy_from_slice(&contents))
 			}
 		}
 	}
@@ -158,39 +158,24 @@ impl Sprite {
 		}
 	}
 
-	fn get_data(&self, path: &str) -> Option<Bytes> {
+	fn get_data(&self, path: &str) -> Result<Bytes, Box<dyn Error>> {
 		match self {
 			Sprite::C16 { filename, .. } => {
 				let filepath = format!("{}{}", path, filename);
-				match fs::read(&filepath) {
-					Ok(contents) => {
-						println!("  Got data from {}", &filepath);
-						Some(Bytes::copy_from_slice(&contents))
-					},
-					Err(why) => {
-						println!("ERROR: Unable to get data from {}: {}", &filepath, why);
-						None
-					}
-				}
+				let contents = fs::read(&filepath)?;
+				println!("  Got data from {}", &filepath);
+				Ok(Bytes::copy_from_slice(&contents))
 			},
 			Sprite::Frames { frames, .. } => {
 				let mut images: Vec<RgbaImage> = Vec::new();
 				for frame in frames {
 					let filepath = format!("{}{}", path, frame.filename);
-					match ImageReader::open(&filepath) {
-						Ok(image) => {
-							match image.decode() {
-								Ok(image) => {
-									println!("  Got data from {}", &filepath);
-									images.push(image.into_rgba8());
-								},
-								Err(why) => println!("ERROR: Unable to get data from {}: {}", &filepath, why)
-							}
-						},
-						Err(why) => println!("ERROR: Unable to get data from {}: {}", &filepath, why)
-					}
+					let image_data = ImageReader::open(&filepath)?;
+					let image = image_data.decode()?;
+					println!("  Got data from {}", &filepath);
+					images.push(image.into_rgba8());
 				}
-				Some(Bytes::from(c16::encode(images)))
+				Ok(Bytes::from(c16::encode(images)))
 			}
 		}
 	}
@@ -225,41 +210,20 @@ impl Background {
 		}
 	}
 
-	fn get_data(&self, path: &str) -> Option<Bytes> {
+	fn get_data(&self, path: &str) -> Result<Bytes, Box<dyn Error>> {
 		match self {
 			Background::Blk { filename } => {
 				let filepath = format!("{}{}", path, filename);
-				match fs::read(&filepath) {
-					Ok(contents) => {
-						println!("  Got data from {}", &filepath);
-						Some(Bytes::copy_from_slice(&contents))
-					},
-					Err(why) => {
-						println!("ERROR: Unable to get data from {}: {}", &filepath, why);
-						None
-					}
-				}
+				let contents = fs::read(&filepath)?;
+				println!("  Got data from {}", &filepath);
+				Ok(Bytes::copy_from_slice(&contents))
 			},
 			Background::Png { filename } => {
 				let filepath = format!("{}{}", path, filename);
-				match ImageReader::open(&filepath) {
-					Ok(image) => {
-						match image.decode() {
-							Ok(image) => {
-								println!("  Got data from {}", &filepath);
-								Some(Bytes::from(blk::encode(image.into_rgba8())))
-							},
-							Err(why) => {
-								println!("ERROR: Unable to get data from {}: {}", &filepath, why);
-								None
-							}
-						}
-					},
-					Err(why) => {
-						println!("ERROR: Unable to get data from {}: {}", &filepath, why);
-						None
-					}
-				}
+				let image_data = ImageReader::open(&filepath)?;
+				let image = image_data.decode()?;
+				println!("  Got data from {}", &filepath);
+				Ok(Bytes::from(blk::encode(image.into_rgba8())))
 			}
 		}
 	}
@@ -281,18 +245,11 @@ impl Sound {
 		self.filename.as_string()
 	}
 
-	fn get_data(&self, path: &str) -> Option<Bytes> {
+	fn get_data(&self, path: &str) -> Result<Bytes, Box<dyn Error>> {
 		let filepath = format!("{}{}", path, self.filename);
-		match fs::read(&filepath) {
-			Ok(contents) => {
-				println!("  Got data from {}", &filepath);
-				Some(Bytes::copy_from_slice(&contents))
-			},
-			Err(why) => {
-				println!("ERROR: Unable to get data from {}: {}", &filepath, why);
-				None
-			}
-		}
+		let contents = fs::read(&filepath)?;
+		println!("  Got data from {}", &filepath);
+		Ok(Bytes::copy_from_slice(&contents))
 	}
 }
 
@@ -347,20 +304,13 @@ impl Catalogue {
 		}
 	}
 
-	fn get_data(&self, path: &str) -> Option<Bytes> {
+	fn get_data(&self, path: &str) -> Result<Bytes, Box<dyn Error>> {
 		match self {
 			Catalogue::File { filename } => {
 				let filepath = format!("{}{}", path, filename);
-				match fs::read(&filepath) {
-					Ok(contents) => {
-						println!("  Got data from {}", &filepath);
-						Some(Bytes::copy_from_slice(&contents))
-					},
-					Err(why) => {
-						println!("ERROR: Unable to get data from {}: {}", &filepath, why);
-						None
-					}
-				}
+				let contents = fs::read(&filepath)?;
+				println!("  Got data from {}", &filepath);
+				Ok(Bytes::copy_from_slice(&contents))
 			},
 			Catalogue::Inline { filename, entries } => {
 				let mut contents = String::new();
@@ -373,7 +323,7 @@ impl Catalogue {
 					).as_str();
 				}
 				println!("  Catalogue created: {}", filename);
-				Some(Bytes::copy_from_slice(contents.as_bytes()))
+				Ok(Bytes::copy_from_slice(contents.as_bytes()))
 			}
 		}
 	}
@@ -484,24 +434,24 @@ impl Tag {
 				// script files
 				for script in &tag.scripts {
 					tag.script_files.push(match script.get_data(path) {
-						Some(data) => data,
-						None => Bytes::new()
+						Ok(data) => data,
+						Err(_why) => Bytes::new()
 					});
 				}
 
 				// sprite files
 				for sprite in &tag.sprites {
 					tag.sprite_files.push(match sprite.get_data(path) {
-						Some(data) => data,
-						None => Bytes::new()
+						Ok(data) => data,
+						Err(_why) => Bytes::new()
 					});
 				}
 
 				// background files
 				for background in &mut tag.backgrounds {
 					tag.background_files.push(match background.get_data(path) {
-						Some(data) => data,
-						None => Bytes::new()
+						Ok(data) => data,
+						Err(_why) => Bytes::new()
 					});
 					*background = Background::Blk {
 						filename: Filename {
@@ -514,16 +464,16 @@ impl Tag {
 				// sound files
 				for sound in &tag.sounds {
 					tag.sound_files.push(match sound.get_data(path) {
-						Some(data) => data,
-						None => Bytes::new()
+						Ok(data) => data,
+						Err(_why) => Bytes::new()
 					});
 				}
 
 				// catalogue files
 				for catalogue in &tag.catalogues {
 					tag.catalogue_files.push(match catalogue.get_data(path) {
-						Some(data) => data,
-						None => Bytes::new()
+						Ok(data) => data,
+						Err(_why) => Bytes::new()
 					});
 				}
 
@@ -909,8 +859,11 @@ pub fn compile(mut tags: Vec<Tag>) -> Bytes {
 	pray::encode(&tags)
 }
 
-pub fn decompile(contents: &[u8], filename: &str) -> Vec<(String, Bytes)> {
-	let (tags, mut files) = pray::decode(contents);
-	files.push((format!("{}.the", filename), encode_source(tags)));
-	files
+pub fn decompile(contents: &[u8], filename: &str) -> Result<Vec<FileData>, Box<dyn Error>> {
+	let (tags, mut files) = pray::decode(contents)?;
+	files.push(FileData {
+		name: format!("{}.the", filename),
+		data: encode_source(tags)
+	});
+	Ok(files)
 }

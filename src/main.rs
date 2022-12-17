@@ -7,6 +7,8 @@ use std::env;
 use std::fmt;
 use std::fs;
 use std::fs::File;
+use std::error::Error;
+use std::io;
 use std::io::prelude::*;
 use regex::Regex;
 use image::RgbaImage;
@@ -51,6 +53,104 @@ impl fmt::Display for Filepath {
 	}
 }
 
+fn compile(filepath: &Filepath, output_path: &String, output_title: &String) -> Result<String, Box<dyn Error>> {
+	let output_filepath = Filepath::new(format!("{}{}.agents", output_path, output_title).as_str());
+	match File::open(output_filepath.to_string()) {
+		Err(_why) => {
+			let contents = fs::read_to_string(filepath.to_string())?;
+			let tags = agent::parse_source(&contents, &filepath.path);
+			println!();
+			let data = agent::compile(tags);
+			println!();
+			let mut file = File::create(output_filepath.to_string())?;
+			file.write_all(&data)?;
+			Ok(output_filepath.to_string())
+		},
+		Ok(_file) => Err(Box::new(io::Error::from(io::ErrorKind::AlreadyExists)))
+	}
+}
+
+fn decompile(filepath: &Filepath, output_path: &String, output_title: &String, output_path_specified: bool) -> Result<String, Box<dyn Error>> {
+	let contents = fs::read(filepath.to_string())?;
+	let path = if output_path_specified {
+			format!("{}{}/", output_path, output_title)
+		} else {
+			format!("{}{} files/", filepath.path, filepath.title)
+		};
+	fs::create_dir(&path)?;
+	let files = agent::decompile(&contents, &filepath.title)?;
+	for agent::FileData{ name, data } in files {
+		let output_filepath = format!("{}{}", &path, name);
+		let mut file = File::create(output_filepath)?;
+		file.write_all(&data)?;
+	}
+	Ok(path)
+}
+
+fn c16_to_png(filepath: &Filepath, output_path: &String, output_title: &String) -> Result<String, Box<dyn Error>> {
+	let contents = fs::read(filepath.to_string())?;
+	let images = c16::decode(&contents)?;
+	for (i, image) in images.iter().enumerate() {
+		let output_filename = format!("{}{}-{}.png", &output_path, &output_title, i + 1);
+		match File::open(&output_filename) {
+			Err(_why) => {
+				image.save(&output_filename)?;
+			},
+			Ok(_file) => {
+				return Err(Box::new(io::Error::from(io::ErrorKind::AlreadyExists)));
+			}
+		}
+	}
+	Ok(format!("{}{}-1.png to {}{}-{}.png", &output_path, &output_title, &output_path, &output_title, images.len()))
+}
+
+fn png_to_c16(filepaths: &Vec<Filepath>, output_path: &String, output_title: &String) -> Result<String, Box<dyn Error>> {
+	let output_filepath = Filepath::new(format!("{}{}.c16", output_path, output_title).as_str());
+	match File::open(output_filepath.to_string()) {
+		Err(_why) => {
+			let mut images: Vec<RgbaImage> = Vec::new();
+			for image_filepath in filepaths {
+				let image_data = ImageReader::open(image_filepath.to_string())?;
+				let image = image_data.decode()?;
+				images.push(image.into_rgba8());
+			}
+			let c16_data = c16::encode(images);
+			let mut file = File::create(output_filepath.to_string())?;
+			file.write_all(&c16_data)?;
+			Ok(output_filepath.to_string())
+		},
+		Ok(_file) => Err(Box::new(io::Error::from(io::ErrorKind::AlreadyExists)))
+	}
+}
+
+fn blk_to_png(filepath: &Filepath, output_path: &String, output_title: &String) -> Result<String, Box<dyn Error>> {
+	let output_filepath = Filepath::new(format!("{}{}.png", output_path, output_title).as_str());
+	match File::open(output_filepath.to_string()) {
+		Err(_why) => {
+			let contents = fs::read(filepath.to_string())?;
+			let image = blk::decode(&contents)?;
+			image.save(&output_filepath.to_string())?;
+			Ok(output_filepath.to_string())
+		},
+		Ok(_file) => Err(Box::new(io::Error::from(io::ErrorKind::AlreadyExists)))
+	}
+}
+
+fn png_to_blk(filepath: &Filepath, output_path: &String, output_title: &String) -> Result<String, Box<dyn Error>> {
+	let output_filepath = Filepath::new(format!("{}{}.blk", output_path, output_title).as_str());
+	match File::open(output_filepath.to_string()) {
+		Err(_why) => {
+			let image_data = ImageReader::open(filepath.to_string())?;
+			let image = image_data.decode()?;
+			let blk_data = blk::encode(image.into_rgba8());
+			let mut file = File::create(output_filepath.to_string())?;
+			file.write_all(&blk_data)?;
+			Ok(output_filepath.to_string())
+		},
+		Ok(_file) => Err(Box::new(io::Error::from(io::ErrorKind::AlreadyExists)))
+	}
+}
+
 fn main() {
 	let mut action = String::from("");
 	let mut filepaths: Vec<Filepath> = Vec::new();
@@ -78,7 +178,7 @@ fn main() {
 
 	if let Some(filepath) = filepaths.get(0) {
 		let mut output_path_specified = true;
-		let mut output_filepath = match output_filepath {
+		let output_filepath = match output_filepath {
 			Some(output) => {
 				if output.path.is_empty() {
 					Filepath {
@@ -106,166 +206,44 @@ fn main() {
 
 		match action.as_str() {
 			"compile" => {
-				output_filepath.extension = String::from("agents");
-				match File::open(output_filepath.to_string()) {
-					Err(_why) => {
-						match fs::read_to_string(filepath.to_string()) {
-							Ok(contents) => {
-								let tags = agent::parse_source(&contents, &filepath.path);
-								println!();
-								let data = agent::compile(tags);
-								println!();
-								match File::create(output_filepath.to_string()) {
-									Ok(mut file) => {
-										let result = file.write_all(&data);
-										match result {
-											Ok(_) => println!("Saved file: {}", &output_filepath),
-											Err(why) => println!("ERROR: {} cannot be created: {}", &output_filepath, why)
-										}
-									},
-									Err(why) => println!("ERROR: {} cannot be created: {}", &output_filepath, why)
-								}
-							},
-							Err(why) => println!("ERROR: {}", why)
-						}
-					},
-					Ok(_file) => println!("ERROR: file already exists: {}", &output_filepath)
+				match compile(filepath, &output_filepath.path, &output_filepath.title) {
+					Ok(output_filename) => println!("Saved file {}", output_filename),
+					Err(why) => println!("ERROR: Cannot save file {}: {}", &output_filepath, why)
 				}
 			},
 
 			"decompile" => {
-				match fs::read(filepath.to_string()) {
-					Ok(contents) => {
-						let path = if output_path_specified {
-							format!("{}{}/", &output_filepath.path, &output_filepath.title)
-							} else {
-								format!("{}{} files/", &filepath.path, &filepath.title)
-							};
-						match fs::create_dir(&path) {
-							Ok(()) => {
-								let files = agent::decompile(&contents, &filepath.title);
-								for (filename, data) in files {
-									let output_path = format!("{}{}", &path, filename);
-									match File::create(&output_path) {
-										Ok(mut file) => {
-											let result = file.write_all(&data);
-											match result {
-												Ok(_) => println!("Saved file: {}", &output_path),
-												Err(why) => println!("ERROR: {} could not be saved: {}", &output_path, why)
-											}
-										},
-										Err(why) => println!("ERROR: {} cannot be created: {}", &output_path, why)
-									}
-								}
-							},
-							Err(why) => println!("ERROR: Unable to create folder {}: {}", path, why)
-						}
-					},
-					Err(why) => println!("ERROR: Unable to read file: {}", why)
+				match decompile(filepath, &output_filepath.path, &output_filepath.title, output_path_specified) {
+					Ok(output_folder) => println!("Saved files to {}", output_folder),
+					Err(why) => println!("ERROR: Cannot save files: {}", why)
 				}
 			},
 
 			"c16_to_png" => {
-				match fs::read(filepath.to_string()) {
-					Ok(contents) => {
-						let images = c16::decode(&contents);
-						for (i, image) in images.iter().enumerate() {
-							let output_filename = format!("{}{}-{}.png", &output_filepath.path, &output_filepath.title, i);
-							match File::open(&output_filename) {
-								Ok(_file) => println!("ERROR: File already exists: {}", &output_filename),
-								Err(_why) => {
-									let result = image.save(&output_filename);
-									match result {
-										Ok(_) => println!("Saved file: {}", &output_filename),
-										Err(why) => println!("ERROR: {} could not be saved: {}", &output_filename, why)
-									}
-								},
-							}
-						}
-					},
-					Err(why) => println!("ERROR: Unable to read file: {}", why)
+				match c16_to_png(filepath, &output_filepath.path, &output_filepath.title) {
+					Ok(output_filenames) => println!("Saved files {}", output_filenames),
+					Err(why) => println!("ERROR: Cannot save file: {}", why)
 				}
 			},
 
 			"png_to_c16" => {
-				output_filepath.extension = String::from("c16");
-				match File::open(output_filepath.to_string()) {
-					Err(_why) => {
-						let mut images: Vec<RgbaImage> = Vec::new();
-						for image_filepath in filepaths {
-							if let Ok(image) = ImageReader::open(image_filepath.to_string()) {
-								if let Ok(image) = image.decode() {
-									images.push(image.into_rgba8());
-								}
-							}
-						}
-						let c16_data = c16::encode(images);
-						match File::create(output_filepath.to_string()) {
-							Ok(mut file) => {
-								let result = file.write_all(&c16_data);
-								match result {
-									Ok(_) => println!("Saved file: {}", &output_filepath),
-									Err(why) => println!("ERROR: {} could not be saved: {}", &output_filepath, why)
-								}
-							},
-							Err(why) => println!("ERROR: {} cannot be created: {}", &output_filepath, why)
-						}
-					},
-					Ok(_file) => println!("ERROR: file already exists: {}", &output_filepath)
+				match png_to_c16(&filepaths, &output_filepath.path, &output_filepath.title) {
+					Ok(output_filename) => println!("Saved file {}", output_filename),
+					Err(why) => println!("ERROR: Cannot save file: {}", why)
 				}
 			},
 
 			"blk_to_png" => {
-				output_filepath.extension = String::from("png");
-				match File::open(output_filepath.to_string()) {
-					Err(_why) => {
-						match fs::read(filepath.to_string()) {
-							Ok(contents) => {
-								match blk::decode(&contents) {
-									Some(image) => {
-										let result = image.save(&output_filepath.to_string());
-										match result {
-											Ok(_) => println!("Saved file: {}", &output_filepath),
-											Err(why) => println!("ERROR: {} could not be saved: {}", &output_filepath, why)
-										}
-									},
-									None => println!("ERROR: Unable to save file: {}", &output_filepath)
-								}
-							},
-							Err(why) => println!("ERROR: Unable to read file: {}", why)
-						}
-					},
-					Ok(_file) => println!("ERROR: File already exists: {}", &output_filepath)
+				match blk_to_png(filepath, &output_filepath.path, &output_filepath.title) {
+					Ok(output_filename) => println!("Saved file {}", output_filename),
+					Err(why) => println!("ERROR: Cannot save file: {}", why)
 				}
 			},
 
 			"png_to_blk" => {
-				output_filepath.extension = String::from("blk");
-				match File::open(output_filepath.to_string()) {
-					Err(_why) => {
-						match ImageReader::open(filepath.to_string()) {
-							Ok(image) => {
-								match image.decode() {
-									Ok(image) => {
-										let blk_data = blk::encode(image.into_rgba8());
-										match File::create(output_filepath.to_string()) {
-											Err(why) => println!("ERROR: {} cannot be created: {}", &output_filepath, why),
-											Ok(mut file) => {
-												let result = file.write_all(&blk_data);
-												match result {
-													Ok(_) => println!("Saved file: {}", &output_filepath),
-													Err(why) => println!("ERROR: {} could not be saved: {}", &output_filepath, why)
-												}
-											}
-										}
-									},
-									Err(why) => println!("ERROR: Unable to read file: {}", why)
-								}
-							},
-							Err(why) => println!("ERROR: Unable to open file: {}", why)
-						}
-					},
-					Ok(_file) => println!("ERROR: File already exists: {}", &output_filepath)
+				match png_to_blk(filepath, &output_filepath.path, &output_filepath.title) {
+					Ok(output_filename) => println!("Saved file {}", output_filename),
+					Err(why) => println!("ERROR: Cannot save file: {}", why)
 				}
 			},
 

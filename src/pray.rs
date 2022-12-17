@@ -4,6 +4,7 @@ use crate::agent::*;
 
 use std::str;
 use std::io::Cursor;
+use std::error::Error;
 use std::collections::HashMap;
 use bytes::{ Bytes, BytesMut, Buf, BufMut };
 use image::{ ImageOutputFormat };
@@ -77,7 +78,7 @@ fn read_block_header(buffer: &mut Bytes) -> BlockHeader {
 	}
 }
 
-fn read_agent_block(buffer: &mut Bytes, files: &mut Vec<(String, Bytes)>, block_name: String, supported_game: SupportedGame) -> AgentTag {
+fn read_agent_block(buffer: &mut Bytes, files: &mut Vec<FileData>, block_name: String, supported_game: SupportedGame) -> AgentTag {
 	let mut tag = AgentTag::new();
 	tag.name = block_name.clone();
 	tag.supported_game = supported_game;
@@ -116,7 +117,10 @@ fn read_agent_block(buffer: &mut Bytes, files: &mut Vec<(String, Bytes)>, block_
 						tag.scripts.push(Script::new(filename.as_str(), supported_game_string.as_str()));
 						println!("Extracted file: {}", &filename);
 						let data = Bytes::from(value);
-						files.push((filename.clone(), data));
+						files.push(FileData {
+							name: filename.clone(),
+							data
+						});
 					}
 
 				} else if key.starts_with("Dependency") {
@@ -145,9 +149,9 @@ fn read_agent_block(buffer: &mut Bytes, files: &mut Vec<(String, Bytes)>, block_
 	tag
 }
 
-pub fn decode(contents: &[u8]) -> (Vec<Tag>, Vec<(String, Bytes)>) {
+pub fn decode(contents: &[u8]) -> Result<(Vec<Tag>, Vec<FileData>), Box<dyn Error>> {
 	let mut tags: Vec<Tag> = Vec::new();
-	let mut files: Vec<(String, Bytes)> = Vec::new();
+	let mut files: Vec<FileData> = Vec::new();
 
 	let mut buffer = Bytes::copy_from_slice(contents);
 	if buffer.len() >= 4 {
@@ -180,7 +184,7 @@ pub fn decode(contents: &[u8]) -> (Vec<Tag>, Vec<(String, Bytes)>) {
 							let data = buffer.copy_to_bytes(block_header.size);
 							match filename.extension.as_str() {
 								"c16" => {
-									let images = c16::decode(&data);
+									let images = c16::decode(&data)?;
 									for (i, image) in images.iter().enumerate() {
 										let png_filename = format!("{}-{}.png", &filename.title, i + 1);
 										for tag in &mut tags {
@@ -195,34 +199,33 @@ pub fn decode(contents: &[u8]) -> (Vec<Tag>, Vec<(String, Bytes)>) {
 											}
 										}
 										let mut png_data = Cursor::new(Vec::new());
-										let result = image.write_to(&mut png_data, ImageOutputFormat::Png);
-										match result {
-											Ok(()) => {
-												println!("Extracted file: {}", &png_filename);
-												files.push((png_filename, Bytes::from(png_data.into_inner())));
-											},
-											Err(why) => println!("ERROR: Unable to convert image {}: {}", filename, why)
-										}
+										image.write_to(&mut png_data, ImageOutputFormat::Png)?;
+										println!("Extracted file: {}", &png_filename);
+										files.push(FileData {
+											name: png_filename,
+											data: Bytes::from(png_data.into_inner())
+										});
 									}
 								},
 								"blk" => {
 									let image = blk::decode(&data);
-									if let Some(image) = image {
+									if let Ok(image) = image {
 										let blk_filename = format!("{}.png", filename.title);
 										let mut blk_data = Cursor::new(Vec::new());
-										let result = image.write_to(&mut blk_data, ImageOutputFormat::Png);
-										match result {
-											Ok(()) => {
-												println!("Extracted file: {}", &blk_filename);
-												files.push((blk_filename, Bytes::from(blk_data.into_inner())));
-											},
-											Err(why) => println!("ERROR: Unable to convert image {}: {}", filename, why)
-										}
+										image.write_to(&mut blk_data, ImageOutputFormat::Png)?;
+										println!("Extracted file: {}", &blk_filename);
+										files.push(FileData {
+											name: blk_filename,
+											data: Bytes::from(blk_data.into_inner())
+										});
 									}
 								},
 								_ => {
 									println!("Extracted file: {}", &filename);
-									files.push((filename.to_string(), data));
+									files.push(FileData {
+										name: filename.to_string(),
+										data
+									});
 								}
 							}
 						},
@@ -239,7 +242,7 @@ pub fn decode(contents: &[u8]) -> (Vec<Tag>, Vec<(String, Bytes)>) {
 		}
 	}
 
-	(tags, files)
+	Ok((tags, files))
 }
 
 fn write_string(buffer: &mut BytesMut, num_bytes: usize, string: &str) {
