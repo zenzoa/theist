@@ -2,6 +2,7 @@ mod c16;
 mod blk;
 mod agent;
 mod pray;
+mod ui;
 
 use std::env;
 use std::fmt;
@@ -13,6 +14,124 @@ use std::io::prelude::*;
 use regex::Regex;
 use image::RgbaImage;
 use image::io::Reader as ImageReader;
+use iced::{ Sandbox, Settings };
+
+pub fn main() -> iced::Result {
+	let mut action = String::from("");
+	let mut filepaths: Vec<Filepath> = Vec::new();
+	let mut output_filepath: Option<Filepath> = None;
+
+	let mut get_output = false;
+
+	let args: Vec<String> = env::args().collect();
+	for arg in args[1..].iter() {
+		match arg.as_str() {
+			"--output" => {
+				get_output = true;
+			},
+			_ => {
+				if get_output {
+					output_filepath = Some(Filepath::new(arg));
+				} else if !action.is_empty() {
+					filepaths.push(Filepath::new(arg));
+				} else {
+					action = arg.to_string();
+				}
+			}
+		}
+	}
+
+	match action.as_str() {
+		"" => {
+			return start_gui();
+		}
+		"version" => print_version(),
+		"--version" => print_version(),
+		"help" => print_help(),
+		"--help" => print_help(),
+		_ => ()
+	}
+
+	if let Some(filepath) = filepaths.get(0) {
+		let mut output_path_specified = true;
+		let output_filepath = match output_filepath {
+			Some(output) => {
+				if output.path.is_empty() {
+					Filepath {
+						path: filepath.path.clone(),
+						title: output.title.clone(),
+						extension: output.extension
+					}
+				} else {
+					Filepath {
+						path: output.path.clone(),
+						title: output.title.clone(),
+						extension: output.extension
+					}
+				}
+			},
+			None => {
+				output_path_specified = false;
+				Filepath {
+					path: filepath.path.clone(),
+					title: filepath.title.clone(),
+					extension: filepath.extension.clone()
+				}
+			}
+		};
+
+		match action.as_str() {
+			"compile" => {
+				match compile(filepath, &output_filepath.path, &output_filepath.title) {
+					Ok(output_filename) => { println!("Saved file {}", output_filename) },
+					Err(why) => { println!("ERROR: Cannot save file {}: {}", &output_filepath, why) }
+				}
+			},
+
+			"decompile" => {
+				match decompile(filepath, &output_filepath.path, &output_filepath.title, output_path_specified) {
+					Ok(output_folder) => { println!("Saved files to {}", output_folder) },
+					Err(why) => { println!("ERROR: Cannot save files: {}", why) }
+				}
+			},
+
+			"c16_to_png" => {
+				match c16_to_png(filepath, &output_filepath.path, &output_filepath.title) {
+					Ok(output_filenames) => { println!("Saved files {}", output_filenames) },
+					Err(why) => { println!("ERROR: Cannot save file: {}", why) }
+				}
+			},
+
+			"png_to_c16" => {
+				match png_to_c16(&filepaths, &output_filepath.path, &output_filepath.title) {
+					Ok(output_filename) => { println!("Saved file {}", output_filename) },
+					Err(why) => { println!("ERROR: Cannot save file: {}", why) }
+				}
+			},
+
+			"blk_to_png" => {
+				match blk_to_png(filepath, &output_filepath.path, &output_filepath.title) {
+					Ok(output_filename) => { println!("Saved file {}", output_filename) },
+					Err(why) => { println!("ERROR: Cannot save file: {}", why) }
+				}
+			},
+
+			"png_to_blk" => {
+				match png_to_blk(filepath, &output_filepath.path, &output_filepath.title) {
+					Ok(output_filename) => { println!("Saved file {}", output_filename) },
+					Err(why) => { println!("ERROR: Cannot save file: {}", why) }
+				}
+			},
+
+			_ => ()
+		}
+	}
+	Ok(())
+}
+
+fn start_gui() -> iced::Result {
+	ui::Main::run(Settings::default())
+}
 
 struct Filepath {
 	path: String,
@@ -53,6 +172,29 @@ impl fmt::Display for Filepath {
 	}
 }
 
+fn print_version() {
+	println!("{} {}", env!("CARGO_PKG_NAME"), env!("CARGO_PKG_VERSION"));
+}
+
+fn print_help() {
+	println!("A tool for making Creatures 3/Docking Station agents.");
+	println!();
+	println!("Usage: theist [COMMAND] [OPTIONS]");
+	println!();
+	println!("Commands:");
+	println!("  version                     Print version info and exit");
+	println!("  help                        List installed commands");
+	println!("  compile <FILENAME>          Compile a Theist source file and accompanying files to a .AGENTS file");
+	println!("  decompile <FILENAME>        Decompile the files from an .AGENTS file into a folder");
+	println!("  c16_to_png <FILENAME>       Convert a .C16 file to one or more .PNG files");
+	println!("  png_to_c16 <FILENAME LIST>  Convert one or more .PNG files to a single .C16 file");
+	println!("  blk_to_png <FILENAME>       Convert a .BLK file to a .PNG file");
+	println!("  png_to_blk <FILENAME>       Convert a .PNG file to a .BLK file");
+	println!();
+	println!("Options:");
+	println!("  --output <FILENAME>         Specify what to name the output file");
+}
+
 fn compile(filepath: &Filepath, output_path: &String, output_title: &String) -> Result<String, Box<dyn Error>> {
 	let output_filepath = Filepath::new(format!("{}{}.agents", output_path, output_title).as_str());
 	match File::open(output_filepath.to_string()) {
@@ -80,7 +222,7 @@ fn decompile(filepath: &Filepath, output_path: &String, output_title: &String, o
 	fs::create_dir(&path)?;
 	let files = agent::decompile(&contents, &filepath.title)?;
 	for agent::FileData{ name, data } in files {
-		let output_filepath = format!("{}{}", &path, name);
+		let output_filepath = format!("{}{:?}", &path, name);
 		let mut file = File::create(output_filepath)?;
 		file.write_all(&data)?;
 	}
@@ -148,106 +290,5 @@ fn png_to_blk(filepath: &Filepath, output_path: &String, output_title: &String) 
 			Ok(output_filepath.to_string())
 		},
 		Ok(_file) => Err(Box::new(io::Error::from(io::ErrorKind::AlreadyExists)))
-	}
-}
-
-fn main() {
-	let mut action = String::from("");
-	let mut filepaths: Vec<Filepath> = Vec::new();
-	let mut output_filepath: Option<Filepath> = None;
-
-	let mut get_output = false;
-
-	let args: Vec<String> = env::args().collect();
-	for arg in args[1..].iter() {
-		match arg.as_str() {
-			"--output" => {
-				get_output = true;
-			},
-			_ => {
-				if get_output {
-					output_filepath = Some(Filepath::new(arg));
-				} else if !action.is_empty() {
-					filepaths.push(Filepath::new(arg));
-				} else {
-					action = arg.to_string();
-				}
-			}
-		}
-	}
-
-	if let Some(filepath) = filepaths.get(0) {
-		let mut output_path_specified = true;
-		let output_filepath = match output_filepath {
-			Some(output) => {
-				if output.path.is_empty() {
-					Filepath {
-						path: filepath.path.clone(),
-						title: output.title.clone(),
-						extension: output.extension
-					}
-				} else {
-					Filepath {
-						path: output.path.clone(),
-						title: output.title.clone(),
-						extension: output.extension
-					}
-				}
-			},
-			None => {
-				output_path_specified = false;
-				Filepath {
-					path: filepath.path.clone(),
-					title: filepath.title.clone(),
-					extension: filepath.extension.clone()
-				}
-			}
-		};
-
-		match action.as_str() {
-			"compile" => {
-				match compile(filepath, &output_filepath.path, &output_filepath.title) {
-					Ok(output_filename) => println!("Saved file {}", output_filename),
-					Err(why) => println!("ERROR: Cannot save file {}: {}", &output_filepath, why)
-				}
-			},
-
-			"decompile" => {
-				match decompile(filepath, &output_filepath.path, &output_filepath.title, output_path_specified) {
-					Ok(output_folder) => println!("Saved files to {}", output_folder),
-					Err(why) => println!("ERROR: Cannot save files: {}", why)
-				}
-			},
-
-			"c16_to_png" => {
-				match c16_to_png(filepath, &output_filepath.path, &output_filepath.title) {
-					Ok(output_filenames) => println!("Saved files {}", output_filenames),
-					Err(why) => println!("ERROR: Cannot save file: {}", why)
-				}
-			},
-
-			"png_to_c16" => {
-				match png_to_c16(&filepaths, &output_filepath.path, &output_filepath.title) {
-					Ok(output_filename) => println!("Saved file {}", output_filename),
-					Err(why) => println!("ERROR: Cannot save file: {}", why)
-				}
-			},
-
-			"blk_to_png" => {
-				match blk_to_png(filepath, &output_filepath.path, &output_filepath.title) {
-					Ok(output_filename) => println!("Saved file {}", output_filename),
-					Err(why) => println!("ERROR: Cannot save file: {}", why)
-				}
-			},
-
-			"png_to_blk" => {
-				match png_to_blk(filepath, &output_filepath.path, &output_filepath.title) {
-					Ok(output_filename) => println!("Saved file {}", output_filename),
-					Err(why) => println!("ERROR: Cannot save file: {}", why)
-				}
-			},
-
-			_ => ()
-		}
 	}
 }
