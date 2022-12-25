@@ -66,7 +66,7 @@ impl fmt::Display for SupportedGame {
 }
 
 impl SupportedGame {
-	fn new(s:&str) -> SupportedGame {
+	pub fn new(s: &str) -> SupportedGame {
 		match s {
 			"c3" => SupportedGame::C3,
 			"C3" => SupportedGame::C3,
@@ -333,7 +333,7 @@ impl Catalogue {
 //	filename: Filename
 //}
 
-#[derive(Clone)]
+#[derive(Clone, PartialEq)]
 pub enum RemoveScript {
 	None,
 	Auto,
@@ -350,7 +350,7 @@ impl fmt::Display for RemoveScript {
 	}
 }
 
-#[derive(Clone)]
+#[derive(Clone, PartialEq)]
 pub enum InjectorPreview {
 	Auto,
 	Manual { sprite: String, animation: String }
@@ -387,7 +387,7 @@ impl AgentTag {
 			version: String::from(""),
 			description: String::from(""),
 			supported_game: SupportedGame::C3DS,
-			remove_script: RemoveScript::None,
+			remove_script: RemoveScript::Auto,
 			injector_preview: InjectorPreview::Auto,
 
 			scripts: Vec::new(),
@@ -614,6 +614,7 @@ pub fn parse_source(contents: &str, path: &str) -> Vec<Tag> {
 						println!("  Description: {}", tag.description);
 					},
 					"preview" => {
+						// TODO: check for "preview auto"
 						let sprite = match tokens.get(1) {
 							None => String::from(""),
 							Some(i) => String::from(i)
