@@ -1,6 +1,12 @@
 use crate::c16;
 use crate::blk;
 use crate::agent::*;
+use crate::agent::tag::*;
+use crate::agent::script::*;
+use crate::agent::sprite::*;
+use crate::agent::background::*;
+use crate::agent::sound::*;
+use crate::agent::catalogue::*;
 
 use std::str;
 use std::io::Cursor;
@@ -106,7 +112,7 @@ fn read_agent_block(buffer: &mut Bytes, files: &mut Vec<FileData>, block_name: S
 			},
 			"Remove script" => {
 				if let InfoValue::Str(value) = value {
-					tag.remove_script = RemoveScript::Manual(value.clone());
+					tag.removescript = RemoveScript::Manual(value.clone());
 				}
 			},
 			_ => {
@@ -140,7 +146,7 @@ fn read_agent_block(buffer: &mut Bytes, files: &mut Vec<FileData>, block_name: S
 	}
 
 	if !preview_sprite.is_empty() && !preview_animation.is_empty() {
-		tag.injector_preview = InjectorPreview::Manual {
+		tag.preview = Preview::Manual {
 			sprite: preview_sprite,
 			animation: preview_animation
 		};
@@ -309,7 +315,7 @@ fn write_agent_block(buffer: &mut BytesMut, tag: &AgentTag) {
 		});
 	}
 
-	if let InjectorPreview::Manual { sprite, animation } = &tag.injector_preview {
+	if let Preview::Manual { sprite, animation } = &tag.preview {
 		println!("  Write injector preview");
 		str_values.push(StrValue{
 			name: String::from("Agent Animation File"),
@@ -337,11 +343,11 @@ fn write_agent_block(buffer: &mut BytesMut, tag: &AgentTag) {
 		});
 	}
 
-	if let RemoveScript::Manual(remove_script) = &tag.remove_script {
+	if let RemoveScript::Manual(removescript) = &tag.removescript {
 		println!("  Write remove script");
 		str_values.push(StrValue{
 			name: String::from("Remove script"),
-			value: remove_script.to_string()
+			value: removescript.to_string()
 		});
 	}
 

@@ -1,12 +1,20 @@
+pub mod tag_view;
+
 use crate::agent::*;
+use crate::agent::tag::*;
+use crate::agent::script::*;
+use crate::agent::sprite::*;
+use crate::agent::background::*;
+use crate::agent::sound::*;
+use crate::agent::catalogue::*;
 use crate::pray;
 
 use std::fs;
 use std::str;
 use std::path::PathBuf;
 use rfd::{ FileDialog, MessageDialog, MessageLevel, MessageButtons };
-use iced::widget::{ container, row, column, text, text_input, button, radio, checkbox, horizontal_space, horizontal_rule, vertical_space, vertical_rule };
-use iced::{ Alignment, Length, Element, Sandbox, Settings };
+use iced::widget::{ row, column, text, button, horizontal_space, horizontal_rule, vertical_rule };
+use iced::{ Length, Element, Sandbox };
 
 enum Alert {
 	Update(String),
@@ -31,20 +39,30 @@ pub enum Message {
 	SaveAs,
 	Compile,
 
-	AddFile,
-
 	AddTag,
 	DeleteTag,
 	SelectTag(Option<usize>),
-	ChangeTagName(String),
-	ChangeTagDescription(String),
-	ChangeTagVersion(String),
-	ChangeTagSupportedGame(usize),
-	ChangeTagInjectorPreviewAuto(bool),
-	ChangeTagInjectorPreviewSprite(String),
-	ChangeTagInjectorPreviewAnimation(String),
-	ChangeTagRemoveScriptAuto(bool),
-	ChangeTagRemoveScript(String)
+	SetTagName(String),
+	SetTagDescription(String),
+	SetTagVersion(String),
+	SetTagSupportedGame(usize),
+	SetTagPreviewAuto(bool),
+	SetTagPreviewSprite(String),
+	SetTagPreviewAnimation(String),
+	SetTagRemoveScriptAuto(bool),
+	SetTagRemoveScript(String),
+
+	AddScript,
+	RemoveScript,
+
+	AddSprite,
+	RemoveSprite,
+
+	AddSound,
+	RemoveSound,
+
+	AddCatalogue,
+	RemoveCatalogue,
 }
 
 impl Sandbox for Main {
@@ -158,135 +176,71 @@ impl Sandbox for Main {
 				self.selected_tag = selected_tag;
 				self.modified = true;
 			},
-			Message::ChangeTagName(name) => {
+			Message::SetTagName(new_name) => {
 				if let Some(selected_tag) = self.selected_tag {
-					match &mut self.tags[selected_tag] {
-						Tag::Agent(tag) => tag.name = name,
-						_ => ()
-					}
+					self.tags[selected_tag].set_name(new_name);
+					self.modified = true;
 				}
-				self.modified = true;
 			},
-			Message::ChangeTagDescription(description) => {
+			Message::SetTagDescription(new_description) => {
 				if let Some(selected_tag) = self.selected_tag {
-					match &mut self.tags[selected_tag] {
-						Tag::Agent(tag) => tag.description = description,
-						_ => ()
-					}
+					self.tags[selected_tag].set_description(new_description);
+					self.modified = true;
 				}
-				self.modified = true;
 			},
-			Message::ChangeTagVersion(version) => {
+			Message::SetTagVersion(new_version) => {
 				if let Some(selected_tag) = self.selected_tag {
-					match &mut self.tags[selected_tag] {
-						Tag::Agent(tag) => tag.version = version,
-						_ => ()
-					}
+					self.tags[selected_tag].set_version(new_version);
+					self.modified = true;
 				}
-				self.modified = true;
 			},
-			Message::ChangeTagSupportedGame(supported_game) => {
+			Message::SetTagSupportedGame(new_supported_game) => {
 				if let Some(selected_tag) = self.selected_tag {
-					match &mut self.tags[selected_tag] {
-						Tag::Agent(tag) => tag.supported_game = match supported_game {
-							1 => SupportedGame::C3,
-							2 => SupportedGame::DS,
-							_ => SupportedGame::C3DS
-						},
-						_ => ()
-					}
+					self.tags[selected_tag].set_supported_game(new_supported_game);
+					self.modified = true;
 				}
-				self.modified = true;
 			},
-			Message::ChangeTagInjectorPreviewAuto(is_auto) => {
+			Message::SetTagPreviewAuto(is_auto) => {
 				if let Some(selected_tag) = self.selected_tag {
-					match &mut self.tags[selected_tag] {
-						Tag::Agent(tag) => {
-							tag.injector_preview = if is_auto {
-								InjectorPreview::Auto
-							} else {
-								InjectorPreview::Manual {
-									sprite: String::from(""), // TODO: get name of first sprite
-									animation: String::from("0")
-								}
-							};
-						},
-						_ => ()
-					}
+					self.tags[selected_tag].set_preview_auto(is_auto);
+					self.modified = true;
 				}
-				self.modified = true;
 			},
-			Message::ChangeTagInjectorPreviewSprite(new_sprite) => {
+			Message::SetTagPreviewSprite(new_sprite) => {
 				if let Some(selected_tag) = self.selected_tag {
-					match &mut self.tags[selected_tag] {
-						Tag::Agent(tag) => {
-							if let InjectorPreview::Manual{ sprite, animation } = &tag.injector_preview {
-								tag.injector_preview = InjectorPreview::Manual{
-									sprite: new_sprite,
-									animation: animation.clone()
-								}
-							}
-						},
-						_ => ()
-					}
+					self.tags[selected_tag].set_preview_sprite(new_sprite);
+					self.modified = true;
 				}
-				self.modified = true;
 			},
-			Message::ChangeTagInjectorPreviewAnimation(new_animation) => {
+			Message::SetTagPreviewAnimation(new_animation) => {
 				if let Some(selected_tag) = self.selected_tag {
-					match &mut self.tags[selected_tag] {
-						Tag::Agent(tag) => {
-							if let InjectorPreview::Manual{ sprite, animation } = &tag.injector_preview {
-								tag.injector_preview = InjectorPreview::Manual{
-									sprite: sprite.clone(),
-									animation: new_animation
-								}
-							}
-						},
-						_ => ()
-					}
+					self.tags[selected_tag].set_preview_animation(new_animation);
+					self.modified = true;
 				}
-				self.modified = true;
 			},
-			Message::ChangeTagRemoveScriptAuto(is_auto) => {
+			Message::SetTagRemoveScriptAuto(is_auto) => {
 				if let Some(selected_tag) = self.selected_tag {
-					match &mut self.tags[selected_tag] {
-						Tag::Agent(tag) => {
-							tag.remove_script = if is_auto {
-								RemoveScript::Auto
-							} else {
-								RemoveScript::Manual(String::from(""))
-							};
-						},
-						_ => ()
-					}
+					self.tags[selected_tag].set_removescript_auto(is_auto);
+					self.modified = true;
 				}
-				self.modified = true;
 			},
-			Message::ChangeTagRemoveScript(remove_script) => {
+			Message::SetTagRemoveScript(new_removescript) => {
 				if let Some(selected_tag) = self.selected_tag {
-					match &mut self.tags[selected_tag] {
-						Tag::Agent(tag) => {
-							tag.remove_script = RemoveScript::Manual(remove_script);
-						},
-						_ => ()
-					}
+					self.tags[selected_tag].set_removescript_string(new_removescript);
+					self.modified = true;
 				}
-				self.modified = true;
 			},
-			Message::AddFile => {
-				let file = FileDialog::new()
-					.add_filter("image", &["png", "c16", "blk"])
-					.add_filter("script", &["cos"])
-					.add_filter("sound", &["wav"])
-					.add_filter("catalogue", &["catalogue"])
-					.add_filter("genetics", &["gen", "gno"])
-					.set_directory(&self.path)
-					.pick_file();
-				if let Some(path) = file {
-					println!("{:?}", path)
-				}
-				self.modified = true;
+			Message::AddScript => {
+				self.add_file("script", &["cos"]);
+			},
+			Message::AddSprite => {
+				self.add_file("image", &["png", "c16", "blk"]);
+			},
+			Message::AddSound => {
+				self.add_file("sound", &["wav"]);
+			},
+			Message::AddCatalogue => {
+				self.add_file("catalogue", &["catalogue"]);
 			},
 			_ => {
 				println!("MESSAGE: {:?}", message);
@@ -328,94 +282,15 @@ impl Sandbox for Main {
 
 		tabs = tabs.push(button("+").on_press(Message::AddTag));
 
-		let mut tab_contents = column![]
-			.spacing(10);
-
-		let mut current_properties = column![]
-			.spacing(10);
+		let mut tab_contents = column![];
+		let mut current_properties = column![];
 
 		if let Some(selected_tag) = self.selected_tag {
 			if let Some(tag) = self.tags.get(selected_tag) {
 				match tag {
 					Tag::Agent(tag) => {
-						let supported_game = match tag.supported_game {
-							SupportedGame::C3DS => Some(0),
-							SupportedGame::C3 => Some(1),
-							SupportedGame::DS => Some(2)
-						};
-						current_properties = column![
-							text(format!("Properties for {}", &tag.name)),
-							row![
-									text("Name").width(Length::FillPortion(1)),
-									text_input("My Agent", &tag.name, Message::ChangeTagName).width(Length::FillPortion(3))
-								]
-								.spacing(5)
-								.align_items(Alignment::Center),
-							row![
-									text("Description").width(Length::FillPortion(1)),
-									text_input("Something that does some stuff", &tag.description, Message::ChangeTagDescription).width(Length::FillPortion(3))
-								]
-								.spacing(5)
-								.align_items(Alignment::Center),
-							row![
-									text("Version").width(Length::FillPortion(1)),
-									text_input("1.0", &tag.version, Message::ChangeTagVersion).width(Length::FillPortion(3))
-								]
-								.spacing(5)
-								.align_items(Alignment::Center),
-							row![
-									text("Game").width(Length::FillPortion(1)),
-									radio("C3 + DS", 0, supported_game, Message::ChangeTagSupportedGame).width(Length::FillPortion(1)),
-									radio("C3 only", 1, supported_game, Message::ChangeTagSupportedGame).width(Length::FillPortion(1)),
-									radio("DS only", 2, supported_game, Message::ChangeTagSupportedGame).width(Length::FillPortion(1))
-								]
-								.spacing(5)
-								.align_items(Alignment::Center)
-						]
-						.spacing(20);
-
-						current_properties = current_properties.push(
-							row![
-								text("Injector Preview"),
-								checkbox("Auto", tag.injector_preview == InjectorPreview::Auto, Message::ChangeTagInjectorPreviewAuto)
-							]
-							.spacing(20)
-							.align_items(Alignment::Center)
-						);
-
-						if let InjectorPreview::Manual { sprite, animation } = &tag.injector_preview {
-							current_properties = current_properties.push(
-								row![
-									text_input("Sprite Name", sprite, Message::ChangeTagInjectorPreviewSprite),
-									text_input("Animation String", animation, Message::ChangeTagInjectorPreviewAnimation)
-								]
-								.spacing(5)
-								.align_items(Alignment::Center)
-							);
-						}
-
-						current_properties = current_properties.push(
-							row![
-								text("Remove Script"),
-								checkbox("Auto", tag.remove_script == RemoveScript::Auto, Message::ChangeTagRemoveScriptAuto)
-							]
-							.spacing(20)
-							.align_items(Alignment::Center)
-						);
-
-						if tag.remove_script != RemoveScript::Auto {
-							let remove_script = if let RemoveScript::Manual(remove_script) = &tag.remove_script {
-								remove_script.clone().to_string()
-							} else {
-								String::from("")
-							};
-							current_properties = current_properties.push(
-								text_input("Remove Script", &remove_script, Message::ChangeTagRemoveScript)
-							);
-						}
-
-						current_properties = current_properties.push(vertical_space(Length::Fill));
-						current_properties = current_properties.push(button("Delete").on_press(Message::DeleteTag));
+						tab_contents = tag_view::agent_listing(tag);
+						current_properties = tag_view::agent_properties(tag);
 					},
 					_ => ()
 				}
@@ -540,6 +415,73 @@ impl Main {
 		self.set_path_and_name(&path);
 		// TODO: save theist source file
 		// TODO: save any files loaded locally but not yet in the path
+	}
+
+	fn add_file(&mut self, filter_name: &str, filters: &[&str]) {
+		let file = FileDialog::new()
+			.add_filter(filter_name, &filters)
+			.set_directory(&self.path)
+			.pick_file();
+		if let Some(file_path) = file {
+			let path = match file_path.parent() {
+				Some(parent) => parent.to_string_lossy().into_owned() + "/",
+				None => String::from("")
+			};
+			let filename = match file_path.file_name() {
+				Some(filename) => filename.to_string_lossy().into_owned(),
+				None => String::from("")
+			};
+			let title = match file_path.file_stem() {
+				Some(file_stem) => file_stem.to_string_lossy().into_owned(),
+				None => String::from("")
+			};
+			let extension = match file_path.extension() {
+				Some(extension) => extension.to_string_lossy().into_owned(),
+				None => String::from("")
+			};
+			if self.path.is_empty() {
+				self.path = path.clone();
+			} else if self.path != path {
+				// send message to user
+				return;
+			}
+			if let Some(selected_tag) = self.selected_tag {
+				match &mut self.tags[selected_tag] {
+					Tag::Agent(tag) => {
+						if tag.filepath.is_empty() {
+							tag.filepath = self.path.clone();
+						}
+						match extension.as_str() {
+							"cos" => {
+								tag.scripts.push(Script::new(&filename, &tag.supported_game.to_string()));
+							},
+							"png" => {
+								// TODO: add property to convert a one-frame png-based c16 to a blk
+								let mut sprite = Sprite::new(&title);
+								let frame = SpriteFrame::new(&filename);
+								sprite.add_frame(frame);
+								tag.sprites.push(sprite);
+							},
+							"c16" => {
+								tag.sprites.push(Sprite::new(&filename));
+							},
+							"blk" => {
+								tag.backgrounds.push(Background::new(&filename));
+							},
+							"wav" => {
+								tag.sounds.push(Sound::new(&filename));
+							},
+							"catalogue" => {
+								tag.catalogues.push(Catalogue::new(&filename));
+							},
+							_ => ()
+						}
+						self.modified = true;
+					},
+					_ => ()
+				}
+			}
+		}
 	}
 }
 
