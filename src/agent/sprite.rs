@@ -18,7 +18,7 @@ pub enum Sprite {
 impl Sprite {
 	pub fn new(filename: &str) -> Sprite {
 		Sprite::C16 {
-			filename: Filename::new(filename, "cos")
+			filename: Filename::new(filename, "c16")
 		}
 	}
 

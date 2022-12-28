@@ -1,4 +1,9 @@
 pub mod tag_view;
+pub mod script_view;
+pub mod sprite_view;
+pub mod background_view;
+pub mod sound_view;
+pub mod catalogue_view;
 
 use crate::agent::*;
 use crate::agent::tag::*;
@@ -11,10 +16,19 @@ use crate::pray;
 
 use std::fs;
 use std::str;
-use std::path::PathBuf;
+use std::path::{ Path, PathBuf };
 use rfd::{ FileDialog, MessageDialog, MessageLevel, MessageButtons };
-use iced::widget::{ row, column, text, button, horizontal_space, horizontal_rule, vertical_rule };
-use iced::{ Length, Element, Sandbox };
+use iced::widget::{ row, column, text, button, scrollable, horizontal_space, horizontal_rule, vertical_rule };
+use iced::{ Application, Command, Element, Event, executor, Length, subscription, Subscription, Theme, window };
+
+enum SelectionType {
+	Tag,
+	Script(usize),
+	Sprite(usize),
+	Background(usize),
+	Sound(usize),
+	Catalogue(usize)
+}
 
 enum Alert {
 	Update(String),
@@ -26,6 +40,7 @@ pub struct Main {
 	path: String,
 	tags: Vec<Tag>,
 	selected_tag: Option<usize>,
+	selection_type: SelectionType,
 	files: Vec<FileData>,
 	modified: bool,
 	alerts: Vec<Alert>
@@ -33,6 +48,8 @@ pub struct Main {
 
 #[derive(Debug, Clone)]
 pub enum Message {
+	EventOccurred(Event),
+
 	NewFile,
 	OpenFile,
 	Save,
@@ -51,33 +68,70 @@ pub enum Message {
 	SetTagPreviewAnimation(String),
 	SetTagRemoveScriptAuto(bool),
 	SetTagRemoveScript(String),
+	AddFile,
 
-	AddScript,
-	RemoveScript,
+	SelectScript(usize),
+	DeleteScript(usize),
+	MoveScriptUp(usize),
+	MoveScriptDown(usize),
+	SetScriptSupportedGame(usize),
 
-	AddSprite,
-	RemoveSprite,
+	SelectSprite(usize),
+	DeleteSprite(usize),
+	MoveSpriteUp(usize),
+	MoveSpriteDown(usize),
+	SetSpriteName(String),
+	ConvertSpriteToBackground,
 
-	AddSound,
-	RemoveSound,
+	AddSpriteFrame,
+	DeleteSpriteFrame(usize),
+	MoveSpriteFrameUp(usize),
+	MoveSpriteFrameDown(usize),
 
-	AddCatalogue,
-	RemoveCatalogue,
+	SelectBackground(usize),
+	DeleteBackground(usize),
+	MoveBackgroundUp(usize),
+	MoveBackgroundDown(usize),
+	ConvertBackgroundToSprite,
+
+	SelectSound(usize),
+	MoveSoundUp(usize),
+	MoveSoundDown(usize),
+	DeleteSound(usize),
+
+	AddInlineCatalogue,
+	SelectCatalogue(usize),
+	DeleteCatalogue(usize),
+	MoveCatalogueUp(usize),
+	MoveCatalogueDown(usize),
+	SetCatalogueName(String),
+
+	AddCatalogueEntry,
+	DeleteCatalogueEntry(usize),
+	MoveCatalogueEntryUp(usize),
+	MoveCatalogueEntryDown(usize),
+	SetCatalogueEntryClassifier(String),
+	SetCatalogueEntryName(String),
+	SetCatalogueEntryDescription(String)
 }
 
-impl Sandbox for Main {
+impl Application for Main {
 	type Message = Message;
+	type Theme = Theme;
+	type Executor = executor::Default;
+	type Flags = ();
 
-	fn new() -> Self {
-		Self {
+	fn new(_flags: ()) -> (Self, Command<Message>) {
+		(Self {
 			filename: String::from("untitled.the"),
 			path: String::from(""),
 			tags: Vec::new(),
 			selected_tag: None,
+			selection_type: SelectionType::Tag,
 			files: Vec::new(),
 			modified: false,
 			alerts: Vec::new()
-		}
+		}, Command::none())
 	}
 
 	fn title(&self) -> String {
@@ -90,34 +144,30 @@ impl Sandbox for Main {
 		}
 	}
 
-	fn update(&mut self, message: Message) {
+	fn update(&mut self, message: Message) -> Command<Message> {
 		match message {
-			Message::NewFile => {
-				if self.modified && !confirm_discard_changes() {
-					return;
+			Message::EventOccurred(event) => {
+				if let Event::Window(window::Event::FileDropped(path)) = event {
+					self.add_file_from_path(path, true);
 				}
-				self.filename = String::from("untitled.the");
-				self.path = String::from("");
-				self.tags = Vec::new();
-				self.modified = false;
+			},
+			Message::NewFile => {
+				if !self.modified || confirm_discard_changes() {
+					self.filename = String::from("untitled.the");
+					self.path = String::from("");
+					self.tags = Vec::new();
+					self.modified = false;
+				}
 			},
 			Message::OpenFile => {
-				if self.modified && !confirm_discard_changes() {
-					return;
-				}
-				let file = FileDialog::new()
-					.add_filter("theist", &["the", "txt"])
-					.add_filter("agent", &["agent", "agents"])
-					.set_directory(&self.path)
-					.pick_file();
-				if let Some(path) = file {
-					println!("Open: {:?}", &path);
-					self.open(path);
-					self.modified = false;
-					if self.tags.is_empty() {
-						self.selected_tag = None;
-					} else {
-						self.selected_tag = Some(0);
+				if !self.modified || confirm_discard_changes() {
+					let file = FileDialog::new()
+						.add_filter("theist", &["the", "txt"])
+						.add_filter("agent", &["agent", "agents"])
+						.set_directory(&self.path)
+						.pick_file();
+					if let Some(path) = file {
+						self.open(path);
 					}
 				}
 			},
@@ -128,7 +178,6 @@ impl Sandbox for Main {
 						.set_file_name(&self.filename)
 						.save_file();
 					if let Some(path) = file {
-						println!("Save: {:?}", &path);
 						self.save(path);
 						self.modified = false;
 					}
@@ -143,7 +192,6 @@ impl Sandbox for Main {
 					.set_file_name(&self.filename)
 					.save_file();
 				if let Some(path) = file {
-					println!("Save As: {:?}", &path);
 					self.save(path);
 					self.modified = false;
 				}
@@ -174,7 +222,7 @@ impl Sandbox for Main {
 			}
 			Message::SelectTag(selected_tag) => {
 				self.selected_tag = selected_tag;
-				self.modified = true;
+				self.selection_type = SelectionType::Tag;
 			},
 			Message::SetTagName(new_name) => {
 				if let Some(selected_tag) = self.selected_tag {
@@ -230,49 +278,52 @@ impl Sandbox for Main {
 					self.modified = true;
 				}
 			},
-			Message::AddScript => {
-				self.add_file("script", &["cos"]);
+			Message::AddFile => {
+				self.add_file();
 			},
-			Message::AddSprite => {
-				self.add_file("image", &["png", "c16", "blk"]);
+			Message::SelectScript(index) => {
+				self.selection_type = SelectionType::Script(index);
 			},
-			Message::AddSound => {
-				self.add_file("sound", &["wav"]);
+			Message::SelectSprite(index) => {
+				self.selection_type = SelectionType::Sprite(index);
 			},
-			Message::AddCatalogue => {
-				self.add_file("catalogue", &["catalogue"]);
+			Message::SelectBackground(index) => {
+				self.selection_type = SelectionType::Background(index);
+			},
+			Message::SelectSound(index) => {
+				self.selection_type = SelectionType::Sound(index);
+			},
+			Message::SelectCatalogue(index) => {
+				self.selection_type = SelectionType::Catalogue(index);
 			},
 			_ => {
 				println!("MESSAGE: {:?}", message);
 			}
 		}
+		Command::none()
+	}
+
+	fn subscription(&self) -> Subscription<Message> {
+		subscription::events().map(Message::EventOccurred)
 	}
 
 	fn view(&self) -> Element<Message> {
 		let toolbar = row![
-				button("New").on_press(Message::NewFile),
-				button("Open").on_press(Message::OpenFile),
-				button("Save").on_press(Message::Save),
-				button("Save As").on_press(Message::SaveAs),
-				horizontal_space(Length::Fill),
-				button("Compile").on_press(Message::Compile)
-			]
-			.padding(10)
-			.spacing(5);
+			button("New").on_press(Message::NewFile),
+			button("Open").on_press(Message::OpenFile),
+			button("Save").on_press(Message::Save),
+			button("Save As").on_press(Message::SaveAs),
+			horizontal_space(Length::Fill),
+			button("Compile").on_press(Message::Compile)
+		].padding(10).spacing(5);
 
-		let mut tabs = row![]
-			.spacing(5);
+		let mut tabs = row![].spacing(5);
 
 		for (i, tag) in self.tags.iter().enumerate() {
 			let tag_name = match tag {
 				Tag::Agent(agent_tag) => &agent_tag.name,
 				_ => ""
 			};
-			// if let Some(selected_tag) = self.selected_tag {
-			// 	if selected_tag == i {
-			// 		tag_name = "selected";
-			// 	}
-			// }
 			tabs = tabs.push(
 				button(tag_name)
 					.on_press(Message::SelectTag(Some(i)))
@@ -290,7 +341,36 @@ impl Sandbox for Main {
 				match tag {
 					Tag::Agent(tag) => {
 						tab_contents = tag_view::agent_listing(tag);
-						current_properties = tag_view::agent_properties(tag);
+						match self.selection_type {
+							SelectionType::Script(index) => {
+								if let Some(script) = tag.scripts.get(index) {
+									current_properties = script_view::properties(script);
+								}
+							},
+							SelectionType::Sprite(index) => {
+								if let Some(sprite) = tag.sprites.get(index) {
+									current_properties = sprite_view::properties(sprite);
+								}
+							},
+							SelectionType::Background(index) => {
+								if let Some(background) = tag.backgrounds.get(index) {
+									current_properties = background_view::properties(background);
+								}
+							},
+							SelectionType::Sound(index) => {
+								if let Some(sound) = tag.sounds.get(index) {
+									current_properties = sound_view::properties(sound);
+								}
+							},
+							SelectionType::Catalogue(index) => {
+								if let Some(catalogue) = tag.catalogues.get(index) {
+									current_properties = catalogue_view::properties(catalogue);
+								}
+							},
+							_ => {
+								current_properties = tag_view::agent_properties(tag);
+							}
+						}
 					},
 					_ => ()
 				}
@@ -298,25 +378,19 @@ impl Sandbox for Main {
 		}
 
 		let main_pane = column![
-				tabs,
-				tab_contents
-			]
-			.padding(20)
-			.spacing(5)
-			.width(Length::FillPortion(3));
+			tabs.padding([20, 20, 0, 20]),
+			scrollable(
+				tab_contents.padding(20)
+			).height(Length::Fill)
+		].width(Length::FillPortion(3));
 
 		let properties_pane = column![
-				current_properties
-			]
-			.padding(20)
-			.spacing(5)
-			.width(Length::FillPortion(2));
+			current_properties
+		].spacing(5).width(Length::FillPortion(2));
 
 		let mut alerts_pane = column![
-				text("Alerts")
-			]
-			.padding(10)
-			.spacing(5);
+			text("Alerts")
+		].padding(10).spacing(5);
 
 		for alert in &self.alerts {
 			match alert {
@@ -336,12 +410,10 @@ impl Sandbox for Main {
 					main_pane,
 					vertical_rule(1),
 					properties_pane
-				]
-				.height(Length::Fill),
+				].height(Length::Fill),
 			horizontal_rule(1),
 			alerts_pane
-		]
-		.into()
+		].into()
 	}
 
 }
@@ -357,7 +429,7 @@ impl Main {
 		);
 	}
 
-	fn set_path_and_name(&mut self, path: &PathBuf) {
+	fn set_path_and_name(&mut self, path: &Path) {
 		self.path = match path.parent() {
 			Some(parent) => parent.to_string_lossy().into_owned() + "/",
 			None => String::from("")
@@ -391,9 +463,9 @@ impl Main {
 				} else {
 					match str::from_utf8(&contents) {
 						Ok(contents) => {
-							self.tags = parse_source(&contents, &self.path);
+							self.tags = parse_source(contents, &self.path);
 							// TODO - parse_source should send back any alerts
-							if self.tags.len() == 0 {
+							if self.tags.is_empty() {
 								self.add_alert("No tags found in file", true);
 							}
 						},
@@ -402,6 +474,12 @@ impl Main {
 							println!("ERROR: Unable to understand file: {}", why);
 						}
 					}
+				}
+				self.modified = false;
+				if self.tags.is_empty() {
+					self.selected_tag = None;
+				} else {
+					self.selected_tag = Some(0);
 				}
 			},
 			Err(why) => {
@@ -417,69 +495,83 @@ impl Main {
 		// TODO: save any files loaded locally but not yet in the path
 	}
 
-	fn add_file(&mut self, filter_name: &str, filters: &[&str]) {
+	fn add_file(&mut self) {
 		let file = FileDialog::new()
-			.add_filter(filter_name, &filters)
+			.add_filter("Creatures Files", &["cos", "c16", "blk", "wav", "catalogue", "png"])
 			.set_directory(&self.path)
 			.pick_file();
 		if let Some(file_path) = file {
-			let path = match file_path.parent() {
-				Some(parent) => parent.to_string_lossy().into_owned() + "/",
-				None => String::from("")
-			};
-			let filename = match file_path.file_name() {
-				Some(filename) => filename.to_string_lossy().into_owned(),
-				None => String::from("")
-			};
-			let title = match file_path.file_stem() {
-				Some(file_stem) => file_stem.to_string_lossy().into_owned(),
-				None => String::from("")
-			};
-			let extension = match file_path.extension() {
-				Some(extension) => extension.to_string_lossy().into_owned(),
-				None => String::from("")
-			};
-			if self.path.is_empty() {
-				self.path = path.clone();
-			} else if self.path != path {
-				// send message to user
+			self.add_file_from_path(file_path, false);
+		}
+	}
+
+	fn add_file_from_path(&mut self, file_path: PathBuf, allow_file_open: bool) {
+		let path = match file_path.parent() {
+			Some(parent) => parent.to_string_lossy().into_owned() + "/",
+			None => String::from("")
+		};
+		let filename = match file_path.file_name() {
+			Some(filename) => filename.to_string_lossy().into_owned(),
+			None => String::from("")
+		};
+		let title = match file_path.file_stem() {
+			Some(file_stem) => file_stem.to_string_lossy().into_owned(),
+			None => String::from("")
+		};
+		let extension = match file_path.extension() {
+			Some(extension) => extension.to_string_lossy().into_owned(),
+			None => String::from("")
+		};
+
+		if allow_file_open
+			&& (extension == "the" || extension == "txt" || extension == "agent" || extension == "agents")
+			&& (!self.modified || confirm_discard_changes()) {
+				self.open(file_path);
 				return;
-			}
-			if let Some(selected_tag) = self.selected_tag {
-				match &mut self.tags[selected_tag] {
-					Tag::Agent(tag) => {
-						if tag.filepath.is_empty() {
-							tag.filepath = self.path.clone();
+		}
+
+		if self.path.is_empty() {
+			self.path = path;
+		} else if self.path != path {
+			alert_wrong_folder();
+			return;
+		}
+
+		if let Some(selected_tag) = self.selected_tag {
+			match &mut self.tags[selected_tag] {
+				Tag::Agent(tag) => {
+					if tag.filepath.is_empty() {
+						tag.filepath = self.path.clone();
+					}
+					match extension.as_str() {
+						"cos" => {
+							tag.scripts.push(Script::new(&filename, &tag.supported_game.to_string()));
+						},
+						"c16" => {
+							tag.sprites.push(Sprite::new(&filename));
+						},
+						"blk" => {
+							tag.backgrounds.push(Background::new(&filename));
+						},
+						"wav" => {
+							tag.sounds.push(Sound::new(&filename));
+						},
+						"catalogue" => {
+							tag.catalogues.push(Catalogue::new(&filename));
+						},
+						"png" => {
+							let mut sprite = Sprite::new(format!("{}.c16", &title).as_str());
+							let frame = SpriteFrame::new(&filename);
+							sprite.add_frame(frame);
+							tag.sprites.push(sprite);
+						},
+						_ => {
+							// TODO: alert user that they picked an invalid file type for an agent tag
 						}
-						match extension.as_str() {
-							"cos" => {
-								tag.scripts.push(Script::new(&filename, &tag.supported_game.to_string()));
-							},
-							"png" => {
-								// TODO: add property to convert a one-frame png-based c16 to a blk
-								let mut sprite = Sprite::new(&title);
-								let frame = SpriteFrame::new(&filename);
-								sprite.add_frame(frame);
-								tag.sprites.push(sprite);
-							},
-							"c16" => {
-								tag.sprites.push(Sprite::new(&filename));
-							},
-							"blk" => {
-								tag.backgrounds.push(Background::new(&filename));
-							},
-							"wav" => {
-								tag.sounds.push(Sound::new(&filename));
-							},
-							"catalogue" => {
-								tag.catalogues.push(Catalogue::new(&filename));
-							},
-							_ => ()
-						}
-						self.modified = true;
-					},
-					_ => ()
-				}
+					}
+					self.modified = true;
+				},
+				_ => ()
 			}
 		}
 	}
@@ -500,5 +592,14 @@ fn confirm_delete_tag() -> bool {
 		.set_description("Are you sure you want to delete this tag? It won't delete any files it refers to, but you will lose all info stored in the tag itself.")
 		.set_level(MessageLevel::Warning)
 		.set_buttons(MessageButtons::OkCancel)
+		.show()
+}
+
+fn alert_wrong_folder() -> bool{
+	MessageDialog::new()
+		.set_title("Wrong folder")
+		.set_description("Unable to load file. All files must be located in the same folder.")
+		.set_level(MessageLevel::Warning)
+		.set_buttons(MessageButtons::Ok)
 		.show()
 }

@@ -66,9 +66,9 @@ impl Catalogue {
 
 #[derive(Clone)]
 pub struct CatalogueEntry {
-	classifier: String,
-	name: String,
-	description: String
+	pub classifier: String,
+	pub name: String,
+	pub description: String
 }
 
 impl CatalogueEntry {

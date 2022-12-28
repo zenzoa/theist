@@ -14,7 +14,7 @@ use std::io::prelude::*;
 use regex::Regex;
 use image::RgbaImage;
 use image::io::Reader as ImageReader;
-use iced::{ Sandbox, Settings };
+use iced::{ Application, Settings };
 
 pub fn main() -> iced::Result {
 	let mut action = String::from("");

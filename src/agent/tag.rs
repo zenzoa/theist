@@ -73,7 +73,7 @@ impl Tag {
 	pub fn set_preview_sprite(&mut self, new_sprite: String) {
 		match self {
 			Tag::Agent(tag) => {
-				if let Preview::Manual{ sprite, animation } = &tag.preview {
+				if let Preview::Manual{ animation, .. } = &tag.preview {
 					tag.preview = Preview::Manual{
 						sprite: new_sprite,
 						animation: animation.clone()
@@ -87,7 +87,7 @@ impl Tag {
 	pub fn set_preview_animation(&mut self, new_animation: String) {
 		match self {
 			Tag::Agent(tag) => {
-				if let Preview::Manual{ sprite, animation } = &tag.preview {
+				if let Preview::Manual{ sprite, .. } = &tag.preview {
 					tag.preview = Preview::Manual{
 						sprite: sprite.clone(),
 						animation: new_animation
