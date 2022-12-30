@@ -64,3 +64,37 @@ pub fn properties(sprite: &Sprite) -> Column<Message> {
 		}
 	}
 }
+
+pub fn list(sprites: &Vec<Sprite>) -> Column<Message> {
+	let mut sprite_list = column![
+		text("Sprites")
+	].spacing(10);
+
+	for (i, sprite) in sprites.iter().enumerate() {
+		let filename = match sprite {
+			Sprite::C16{ filename } => filename,
+			Sprite::Frames{ filename, .. } => filename
+		};
+		let buttons = if sprites.len() > 1 {
+			row![
+				button("^").on_press(Message::MoveSpriteUp(i)),
+				button("v").on_press(Message::MoveSpriteDown(i)),
+				button("x").on_press(Message::DeleteSprite(i))
+			].spacing(5)
+		} else {
+			row![
+				button("x").on_press(Message::DeleteSprite(i))
+			].spacing(5)
+		};
+		sprite_list = sprite_list.push(
+			row![
+				button(filename.string.as_str())
+					.on_press(Message::SelectSprite(i))
+					.width(Length::Fill),
+				buttons
+			].spacing(5).align_items(Alignment::Center)
+		);
+	}
+
+	sprite_list
+}

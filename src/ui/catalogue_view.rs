@@ -72,3 +72,37 @@ pub fn properties(catalogue: &Catalogue) -> Column<Message> {
 		}
 	}
 }
+
+pub fn list(catalogues: &Vec<Catalogue>) -> Column<Message> {
+	let mut catalogue_list = column![
+		text("Catalogues")
+	].spacing(10);
+
+	for (i, catalogue) in catalogues.iter().enumerate() {
+		let filename = match catalogue {
+			Catalogue::File{ filename } => filename,
+			Catalogue::Inline{ filename, .. } => filename
+		};
+		let buttons = if catalogues.len() > 1 {
+			row![
+				button("^").on_press(Message::MoveCatalogueUp(i)),
+				button("v").on_press(Message::MoveCatalogueDown(i)),
+				button("x").on_press(Message::DeleteCatalogue(i))
+			].spacing(5)
+		} else {
+			row![
+				button("x").on_press(Message::DeleteCatalogue(i))
+			].spacing(5)
+		};
+		catalogue_list = catalogue_list.push(
+			row![
+				button(filename.string.as_str())
+					.on_press(Message::SelectCatalogue(i))
+					.width(Length::Fill),
+				buttons
+			].spacing(5).align_items(Alignment::Center)
+		);
+	}
+
+	catalogue_list
+}

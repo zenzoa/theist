@@ -1,191 +1,9 @@
 use crate::ui::*;
 use crate::agent::*;
 use crate::agent::agent_tag::*;
-use crate::agent::script::*;
 
 use iced::widget::{ row, column, Column, text, text_input, button, radio, checkbox, scrollable, horizontal_rule };
 use iced::{ Alignment, Length };
-
-pub fn agent_listing(tag: &AgentTag) -> Column<Message> {
-	let mut listing = column![
-		row![
-			button("+ Add File").on_press(Message::AddFile),
-			button("+ Add Inline Catalogue").on_press(Message::AddInlineCatalogue)
-		].spacing(5)
-	].spacing(20);
-
-	// Script list
-	if !tag.scripts.is_empty() {
-		let mut script_list = column![
-			text("Scripts")
-		].spacing(10);
-
-		for (i, script) in tag.scripts.iter().enumerate() {
-			let filename = match script {
-				Script::File{ filename, .. } => filename
-			};
-			let buttons = if tag.scripts.len() > 1 {
-				row![
-					button("^").on_press(Message::MoveScriptUp(i)),
-					button("v").on_press(Message::MoveScriptDown(i)),
-					button("x").on_press(Message::DeleteScript(i))
-				].spacing(5)
-			} else {
-				row![
-					button("x").on_press(Message::DeleteScript(i))
-				].spacing(5)
-			};
-			script_list = script_list.push(
-				row![
-					button(filename.string.as_str())
-						.on_press(Message::SelectScript(i))
-						.width(Length::Fill),
-					buttons
-				].spacing(5).align_items(Alignment::Center)
-			);
-		}
-
-		listing = listing.push(script_list);
-	}
-
-	// Sprite list
-	if !tag.sprites.is_empty() {
-		let mut sprite_list = column![
-			text("Sprites")
-		].spacing(10);
-
-		for (i, sprite) in tag.sprites.iter().enumerate() {
-			let filename = match sprite {
-				Sprite::C16{ filename } => filename,
-				Sprite::Frames{ filename, .. } => filename
-			};
-			let buttons = if tag.sprites.len() > 1 {
-				row![
-					button("^").on_press(Message::MoveSpriteUp(i)),
-					button("v").on_press(Message::MoveSpriteDown(i)),
-					button("x").on_press(Message::DeleteSprite(i))
-				].spacing(5)
-			} else {
-				row![
-					button("x").on_press(Message::DeleteSprite(i))
-				].spacing(5)
-			};
-			sprite_list = sprite_list.push(
-				row![
-					button(filename.string.as_str())
-						.on_press(Message::SelectSprite(i))
-						.width(Length::Fill),
-					buttons
-				].spacing(5).align_items(Alignment::Center)
-			);
-		}
-
-		listing = listing.push(sprite_list);
-	}
-
-	// Background list
-	if !tag.backgrounds.is_empty() {
-		let mut background_list = column![
-			text("Background Images")
-		].spacing(10);
-
-		for (i, background) in tag.backgrounds.iter().enumerate() {
-			let filename = match background {
-				Background::Blk{ filename } => filename,
-				Background::Png{ filename, .. } => filename
-			};
-			let buttons = if tag.backgrounds.len() > 1 {
-				row![
-					button("^").on_press(Message::MoveBackgroundUp(i)),
-					button("v").on_press(Message::MoveBackgroundDown(i)),
-					button("x").on_press(Message::DeleteBackground(i))
-				].spacing(5)
-			} else {
-				row![
-					button("x").on_press(Message::DeleteBackground(i))
-				].spacing(5)
-			};
-			background_list = background_list.push(
-				row![
-					button(filename.string.as_str())
-						.on_press(Message::SelectBackground(i))
-						.width(Length::Fill),
-					buttons
-				].spacing(5).align_items(Alignment::Center)
-			);
-		}
-
-		listing = listing.push(background_list);
-	}
-
-	// Sound list
-	if !tag.sounds.is_empty() {
-		let mut sound_list = column![
-			text("Sounds")
-		].spacing(10);
-
-		for (i, sound) in tag.sounds.iter().enumerate() {
-			let buttons = if tag.sounds.len() > 1 {
-				row![
-					button("^").on_press(Message::MoveSoundUp(i)),
-					button("v").on_press(Message::MoveSoundDown(i)),
-					button("x").on_press(Message::DeleteSound(i))
-				].spacing(5)
-			} else {
-				row![
-					button("x").on_press(Message::DeleteSound(i))
-				].spacing(5)
-			};
-			sound_list = sound_list.push(
-				row![
-					button(sound.filename.string.as_str())
-						.on_press(Message::SelectSound(i))
-						.width(Length::Fill),
-					buttons
-				].spacing(5).align_items(Alignment::Center)
-			);
-		}
-
-		listing = listing.push(sound_list);
-	}
-
-	// Catalogue list
-	if !tag.catalogues.is_empty() {
-		let mut catalogue_list = column![
-			text("Catalogues")
-		].spacing(10);
-
-		for (i, catalogue) in tag.catalogues.iter().enumerate() {
-			let filename = match catalogue {
-				Catalogue::File{ filename } => filename,
-				Catalogue::Inline{ filename, .. } => filename
-			};
-			let buttons = if tag.catalogues.len() > 1 {
-				row![
-					button("^").on_press(Message::MoveCatalogueUp(i)),
-					button("v").on_press(Message::MoveCatalogueDown(i)),
-					button("x").on_press(Message::DeleteCatalogue(i))
-				].spacing(5)
-			} else {
-				row![
-					button("x").on_press(Message::DeleteCatalogue(i))
-				].spacing(5)
-			};
-			catalogue_list = catalogue_list.push(
-				row![
-					button(filename.string.as_str())
-						.on_press(Message::SelectCatalogue(i))
-						.width(Length::Fill),
-					buttons
-				].spacing(5).align_items(Alignment::Center)
-			);
-		}
-
-		listing = listing.push(catalogue_list);
-	}
-
-	listing
-}
 
 pub fn agent_properties(tag: &AgentTag) -> Column<Message> {
 	let supported_game_index = match tag.supported_game {
@@ -261,4 +79,31 @@ pub fn agent_properties(tag: &AgentTag) -> Column<Message> {
 			].padding(20).spacing(20)
 		).height(Length::Fill)
 	]
+}
+
+pub fn agent_listing(tag: &AgentTag) -> Column<Message> {
+	let mut listing = column![
+		row![
+			button("+ Add File").on_press(Message::AddFile),
+			button("+ Add Inline Catalogue").on_press(Message::AddInlineCatalogue)
+		].spacing(5)
+	].spacing(20);
+
+	if !tag.scripts.is_empty() {
+		listing = listing.push(script_view::list(&tag.scripts));
+	}
+	if !tag.sprites.is_empty() {
+		listing = listing.push(sprite_view::list(&tag.sprites));
+	}
+	if !tag.backgrounds.is_empty() {
+		listing = listing.push(background_view::list(&tag.backgrounds));
+	}
+	if !tag.sounds.is_empty() {
+		listing = listing.push(sound_view::list(&tag.sounds));
+	}
+	if !tag.catalogues.is_empty() {
+		listing = listing.push(catalogue_view::list(&tag.catalogues));
+	}
+
+	listing
 }

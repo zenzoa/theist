@@ -26,3 +26,36 @@ pub fn properties(script: &Script) -> Column<Message> {
 		}
 	}
 }
+
+pub fn list(scripts: &Vec<Script>) -> Column<Message> {
+	let mut script_list = column![
+		text("Scripts")
+	].spacing(10);
+
+	for (i, script) in scripts.iter().enumerate() {
+		let filename = match script {
+			Script::File{ filename, .. } => filename
+		};
+		let buttons = if scripts.len() > 1 {
+			row![
+				button("^").on_press(Message::MoveScriptUp(i)),
+				button("v").on_press(Message::MoveScriptDown(i)),
+				button("x").on_press(Message::DeleteScript(i))
+			].spacing(5)
+		} else {
+			row![
+				button("x").on_press(Message::DeleteScript(i))
+			].spacing(5)
+		};
+		script_list = script_list.push(
+			row![
+				button(filename.string.as_str())
+					.on_press(Message::SelectScript(i))
+					.width(Length::Fill),
+				buttons
+			].spacing(5).align_items(Alignment::Center)
+		);
+	}
+
+	script_list
+}
