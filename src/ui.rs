@@ -1,4 +1,5 @@
-pub mod tag_view;
+pub mod agent_tag_view;
+pub mod egg_tag_view;
 pub mod script_view;
 pub mod sprite_view;
 pub mod background_view;
@@ -8,6 +9,7 @@ pub mod catalogue_view;
 use crate::agent::*;
 use crate::agent::tag::*;
 use crate::agent::agent_tag::*;
+use crate::agent::egg_tag::*;
 use crate::agent::script::*;
 use crate::agent::sprite::*;
 use crate::agent::background::*;
@@ -44,8 +46,8 @@ pub struct Main {
 	selected_tag: Option<usize>,
 	selection_type: SelectionType,
 	files: Vec<FileData>,
-	modified: bool,
 	alerts: Vec<Alert>,
+	modified: bool,
 	exit: bool
 }
 
@@ -132,8 +134,8 @@ impl Application for Main {
 			selected_tag: Some(0),
 			selection_type: SelectionType::Tag,
 			files: Vec::new(),
-			modified: false,
 			alerts: Vec::new(),
+			modified: false,
 			exit: false
 		}, Command::none())
 	}
@@ -632,7 +634,7 @@ impl Application for Main {
 			if let Some(tag) = self.tags.get(selected_tag) {
 				match tag {
 					Tag::Agent(tag) => {
-						tab_contents = tag_view::agent_listing(tag);
+						tab_contents = agent_tag_view::listing(tag);
 						match self.selection_type {
 							SelectionType::Script(index) => {
 								if let Some(script) = tag.scripts.get(index) {
@@ -641,7 +643,7 @@ impl Application for Main {
 							},
 							SelectionType::Sprite(index) => {
 								if let Some(sprite) = tag.sprites.get(index) {
-									current_properties = sprite_view::properties(sprite);
+									current_properties = sprite_view::properties(sprite, true);
 								}
 							},
 							SelectionType::Background(index) => {
@@ -660,11 +662,23 @@ impl Application for Main {
 								}
 							},
 							_ => {
-								current_properties = tag_view::agent_properties(tag);
+								current_properties = agent_tag_view::properties(tag);
 							}
 						}
 					},
-					Tag::Egg(_tag) => (),
+					Tag::Egg(tag) => {
+						tab_contents = egg_tag_view::listing(tag);
+						match self.selection_type {
+							SelectionType::Sprite(index) => {
+								if let Some(sprite) = tag.sprites.get(index) {
+									current_properties = sprite_view::properties(sprite, false);
+								}
+							},
+							_ => {
+								current_properties = egg_tag_view::properties(tag);
+							}
+						}
+					},
 					Tag::Empty => ()
 				}
 			}
@@ -739,6 +753,8 @@ impl Main {
 			self.path = String::from("");
 			self.tags = vec![ Tag::Agent(AgentTag::new(String::from("My Agent"))) ];
 			self.selected_tag = Some(0);
+			self.selection_type = SelectionType::Tag;
+			self.alerts = Vec::new();
 			self.modified = false;
 		}
 	}

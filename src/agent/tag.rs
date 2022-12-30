@@ -60,8 +60,16 @@ impl Tag {
 			tag.preview = if is_auto {
 				Preview::Auto
 			} else {
+				let first_sprite_name = if let Some(sprite) = tag.sprites.get(0) {
+					match sprite {
+						Sprite::C16{ filename, .. } => filename.title.clone(),
+						Sprite::Frames{ filename, .. } => filename.title.clone()
+					}
+				} else {
+					String::from("")
+				};
 				Preview::Manual {
-					sprite: "".to_string(), // TODO: get name of first sprite
+					sprite: first_sprite_name,
 					animation: "0".to_string()
 				}
 			};

@@ -2,10 +2,10 @@ use crate::ui::*;
 use crate::agent::*;
 use crate::agent::agent_tag::*;
 
-use iced::widget::{ row, column, Column, text, text_input, button, radio, checkbox, scrollable, horizontal_rule };
+use iced::widget::{ row, column, Column, text, text_input, button, radio, checkbox, pick_list, scrollable, horizontal_rule };
 use iced::{ Alignment, Length };
 
-pub fn agent_properties(tag: &AgentTag) -> Column<Message> {
+pub fn properties(tag: &AgentTag) -> Column<Message> {
 	let supported_game_index = match tag.supported_game {
 		SupportedGame::C3DS => Some(0),
 		SupportedGame::C3 => Some(1),
@@ -19,10 +19,17 @@ pub fn agent_properties(tag: &AgentTag) -> Column<Message> {
 		].spacing(20).align_items(Alignment::Center)
 	].spacing(10);
 
+	let sprite_names: Vec<String> = tag.sprites.iter().map(|sprite| {
+		match sprite {
+			Sprite::C16{ filename, .. } => filename.title.clone(),
+			Sprite::Frames{ filename, .. } => filename.title.clone()
+		}
+	}).collect();
+
 	if let Preview::Manual { sprite, animation } = &tag.preview {
 		preview = preview.push(
 			row![
-				text_input("Sprite Name", sprite, Message::SetTagPreviewSprite),
+				pick_list(sprite_names, Some(sprite.to_string()), Message::SetTagPreviewSprite),
 				text_input("Animation String", animation, Message::SetTagPreviewAnimation)
 			].spacing(5).align_items(Alignment::Center)
 		);
@@ -49,7 +56,7 @@ pub fn agent_properties(tag: &AgentTag) -> Column<Message> {
 	column![
 		column![
 			row![
-				text(format!("Tag \"{}\"", &tag.name)).width(Length::Fill),
+				text(format!("Agent Tag \"{}\"", &tag.name)).width(Length::Fill),
 				button("x").on_press(Message::DeleteTag)
 			].spacing(5).align_items(Alignment::Center),
 			horizontal_rule(1),
@@ -81,7 +88,7 @@ pub fn agent_properties(tag: &AgentTag) -> Column<Message> {
 	]
 }
 
-pub fn agent_listing(tag: &AgentTag) -> Column<Message> {
+pub fn listing(tag: &AgentTag) -> Column<Message> {
 	let mut listing = column![
 		row![
 			button("+ Add File").on_press(Message::AddFile),

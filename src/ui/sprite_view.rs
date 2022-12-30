@@ -4,7 +4,7 @@ use crate::agent::sprite::*;
 use iced::widget::{ row, column, Column, text, text_input, button, scrollable, horizontal_rule };
 use iced::{ Alignment, Length };
 
-pub fn properties(sprite: &Sprite) -> Column<Message> {
+pub fn properties(sprite: &Sprite, allow_conversion: bool) -> Column<Message> {
 	match sprite {
 		Sprite::C16{ filename } => {
 			column![
@@ -38,7 +38,7 @@ pub fn properties(sprite: &Sprite) -> Column<Message> {
 				}
 			}
 
-			if frames.len() == 1 {
+			if allow_conversion && frames.len() == 1 {
 				frame_list = frame_list.push(
 					column![
 						horizontal_rule(1),
