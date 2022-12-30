@@ -13,7 +13,7 @@ pub struct Sound {
 impl Sound {
 	pub fn new(filename: &str) -> Sound {
 		Sound {
-			filename: Filename::new(filename, "wav")
+			filename: Filename::new(filename)
 		}
 	}
 

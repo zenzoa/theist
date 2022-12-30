@@ -14,7 +14,7 @@ pub enum Script {
 impl Script {
 	pub fn new(filename: &str, supported_game: &str) -> Script {
 		Script::File {
-			filename: Filename::new(filename, "cos"),
+			filename: Filename::new(filename),
 			supported_game: SupportedGame::new(supported_game)
 		}
 	}

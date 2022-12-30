@@ -30,28 +30,45 @@ pub struct FileData {
 
 #[derive(Clone)]
 pub struct Filename {
+	pub string: String,
 	pub title: String,
 	pub extension: String
 }
 
 impl Filename {
-	pub fn new(filename_string: &str, fallback_extension: &str) -> Filename {
+	pub fn new(filename_string: &str) -> Filename {
 		let filename_pattern = Regex::new(r"^(.+)\.(.+)$").unwrap();
 		match filename_pattern.captures(filename_string) {
 			None => Filename {
-				title: String::from(""), extension: String::from(fallback_extension)
+				string: String::from(""),
+				title: String::from(""),
+				extension: String::from("")
 			},
 			Some(captures) => Filename {
+				string: String::from(filename_string),
 				title: String::from(&captures[1]),
 				extension: String::from(&captures[2])
 			}
+		}
+	}
+
+	pub fn set_title(&mut self, new_title: String) {
+		self.title = new_title;
+		self.string = format!("{}.{}", &self.title, &self.extension);
+	}
+
+	pub fn with_extension(&self, new_extension: &str) -> Filename {
+		Filename {
+			string: format!("{}.{}", &self.title, &new_extension),
+			title: self.title.clone(),
+			extension: new_extension.to_string()
 		}
 	}
 }
 
 impl fmt::Display for Filename {
 	fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-		write!(f, "{}.{}", &self.title, &self.extension)
+		write!(f, "{}", &self.string)
 	}
 }
 

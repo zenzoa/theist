@@ -10,29 +10,32 @@ use bytes::Bytes;
 #[derive(Clone)]
 pub enum Background {
 	Blk { filename: Filename },
-	Png { filename: Filename }
+	Png { filename: Filename, source: Filename }
 }
 
 impl Background {
 	pub fn new(filename: &str) -> Background {
-		let filename = Filename::new(filename, "png");
+		let filename = Filename::new(filename);
 		match filename.extension.as_str() {
 			"blk" => Background::Blk { filename },
-			_ => Background::Png { filename }
+			_ => Background::Png {
+				filename: filename.with_extension("blk"),
+				source: filename
+			}
 		}
 	}
 
 	pub fn get_filename(&self) -> String {
 		match self {
 			Background::Blk { filename } => filename.to_string(),
-			Background::Png { filename } => filename.to_string()
+			Background::Png { source, .. } => source.to_string()
 		}
 	}
 
 	pub fn get_title(&self) -> String {
 		match self {
 			Background::Blk { filename } => filename.title.clone(),
-			Background::Png { filename } => filename.title.clone()
+			Background::Png { filename, .. } => filename.title.clone()
 		}
 	}
 
@@ -44,8 +47,8 @@ impl Background {
 				println!("  Got data from {}", &filepath);
 				Ok(Bytes::copy_from_slice(&contents))
 			},
-			Background::Png { filename } => {
-				let filepath = format!("{}{}", path, filename);
+			Background::Png { source, .. } => {
+				let filepath = format!("{}{}", path, source);
 				let image_data = ImageReader::open(&filepath)?;
 				let image = image_data.decode()?;
 				println!("  Got data from {}", &filepath);

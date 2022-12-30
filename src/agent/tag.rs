@@ -163,7 +163,7 @@ impl Tag {
 	pub fn set_sprite_name(&mut self, index: usize, new_name: String) {
 		if let Tag::Agent(tag) = self {
 			if let Some(Sprite::Frames{ filename, .. }) = tag.sprites.get_mut(index) {
-				filename.title = new_name;
+				filename.set_title(new_name);
 			}
 		}
 	}
@@ -239,9 +239,9 @@ impl Tag {
 	}
 	pub fn convert_background_to_sprite(&mut self, index: usize) -> Option<usize> {
 		if let Tag::Agent(tag) = self {
-			if let Some(Background::Png{ filename }) = tag.backgrounds.get(index) {
-				let mut new_sprite = Sprite::new(format!("{}.c16", &filename.title).as_str());
-				new_sprite.add_frame(filename.to_string().as_str());
+			if let Some(Background::Png{ source, .. }) = tag.backgrounds.get(index) {
+				let mut new_sprite = Sprite::new(format!("{}.c16", &source.title).as_str());
+				new_sprite.add_frame(source.to_string().as_str());
 				tag.sprites.push(new_sprite);
 				let sprite_index = &tag.sprites.len() - 1;
 				self.delete_background(index);
@@ -277,7 +277,7 @@ impl Tag {
 		if let Tag::Agent(tag) = self {
 			tag.catalogues.push(
 				Catalogue::Inline{
-					filename: Filename::new("my_catalogue.catalogue", "catalogue"),
+					filename: Filename::new("my_catalogue.catalogue"),
 					entries: vec![
 						CatalogueEntry::new("0 0 0000", tag.name.as_str(), tag.description.as_str())
 					]
@@ -309,7 +309,7 @@ impl Tag {
 	pub fn set_catalogue_name(&mut self, index: usize, new_name: String) {
 		if let Tag::Agent(tag) = self {
 			if let Some(Catalogue::Inline{ filename, .. }) = tag.catalogues.get_mut(index) {
-				filename.title = new_name;
+				filename.set_title(new_name);
 			}
 		}
 	}
@@ -381,10 +381,7 @@ impl Tag {
 						Err(_why) => Bytes::new()
 					});
 					*background = Background::Blk {
-						filename: Filename {
-							title: background.get_title(),
-							extension: String::from("blk")
-						}
+						filename: Filename::new(format!("{}.blk", background.get_title()).as_str())
 					}
 				}
 

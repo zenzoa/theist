@@ -131,10 +131,12 @@ fn read_agent_block(buffer: &mut Bytes, files: &mut Vec<FileData>, block_name: S
 
 				} else if key.starts_with("Dependency") {
 					if let InfoValue::Str(value) = value {
-						let filename = Filename::new(value.as_str(), "");
+						let filename = Filename::new(value.as_str());
 						match filename.extension.as_str() {
 							"c16" => tag.sprites.push(Sprite::Frames { filename, frames: Vec::new() }),
-							"blk" => tag.backgrounds.push(Background::Blk { filename: Filename::new(&filename.title, "png") }),
+							"blk" => tag.backgrounds.push(Background::Blk {
+								filename: Filename::new(format!("{}.png", &filename.title).as_str())
+							}),
 							"wav" => tag.sounds.push(Sound { filename }),
 							"catalogue" => tag.catalogues.push(Catalogue::File { filename }),
 							_ => ()
@@ -186,7 +188,7 @@ pub fn decode(contents: &[u8]) -> Result<(Vec<Tag>, Vec<FileData>), Box<dyn Erro
 							tags.push(Tag::Agent(agent_tag));
 						},
 						"FILE" => {
-							let filename = Filename::new(block_header.name.as_str(), "unknown");
+							let filename = Filename::new(block_header.name.as_str());
 							let data = buffer.copy_to_bytes(block_header.size);
 							match filename.extension.as_str() {
 								"c16" => {
@@ -198,7 +200,7 @@ pub fn decode(contents: &[u8]) -> Result<(Vec<Tag>, Vec<FileData>), Box<dyn Erro
 												for sprite in &mut tag.sprites {
 													if let Sprite::Frames { filename: sprite_filename, frames } = sprite {
 														if sprite_filename.title.starts_with(&filename.title) {
-															frames.push(SpriteFrame { filename: Filename::new(png_filename.as_str(), "png") });
+															frames.push(SpriteFrame { filename: Filename::new(png_filename.as_str()) });
 														}
 													}
 												}

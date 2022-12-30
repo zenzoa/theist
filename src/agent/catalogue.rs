@@ -14,7 +14,7 @@ pub enum Catalogue {
 impl Catalogue {
 	pub fn new(filename: &str) -> Catalogue {
 		Catalogue::File {
-			filename: Filename::new(filename, "catalogue")
+			filename: Filename::new(filename)
 		}
 	}
 

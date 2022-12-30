@@ -22,7 +22,7 @@ pub fn agent_listing(tag: &AgentTag) -> Column<Message> {
 
 		for (i, script) in tag.scripts.iter().enumerate() {
 			let filename = match script {
-				Script::File{ filename, .. } => filename.title.as_str()
+				Script::File{ filename, .. } => filename
 			};
 			let buttons = if tag.scripts.len() > 1 {
 				row![
@@ -37,7 +37,7 @@ pub fn agent_listing(tag: &AgentTag) -> Column<Message> {
 			};
 			script_list = script_list.push(
 				row![
-					button(filename)
+					button(filename.string.as_str())
 						.on_press(Message::SelectScript(i))
 						.width(Length::Fill),
 					buttons
@@ -72,7 +72,7 @@ pub fn agent_listing(tag: &AgentTag) -> Column<Message> {
 			};
 			sprite_list = sprite_list.push(
 				row![
-					button(filename.title.as_str())
+					button(filename.string.as_str())
 						.on_press(Message::SelectSprite(i))
 						.width(Length::Fill),
 					buttons
@@ -91,8 +91,8 @@ pub fn agent_listing(tag: &AgentTag) -> Column<Message> {
 
 		for (i, background) in tag.backgrounds.iter().enumerate() {
 			let filename = match background {
-				Background::Png{ filename } => filename,
-				Background::Blk{ filename } => filename
+				Background::Blk{ filename } => filename,
+				Background::Png{ filename, .. } => filename
 			};
 			let buttons = if tag.backgrounds.len() > 1 {
 				row![
@@ -107,7 +107,7 @@ pub fn agent_listing(tag: &AgentTag) -> Column<Message> {
 			};
 			background_list = background_list.push(
 				row![
-					button(filename.title.as_str())
+					button(filename.string.as_str())
 						.on_press(Message::SelectBackground(i))
 						.width(Length::Fill),
 					buttons
@@ -138,7 +138,7 @@ pub fn agent_listing(tag: &AgentTag) -> Column<Message> {
 			};
 			sound_list = sound_list.push(
 				row![
-					button(sound.filename.title.as_str())
+					button(sound.filename.string.as_str())
 						.on_press(Message::SelectSound(i))
 						.width(Length::Fill),
 					buttons
@@ -173,7 +173,7 @@ pub fn agent_listing(tag: &AgentTag) -> Column<Message> {
 			};
 			catalogue_list = catalogue_list.push(
 				row![
-					button(filename.title.as_str())
+					button(filename.string.as_str())
 						.on_press(Message::SelectCatalogue(i))
 						.width(Length::Fill),
 					buttons

@@ -18,7 +18,7 @@ pub enum Sprite {
 impl Sprite {
 	pub fn new(filename: &str) -> Sprite {
 		Sprite::C16 {
-			filename: Filename::new(filename, "c16")
+			filename: Filename::new(filename)
 		}
 	}
 
@@ -82,7 +82,7 @@ pub struct SpriteFrame {
 impl SpriteFrame {
 	pub fn new(filename: &str) -> SpriteFrame {
 		SpriteFrame {
-			filename: Filename::new(filename, "png")
+			filename: Filename::new(filename)
 		}
 	}
 }
