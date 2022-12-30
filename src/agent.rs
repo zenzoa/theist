@@ -1,4 +1,6 @@
 pub mod tag;
+pub mod agent_tag;
+pub mod egg_tag;
 pub mod script;
 pub mod sprite;
 pub mod background;
@@ -6,6 +8,7 @@ pub mod sound;
 pub mod catalogue;
 
 use tag::*;
+use agent_tag::*;
 use script::*;
 use sprite::*;
 use background::*;
@@ -43,10 +46,6 @@ impl Filename {
 				extension: String::from(&captures[2])
 			}
 		}
-	}
-
-	pub fn as_string(&self) -> String {
-		format!("{}.{}", &self.title, &self.extension)
 	}
 }
 
@@ -212,8 +211,7 @@ pub fn parse_source(contents: &str, path: &str) -> Vec<Tag> {
 						let num_sprites = tag.sprites.len();
 						if let Some(current_sprite) = tag.sprites.get_mut(num_sprites - 1) {
 							if let Some(filename) = tokens.get(1) {
-								let frame = SpriteFrame::new(filename);
-								current_sprite.add_frame(frame);
+								current_sprite.add_frame(filename);
 								if let Sprite::Frames { frames, .. } = current_sprite {
 									println!("    Add frame (total: {})", frames.len());
 								}
@@ -259,7 +257,7 @@ pub fn parse_source(contents: &str, path: &str) -> Vec<Tag> {
 			_ => {
 				match token {
 					"agent" => {
-						let mut tag = AgentTag::new();
+						let mut tag = AgentTag::new(String::from(""));
 						if let Some(i) = tokens.get(1) {
 							tag.name = String::from(i);
 						}

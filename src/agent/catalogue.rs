@@ -34,8 +34,8 @@ impl Catalogue {
 
 	pub fn get_filename(&self) -> String {
 		match self {
-			Catalogue::File { filename } => filename.as_string(),
-			Catalogue::Inline { filename, .. } => filename.as_string()
+			Catalogue::File { filename } => filename.to_string(),
+			Catalogue::Inline { filename, .. } => filename.to_string()
 		}
 	}
 

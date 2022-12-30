@@ -21,21 +21,37 @@ pub fn properties(catalogue: &Catalogue) -> Column<Message> {
 			].spacing(20);
 
 			for (i, entry) in entries.iter().enumerate() {
+				let set_classifier = move |new_classifier: String| -> Message {
+					Message::SetCatalogueEntryClassifier(i, new_classifier)
+				};
+				let set_name = move |new_name: String| -> Message {
+					Message::SetCatalogueEntryName(i, new_name)
+				};
+				let set_description = move |new_description: String| -> Message {
+					Message::SetCatalogueEntryDescription(i, new_description)
+				};
+				let first_row = if entries.len() > 1 {
+					row![
+						text_input("Name", &entry.name, set_name).width(Length::Fill),
+						button("^").on_press(Message::MoveCatalogueEntryUp(i)),
+						button("v").on_press(Message::MoveCatalogueEntryDown(i)),
+						button("x").on_press(Message::DeleteCatalogueEntry(i))
+					]
+				} else {
+					row![
+						text_input("Name", &entry.name, set_name).width(Length::Fill)
+					]
+				};
 				entry_list = entry_list.push(
 					column![
-						row![
-								text_input("Name", &entry.name, Message::SetCatalogueEntryName).width(Length::Fill),
-								button("^").on_press(Message::MoveCatalogueEntryUp(i)),
-								button("v").on_press(Message::MoveCatalogueEntryDown(i)),
-								button("x").on_press(Message::DeleteCatalogueEntry(i))
-							].spacing(5).align_items(Alignment::Center),
+						first_row.spacing(5).align_items(Alignment::Center),
 						row![
 								text("Classifier").width(Length::FillPortion(1)),
-								text_input("0 0 0000", &entry.classifier, Message::SetCatalogueEntryClassifier).width(Length::FillPortion(3))
+								text_input("0 0 0000", &entry.classifier, set_classifier).width(Length::FillPortion(3))
 							].spacing(5).align_items(Alignment::Center),
 						row![
 								text("Description").width(Length::FillPortion(1)),
-								text_input("About this thing", &entry.description, Message::SetCatalogueEntryDescription).width(Length::FillPortion(3))
+								text_input("About this thing", &entry.description, set_description).width(Length::FillPortion(3))
 							].spacing(5).align_items(Alignment::Center),
 					].spacing(5)
 				);

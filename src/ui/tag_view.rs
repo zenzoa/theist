@@ -1,6 +1,6 @@
 use crate::ui::*;
 use crate::agent::*;
-use crate::agent::tag::*;
+use crate::agent::agent_tag::*;
 use crate::agent::script::*;
 
 use iced::widget::{ row, column, Column, text, text_input, button, radio, checkbox, scrollable, horizontal_rule };
@@ -22,7 +22,7 @@ pub fn agent_listing(tag: &AgentTag) -> Column<Message> {
 
 		for (i, script) in tag.scripts.iter().enumerate() {
 			let filename = match script {
-				Script::File{ filename, .. } => filename
+				Script::File{ filename, .. } => filename.title.as_str()
 			};
 			let buttons = if tag.scripts.len() > 1 {
 				row![
@@ -37,7 +37,7 @@ pub fn agent_listing(tag: &AgentTag) -> Column<Message> {
 			};
 			script_list = script_list.push(
 				row![
-					button(filename.title.as_str())
+					button(filename)
 						.on_press(Message::SelectScript(i))
 						.width(Length::Fill),
 					buttons

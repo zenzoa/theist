@@ -18,7 +18,7 @@ impl Sound {
 	}
 
 	pub fn get_filename(&self) -> String {
-		self.filename.as_string()
+		self.filename.to_string()
 	}
 
 	pub fn get_data(&self, path: &str) -> Result<Bytes, Box<dyn Error>> {

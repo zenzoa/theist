@@ -22,14 +22,20 @@ pub fn properties(sprite: &Sprite) -> Column<Message> {
 
 			for (i, frame) in frames.iter().enumerate() {
 				let frame_name = frame.filename.to_string();
-				frame_list = frame_list.push(
-					row![
-						text(frame_name.as_str()).width(Length::Fill),
-						button("^").on_press(Message::MoveSpriteFrameUp(i)),
-						button("v").on_press(Message::MoveSpriteFrameDown(i)),
-						button("x").on_press(Message::DeleteSpriteFrame(i))
-					].spacing(5).align_items(Alignment::Center)
-				);
+				if frames.len() > 1 {
+					frame_list = frame_list.push(
+						row![
+							text(frame_name.as_str()).width(Length::Fill),
+							button("^").on_press(Message::MoveSpriteFrameUp(i)),
+							button("v").on_press(Message::MoveSpriteFrameDown(i)),
+							button("x").on_press(Message::DeleteSpriteFrame(i))
+						].spacing(5).align_items(Alignment::Center)
+					);
+				} else {
+					frame_list = frame_list.push(
+						text(frame_name.as_str()).width(Length::Fill)
+					);
+				}
 			}
 
 			if frames.len() == 1 {

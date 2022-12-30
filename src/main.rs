@@ -130,7 +130,8 @@ pub fn main() -> iced::Result {
 }
 
 fn start_gui() -> iced::Result {
-	ui::Main::run(Settings::default())
+	let settings = Settings::<()> { exit_on_close_request: false, ..Default::default() };
+	ui::Main::run(settings)
 }
 
 struct Filepath {

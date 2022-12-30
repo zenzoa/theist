@@ -1,7 +1,8 @@
 use crate::agent::*;
 use crate::agent::background::*;
+use crate::agent::agent_tag::*;
+use crate::agent::egg_tag::*;
 
-use std::fmt;
 use std::str;
 use regex::Regex;
 use bytes::Bytes;
@@ -10,25 +11,25 @@ use bytes::Bytes;
 pub enum Tag {
 	Empty,
 	Agent(AgentTag),
-	//Egg(EggTag)
+	Egg(EggTag)
 }
 
 impl Tag {
-	pub fn set_name(&mut self, name: String) {
+	pub fn set_name(&mut self, new_name: String) {
 		match self {
 			Tag::Agent(tag) => {
-				tag.name = name;
+				tag.name = new_name;
 			},
-			_ => ()
+			Tag::Egg(tag) => {
+				tag.name = new_name;
+			},
+			Tag::Empty => ()
 		}
 	}
 
 	pub fn set_description(&mut self, new_description: String) {
-		match self {
-			Tag::Agent(tag) => {
-				tag.description = new_description;
-			},
-			_ => ()
+		if let Tag::Agent(tag) = self {
+			tag.description = new_description;
 		}
 	}
 
@@ -37,86 +38,316 @@ impl Tag {
 			Tag::Agent(tag) => {
 				tag.version = new_version;
 			},
-			_ => ()
+			Tag::Egg(tag) => {
+				tag.version = new_version;
+			},
+			Tag::Empty => ()
 		}
 	}
 
 	pub fn set_supported_game(&mut self, new_supported_game: usize) {
-		match self {
-			Tag::Agent(tag) => {
-				tag.supported_game = match new_supported_game {
-					1 => SupportedGame::C3,
-					2 => SupportedGame::DS,
-					_ => SupportedGame::C3DS
-				};
-			},
-			_ => ()
+		if let Tag::Agent(tag) = self {
+			tag.supported_game = match new_supported_game {
+				1 => SupportedGame::C3,
+				2 => SupportedGame::DS,
+				_ => SupportedGame::C3DS
+			};
 		}
 	}
 
 	pub fn set_preview_auto(&mut self, is_auto: bool) {
-		match self {
-			Tag::Agent(tag) => {
-				tag.preview = if is_auto {
-					Preview::Auto
-				} else {
-					Preview::Manual {
-						sprite: "".to_string(), // TODO: get name of first sprite
-						animation: "0".to_string()
-					}
-				};
-			},
-			_ => ()
+		if let Tag::Agent(tag) = self {
+			tag.preview = if is_auto {
+				Preview::Auto
+			} else {
+				Preview::Manual {
+					sprite: "".to_string(), // TODO: get name of first sprite
+					animation: "0".to_string()
+				}
+			};
 		}
 	}
 
 	pub fn set_preview_sprite(&mut self, new_sprite: String) {
-		match self {
-			Tag::Agent(tag) => {
-				if let Preview::Manual{ animation, .. } = &tag.preview {
-					tag.preview = Preview::Manual{
-						sprite: new_sprite,
-						animation: animation.clone()
-					}
+		if let Tag::Agent(tag) = self {
+			if let Preview::Manual{ animation, .. } = &tag.preview {
+				tag.preview = Preview::Manual{
+					sprite: new_sprite,
+					animation: animation.clone()
 				}
-			},
-			_ => ()
+			}
 		}
 	}
 
 	pub fn set_preview_animation(&mut self, new_animation: String) {
-		match self {
-			Tag::Agent(tag) => {
-				if let Preview::Manual{ sprite, .. } = &tag.preview {
-					tag.preview = Preview::Manual{
-						sprite: sprite.clone(),
-						animation: new_animation
-					}
+		if let Tag::Agent(tag) = self {
+			if let Preview::Manual{ sprite, .. } = &tag.preview {
+				tag.preview = Preview::Manual{
+					sprite: sprite.clone(),
+					animation: new_animation
 				}
-			},
-			_ => ()
+			}
 		}
 	}
 
 	pub fn set_removescript_auto(&mut self, is_auto: bool) {
-		match self {
-			Tag::Agent(tag) => {
-				tag.removescript = if is_auto {
-					RemoveScript::Auto
-				} else {
-					RemoveScript::Manual("".to_string())
-				};
-			},
-			_ => ()
+		if let Tag::Agent(tag) = self {
+			tag.removescript = if is_auto {
+				RemoveScript::Auto
+			} else {
+				RemoveScript::Manual("".to_string())
+			};
 		}
 	}
 
 	pub fn set_removescript_string(&mut self, new_removescript: String) {
-		match self {
-			Tag::Agent(tag) => {
-				tag.removescript = RemoveScript::Manual(new_removescript);
-			},
-			_ => ()
+		if let Tag::Agent(tag) = self {
+			tag.removescript = RemoveScript::Manual(new_removescript);
+		}
+	}
+
+	pub fn delete_script(&mut self, index: usize) {
+		if let Tag::Agent(tag) = self {
+			if index < tag.scripts.len() {
+				tag.scripts.remove(index);
+			}
+		}
+	}
+	pub fn move_script_up(&mut self, index: usize) {
+		if let Tag::Agent(tag) = self {
+			if index > 0 && index < tag.scripts.len() {
+				tag.scripts.swap(index, index - 1);
+			}
+		}
+	}
+	pub fn move_script_down(&mut self, index: usize) {
+		if let Tag::Agent(tag) = self {
+			if index + 1 < tag.scripts.len() {
+				tag.scripts.swap(index, index + 1);
+			}
+		}
+	}
+	pub fn set_script_supported_game(&mut self, index: usize, new_supported_game: usize) {
+		if let Tag::Agent(tag) = self {
+			if let Some(Script::File{ supported_game, .. }) = tag.scripts.get_mut(index) {
+				*supported_game = match new_supported_game {
+					1 => SupportedGame::C3,
+					2 => SupportedGame::DS,
+					_ => SupportedGame::C3DS
+				};
+			}
+		}
+	}
+
+	pub fn delete_sprite(&mut self, index: usize) {
+		if let Tag::Agent(tag) = self {
+			if index < tag.sprites.len() {
+				tag.sprites.remove(index);
+			}
+		}
+	}
+	pub fn move_sprite_up(&mut self, index: usize) {
+		if let Tag::Agent(tag) = self {
+			if index > 0 && index < tag.sprites.len() {
+				tag.sprites.swap(index, index - 1);
+			}
+		}
+	}
+	pub fn move_sprite_down(&mut self, index: usize) {
+		if let Tag::Agent(tag) = self {
+			if index + 1 < tag.sprites.len() {
+				tag.sprites.swap(index, index + 1);
+			}
+		}
+	}
+	pub fn set_sprite_name(&mut self, index: usize, new_name: String) {
+		if let Tag::Agent(tag) = self {
+			if let Some(Sprite::Frames{ filename, .. }) = tag.sprites.get_mut(index) {
+				filename.title = new_name;
+			}
+		}
+	}
+	pub fn convert_sprite_to_background(&mut self, index: usize) -> Option<usize> {
+		if let Tag::Agent(tag) = self {
+			if let Some(Sprite::Frames{ frames, .. }) = tag.sprites.get(index) {
+				if let Some(frame) = frames.get(0) {
+					tag.backgrounds.push(Background::new(frame.filename.to_string().as_str()));
+					let background_index = &tag.backgrounds.len() - 1;
+					self.delete_sprite(index);
+					return Some(background_index);
+				}
+			}
+		}
+		None
+	}
+
+	pub fn add_sprite_frame(&mut self, index: usize, filename: String) {
+		if let Tag::Agent(tag) = self {
+			if let Some(sprite) = tag.sprites.get_mut(index) {
+				sprite.add_frame(filename.as_str());
+			}
+		}
+	}
+	pub fn delete_sprite_frame(&mut self, sprite_index: usize, frame_index: usize) {
+		if let Tag::Agent(tag) = self {
+			if let Some(Sprite::Frames{ frames, .. }) = tag.sprites.get_mut(sprite_index) {
+				if frame_index < frames.len() {
+					frames.remove(frame_index);
+				}
+			}
+		}
+	}
+	pub fn move_sprite_frame_up(&mut self, sprite_index: usize, frame_index: usize) {
+		if let Tag::Agent(tag) = self {
+			if let Some(Sprite::Frames{ frames, .. }) = tag.sprites.get_mut(sprite_index) {
+				if frame_index > 0 && frame_index < frames.len() {
+					frames.swap(frame_index, frame_index - 1);
+				}
+			}
+		}
+	}
+	pub fn move_sprite_frame_down(&mut self, sprite_index: usize, frame_index: usize) {
+		if let Tag::Agent(tag) = self {
+			if let Some(Sprite::Frames{ frames, .. }) = tag.sprites.get_mut(sprite_index) {
+				if frame_index + 1 < frames.len() {
+					frames.swap(frame_index, frame_index + 1);
+				}
+			}
+		}
+	}
+
+	pub fn delete_background(&mut self, index: usize) {
+		if let Tag::Agent(tag) = self {
+			if index < tag.backgrounds.len() {
+				tag.backgrounds.remove(index);
+			}
+		}
+	}
+	pub fn move_background_up(&mut self, index: usize) {
+		if let Tag::Agent(tag) = self {
+			if index > 0 && index < tag.backgrounds.len() {
+				tag.backgrounds.swap(index, index - 1);
+			}
+		}
+	}
+	pub fn move_background_down(&mut self, index: usize) {
+		if let Tag::Agent(tag) = self {
+			if index + 1 < tag.backgrounds.len() {
+				tag.backgrounds.swap(index, index + 1);
+			}
+		}
+	}
+	pub fn convert_background_to_sprite(&mut self, index: usize) -> Option<usize> {
+		if let Tag::Agent(tag) = self {
+			if let Some(Background::Png{ filename }) = tag.backgrounds.get(index) {
+				let mut new_sprite = Sprite::new(format!("{}.c16", &filename.title).as_str());
+				new_sprite.add_frame(filename.to_string().as_str());
+				tag.sprites.push(new_sprite);
+				let sprite_index = &tag.sprites.len() - 1;
+				self.delete_background(index);
+				return Some(sprite_index);
+			}
+		}
+		None
+	}
+
+	pub fn delete_sound(&mut self, index: usize) {
+		if let Tag::Agent(tag) = self {
+			if index < tag.sounds.len() {
+				tag.sounds.remove(index);
+			}
+		}
+	}
+	pub fn move_sound_up(&mut self, index: usize) {
+		if let Tag::Agent(tag) = self {
+			if index > 0 && index < tag.sounds.len() {
+				tag.sounds.swap(index, index - 1);
+			}
+		}
+	}
+	pub fn move_sound_down(&mut self, index: usize) {
+		if let Tag::Agent(tag) = self {
+			if index + 1 < tag.sounds.len() {
+				tag.sounds.swap(index, index + 1);
+			}
+		}
+	}
+
+	pub fn add_inline_catalogue(&mut self) {
+		if let Tag::Agent(tag) = self {
+			tag.catalogues.push(
+				Catalogue::Inline{
+					filename: Filename::new("my_catalogue.catalogue", "catalogue"),
+					entries: vec![
+						CatalogueEntry::new("0 0 0000", tag.name.as_str(), tag.description.as_str())
+					]
+				}
+			)
+		}
+	}
+	pub fn delete_catalogue(&mut self, index: usize) {
+		if let Tag::Agent(tag) = self {
+			if index < tag.catalogues.len() {
+				tag.catalogues.remove(index);
+			}
+		}
+	}
+	pub fn move_catalogue_up(&mut self, index: usize) {
+		if let Tag::Agent(tag) = self {
+			if index > 0 && index < tag.catalogues.len() {
+				tag.catalogues.swap(index, index - 1);
+			}
+		}
+	}
+	pub fn move_catalogue_down(&mut self, index: usize) {
+		if let Tag::Agent(tag) = self {
+			if index + 1 < tag.catalogues.len() {
+				tag.catalogues.swap(index, index + 1);
+			}
+		}
+	}
+	pub fn set_catalogue_name(&mut self, index: usize, new_name: String) {
+		if let Tag::Agent(tag) = self {
+			if let Some(Catalogue::Inline{ filename, .. }) = tag.catalogues.get_mut(index) {
+				filename.title = new_name;
+			}
+		}
+	}
+
+	pub fn add_catalogue_entry(&mut self, index: usize) {
+		if let Tag::Agent(tag) = self {
+			if let Some(catalogue) = tag.catalogues.get_mut(index) {
+				catalogue.add_entry(
+					CatalogueEntry::new("0 0 0000", tag.name.as_str(), tag.description.as_str())
+				);
+			}
+		}
+	}
+	pub fn delete_catalogue_entry(&mut self, catalogue_index: usize, entry_index: usize) {
+		if let Tag::Agent(tag) = self {
+			if let Some(Catalogue::Inline{ entries, .. }) = tag.catalogues.get_mut(catalogue_index) {
+				if entry_index < entries.len() {
+					entries.remove(entry_index);
+				}
+			}
+		}
+	}
+	pub fn move_catalogue_entry_up(&mut self, catalogue_index: usize, entry_index: usize) {
+		if let Tag::Agent(tag) = self {
+			if let Some(Catalogue::Inline{ entries, .. }) = tag.catalogues.get_mut(catalogue_index) {
+				if entry_index > 0 && entry_index < entries.len() {
+					entries.swap(entry_index, entry_index - 1);
+				}
+			}
+		}
+	}
+	pub fn move_catalogue_entry_down(&mut self, catalogue_index: usize, entry_index: usize) {
+		if let Tag::Agent(tag) = self {
+			if let Some(Catalogue::Inline{ entries, .. }) = tag.catalogues.get_mut(catalogue_index) {
+				if entry_index + 1 < entries.len() {
+					entries.swap(entry_index, entry_index + 1);
+				}
+			}
 		}
 	}
 
@@ -224,90 +455,9 @@ impl Tag {
 				}
 			},
 
+			Tag::Egg(_tag) => (),
+
 			Tag::Empty => ()
 		}
 	}
-}
-
-#[derive(Clone)]
-pub struct AgentTag {
-	pub filepath: String,
-	pub name: String,
-	pub version: String,
-	pub description: String,
-	pub supported_game: SupportedGame,
-	pub removescript: RemoveScript,
-	pub preview: Preview,
-
-	pub scripts: Vec<Script>,
-	pub sprites: Vec<Sprite>,
-	pub backgrounds: Vec<Background>,
-	pub sounds: Vec<Sound>,
-	pub catalogues: Vec<Catalogue>,
-
-	pub script_files: Vec<Bytes>,
-	pub sprite_files: Vec<Bytes>,
-	pub background_files: Vec<Bytes>,
-	pub sound_files: Vec<Bytes>,
-	pub catalogue_files: Vec<Bytes>
-}
-
-impl AgentTag {
-	pub fn new() -> AgentTag {
-		AgentTag {
-			filepath: String::from(""),
-			name: String::from(""),
-			version: String::from(""),
-			description: String::from(""),
-			supported_game: SupportedGame::C3DS,
-			removescript: RemoveScript::Auto,
-			preview: Preview::Auto,
-
-			scripts: Vec::new(),
-			sprites: Vec::new(),
-			backgrounds: Vec::new(),
-			sounds: Vec::new(),
-			catalogues: Vec::new(),
-
-			script_files: Vec::new(),
-			sprite_files: Vec::new(),
-			background_files: Vec::new(),
-			sound_files: Vec::new(),
-			catalogue_files: Vec::new()
-		}
-	}
-}
-
-//pub struct EggTag {
-//	filepath: String,
-//	name: String,
-//	version: String,
-//	preview_sprite_male: String,
-//	preview_sprite_female: String,
-//	preview_animation: String,
-//	genetics: Vec<Genetics>,
-//	sprites: Vec<Sprite>
-//}
-
-#[derive(Clone, PartialEq)]
-pub enum RemoveScript {
-	None,
-	Auto,
-	Manual(String)
-}
-
-impl fmt::Display for RemoveScript {
-	fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-		match &self {
-			RemoveScript::None => write!(f, ""),
-			RemoveScript::Auto => write!(f, "auto"),
-			RemoveScript::Manual(s) => write!(f, "{}", s),
-		}
-	}
-}
-
-#[derive(Clone, PartialEq)]
-pub enum Preview {
-	Auto,
-	Manual { sprite: String, animation: String }
 }

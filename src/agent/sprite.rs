@@ -22,7 +22,8 @@ impl Sprite {
 		}
 	}
 
-	pub fn add_frame(&mut self, frame: SpriteFrame) {
+	pub fn add_frame(&mut self, frame_filename: &str) {
+		let frame = SpriteFrame::new(frame_filename);
 		match self {
 			Sprite::C16 { filename } => {
 				*self = Sprite::Frames {
@@ -38,8 +39,8 @@ impl Sprite {
 
 	pub fn get_filename(&self) -> String {
 		match self {
-			Sprite::C16 { filename } => filename.as_string(),
-			Sprite::Frames { filename, .. } => filename.as_string()
+			Sprite::C16 { filename } => filename.to_string(),
+			Sprite::Frames { filename, .. } => filename.to_string()
 		}
 	}
 

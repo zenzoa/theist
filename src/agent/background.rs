@@ -24,8 +24,8 @@ impl Background {
 
 	pub fn get_filename(&self) -> String {
 		match self {
-			Background::Blk { filename } => filename.as_string(),
-			Background::Png { filename } => filename.as_string()
+			Background::Blk { filename } => filename.to_string(),
+			Background::Png { filename } => filename.to_string()
 		}
 	}
 

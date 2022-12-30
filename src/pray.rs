@@ -2,6 +2,7 @@ use crate::c16;
 use crate::blk;
 use crate::agent::*;
 use crate::agent::tag::*;
+use crate::agent::agent_tag::*;
 use crate::agent::script::*;
 use crate::agent::sprite::*;
 use crate::agent::background::*;
@@ -85,8 +86,7 @@ fn read_block_header(buffer: &mut Bytes) -> BlockHeader {
 }
 
 fn read_agent_block(buffer: &mut Bytes, files: &mut Vec<FileData>, block_name: String, supported_game: SupportedGame) -> AgentTag {
-	let mut tag = AgentTag::new();
-	tag.name = block_name.clone();
+	let mut tag = AgentTag::new(block_name.clone());
 	tag.supported_game = supported_game;
 
 	let mut preview_sprite = String::from("");

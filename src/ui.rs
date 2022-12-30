@@ -7,6 +7,7 @@ pub mod catalogue_view;
 
 use crate::agent::*;
 use crate::agent::tag::*;
+use crate::agent::agent_tag::*;
 use crate::agent::script::*;
 use crate::agent::sprite::*;
 use crate::agent::background::*;
@@ -15,6 +16,7 @@ use crate::agent::catalogue::*;
 use crate::pray;
 
 use std::fs;
+use std::fs::File;
 use std::str;
 use std::path::{ Path, PathBuf };
 use rfd::{ FileDialog, MessageDialog, MessageLevel, MessageButtons };
@@ -43,7 +45,8 @@ pub struct Main {
 	selection_type: SelectionType,
 	files: Vec<FileData>,
 	modified: bool,
-	alerts: Vec<Alert>
+	alerts: Vec<Alert>,
+	exit: bool
 }
 
 #[derive(Debug, Clone)]
@@ -110,9 +113,9 @@ pub enum Message {
 	DeleteCatalogueEntry(usize),
 	MoveCatalogueEntryUp(usize),
 	MoveCatalogueEntryDown(usize),
-	SetCatalogueEntryClassifier(String),
-	SetCatalogueEntryName(String),
-	SetCatalogueEntryDescription(String)
+	SetCatalogueEntryClassifier(usize, String),
+	SetCatalogueEntryName(usize, String),
+	SetCatalogueEntryDescription(usize, String),
 }
 
 impl Application for Main {
@@ -125,12 +128,13 @@ impl Application for Main {
 		(Self {
 			filename: String::from("untitled.the"),
 			path: String::from(""),
-			tags: Vec::new(),
-			selected_tag: None,
+			tags: vec![ Tag::Agent(AgentTag::new(String::from("My Agent"))) ],
+			selected_tag: Some(0),
 			selection_type: SelectionType::Tag,
 			files: Vec::new(),
 			modified: false,
-			alerts: Vec::new()
+			alerts: Vec::new(),
+			exit: false
 		}, Command::none())
 	}
 
@@ -144,20 +148,33 @@ impl Application for Main {
 		}
 	}
 
+	fn should_exit(&self) -> bool {
+		self.exit
+	}
+
 	fn update(&mut self, message: Message) -> Command<Message> {
 		match message {
 			Message::EventOccurred(event) => {
-				if let Event::Window(window::Event::FileDropped(path)) = event {
-					self.add_file_from_path(path, true);
+				match event {
+					Event::Window(window::Event::FileDropped(path)) => {
+						let mut result = false;
+						if let SelectionType::Sprite(_index) = self.selection_type {
+							result = self.add_sprite_frame_from_path(path.clone(), true);
+						}
+						if !result {
+							self.add_file_from_path(path, true);
+						}
+					},
+					Event::Window(window::Event::CloseRequested) => {
+						if !self.modified || confirm_exit() {
+							self.exit = true;
+						}
+					},
+					_ => ()
 				}
 			},
 			Message::NewFile => {
-				if !self.modified || confirm_discard_changes() {
-					self.filename = String::from("untitled.the");
-					self.path = String::from("");
-					self.tags = Vec::new();
-					self.modified = false;
-				}
+				self.new_file();
 			},
 			Message::OpenFile => {
 				if !self.modified || confirm_discard_changes() {
@@ -172,18 +189,22 @@ impl Application for Main {
 				}
 			},
 			Message::Save => {
-				if self.path.is_empty() {
-					let file = FileDialog::new()
-						.set_directory(&self.path)
-						.set_file_name(&self.filename)
-						.save_file();
-					if let Some(path) = file {
-						self.save(path);
+				let filepath = format!("{}{}", &self.path, &self.filename);
+				match File::open(&filepath) {
+					Ok(_file) => {
+						self.save(PathBuf::from(filepath));
 						self.modified = false;
+					},
+					Err(_why) => {
+						let file = FileDialog::new()
+							.set_directory(&self.path)
+							.set_file_name(&self.filename)
+							.save_file();
+						if let Some(path) = file {
+							self.save(path);
+							self.modified = false;
+						}
 					}
-				} else {
-					self.save(PathBuf::from(format!("{}{}", &self.path, &self.filename)));
-					self.modified = false;
 				}
 			},
 			Message::SaveAs => {
@@ -196,10 +217,9 @@ impl Application for Main {
 					self.modified = false;
 				}
 			},
+
 			Message::AddTag => {
-				let mut new_tag = AgentTag::new();
-				new_tag.name = String::from("My Agent");
-				self.tags.push(Tag::Agent(new_tag));
+				self.tags.push(Tag::Agent(AgentTag::new(String::from("My Agent"))));
 				self.selected_tag = Some(self.tags.len() - 1);
 				self.modified = true;
 			},
@@ -281,21 +301,293 @@ impl Application for Main {
 			Message::AddFile => {
 				self.add_file();
 			},
+
 			Message::SelectScript(index) => {
 				self.selection_type = SelectionType::Script(index);
 			},
+			Message::DeleteScript(index) => {
+				if confirm_delete_item("script") {
+					if let Some(selected_tag) = self.selected_tag {
+						self.tags[selected_tag].delete_script(index);
+						self.selection_type = SelectionType::Tag;
+						self.modified = true;
+					}
+				}
+			},
+			Message::MoveScriptUp(index) => {
+				if let Some(selected_tag) = self.selected_tag {
+					self.tags[selected_tag].move_script_up(index);
+					self.modified = true;
+				}
+			},
+			Message::MoveScriptDown(index) => {
+				if let Some(selected_tag) = self.selected_tag {
+					self.tags[selected_tag].move_script_down(index);
+					self.modified = true;
+				}
+			},
+			Message::SetScriptSupportedGame(new_supported_game) => {
+				if let Some(selected_tag) = self.selected_tag {
+					if let SelectionType::Script(index) = self.selection_type {
+						self.tags[selected_tag].set_script_supported_game(index, new_supported_game);
+					}
+				}
+			},
+
 			Message::SelectSprite(index) => {
 				self.selection_type = SelectionType::Sprite(index);
 			},
+			Message::DeleteSprite(index) => {
+				if confirm_delete_item("sprite") {
+					if let Some(selected_tag) = self.selected_tag {
+						self.tags[selected_tag].delete_sprite(index);
+						self.selection_type = SelectionType::Tag;
+						self.modified = true;
+					}
+				}
+			},
+			Message::MoveSpriteUp(index) => {
+				if let Some(selected_tag) = self.selected_tag {
+					self.tags[selected_tag].move_sprite_up(index);
+					self.modified = true;
+				}
+			},
+			Message::MoveSpriteDown(index) => {
+				if let Some(selected_tag) = self.selected_tag {
+					self.tags[selected_tag].move_sprite_down(index);
+					self.modified = true;
+				}
+			},
+			Message::SetSpriteName(new_name) => {
+				if let SelectionType::Sprite(index) = self.selection_type {
+					if let Some(selected_tag) = self.selected_tag {
+						self.tags[selected_tag].set_sprite_name(index, new_name);
+						self.modified = true;
+					}
+				}
+			},
+			Message::ConvertSpriteToBackground => {
+				if let Some(selected_tag) = self.selected_tag {
+					if let SelectionType::Sprite(index) = self.selection_type {
+						let background_index = self.tags[selected_tag].convert_sprite_to_background(index);
+						if let Some(background_index) = background_index {
+							self.selection_type = SelectionType::Background(background_index);
+						}
+						self.modified = true;
+					}
+				}
+			},
+
+			Message::AddSpriteFrame => {
+				self.add_sprite_frame();
+			},
+			Message::DeleteSpriteFrame(frame_index) => {
+				if confirm_delete_item("sprite frame") {
+					if let Some(selected_tag) = self.selected_tag {
+						if let SelectionType::Sprite(sprite_index) = self.selection_type {
+							self.tags[selected_tag].delete_sprite_frame(sprite_index, frame_index);
+							self.modified = true;
+						}
+					}
+				}
+			},
+			Message::MoveSpriteFrameUp(frame_index) => {
+				if let Some(selected_tag) = self.selected_tag {
+					if let SelectionType::Sprite(sprite_index) = self.selection_type {
+						self.tags[selected_tag].move_sprite_frame_up(sprite_index, frame_index);
+						self.modified = true;
+					}
+				}
+			},
+			Message::MoveSpriteFrameDown(frame_index) => {
+				if let Some(selected_tag) = self.selected_tag {
+					if let SelectionType::Sprite(sprite_index) = self.selection_type {
+						self.tags[selected_tag].move_sprite_frame_down(sprite_index, frame_index);
+						self.modified = true;
+					}
+				}
+			},
+
 			Message::SelectBackground(index) => {
 				self.selection_type = SelectionType::Background(index);
 			},
+			Message::DeleteBackground(index) => {
+				if confirm_delete_item("background") {
+					if let Some(selected_tag) = self.selected_tag {
+						self.tags[selected_tag].delete_background(index);
+						self.selection_type = SelectionType::Tag;
+						self.modified = true;
+					}
+				}
+			},
+			Message::MoveBackgroundUp(index) => {
+				if let Some(selected_tag) = self.selected_tag {
+					self.tags[selected_tag].move_background_up(index);
+					self.modified = true;
+				}
+			},
+			Message::MoveBackgroundDown(index) => {
+				if let Some(selected_tag) = self.selected_tag {
+					self.tags[selected_tag].move_background_down(index);
+					self.modified = true;
+				}
+			},
+			Message::ConvertBackgroundToSprite => {
+				if let Some(selected_tag) = self.selected_tag {
+					if let SelectionType::Background(index) = self.selection_type {
+						let sprite_index = self.tags[selected_tag].convert_background_to_sprite(index);
+						if let Some(sprite_index) = sprite_index {
+							self.selection_type = SelectionType::Sprite(sprite_index);
+						}
+						self.modified = true;
+					}
+				}
+			},
+
 			Message::SelectSound(index) => {
 				self.selection_type = SelectionType::Sound(index);
+			},
+			Message::DeleteSound(index) => {
+				if confirm_delete_item("sound") {
+					if let Some(selected_tag) = self.selected_tag {
+						self.tags[selected_tag].delete_sound(index);
+						self.selection_type = SelectionType::Tag;
+						self.modified = true;
+					}
+				}
+			},
+			Message::MoveSoundUp(index) => {
+				if let Some(selected_tag) = self.selected_tag {
+					self.tags[selected_tag].move_sound_up(index);
+					self.modified = true;
+				}
+			},
+			Message::MoveSoundDown(index) => {
+				if let Some(selected_tag) = self.selected_tag {
+					self.tags[selected_tag].move_sound_down(index);
+					self.modified = true;
+				}
+			},
+
+			Message::AddInlineCatalogue => {
+				if let Some(selected_tag) = self.selected_tag {
+					self.tags[selected_tag].add_inline_catalogue();
+					if let Tag::Agent(tag) = &self.tags[selected_tag] {
+						self.selection_type = SelectionType::Catalogue(tag.catalogues.len() - 1);
+					}
+					self.modified = true;
+				}
 			},
 			Message::SelectCatalogue(index) => {
 				self.selection_type = SelectionType::Catalogue(index);
 			},
+			Message::DeleteCatalogue(index) => {
+				if confirm_delete_item("catalogue") {
+					if let Some(selected_tag) = self.selected_tag {
+						self.tags[selected_tag].delete_catalogue(index);
+						self.selection_type = SelectionType::Tag;
+						self.modified = true;
+					}
+				}
+			},
+			Message::MoveCatalogueUp(index) => {
+				if let Some(selected_tag) = self.selected_tag {
+					self.tags[selected_tag].move_catalogue_up(index);
+					self.modified = true;
+				}
+			},
+			Message::MoveCatalogueDown(index) => {
+				if let Some(selected_tag) = self.selected_tag {
+					self.tags[selected_tag].move_catalogue_down(index);
+					self.modified = true;
+				}
+			},
+			Message::SetCatalogueName(new_name) => {
+				if let SelectionType::Catalogue(index) = self.selection_type {
+					if let Some(selected_tag) = self.selected_tag {
+						self.tags[selected_tag].set_catalogue_name(index, new_name);
+						self.modified = true;
+					}
+				}
+			},
+
+			Message::AddCatalogueEntry => {
+				if let Some(selected_tag) = self.selected_tag {
+					if let SelectionType::Catalogue(catalogue_index) = self.selection_type {
+						self.tags[selected_tag].add_catalogue_entry(catalogue_index);
+						self.modified = true;
+					}
+				}
+			},
+			Message::DeleteCatalogueEntry(entry_index) => {
+				if confirm_delete_item("catalogue entry") {
+					if let Some(selected_tag) = self.selected_tag {
+						if let SelectionType::Catalogue(catalogue_index) = self.selection_type {
+							self.tags[selected_tag].delete_catalogue_entry(catalogue_index, entry_index);
+							self.modified = true;
+						}
+					}
+				}
+			},
+			Message::MoveCatalogueEntryUp(entry_index) => {
+				if let Some(selected_tag) = self.selected_tag {
+					if let SelectionType::Catalogue(catalogue_index) = self.selection_type {
+						self.tags[selected_tag].move_catalogue_entry_up(catalogue_index, entry_index);
+						self.modified = true;
+					}
+				}
+			},
+			Message::MoveCatalogueEntryDown(entry_index) => {
+				if let Some(selected_tag) = self.selected_tag {
+					if let SelectionType::Catalogue(catalogue_index) = self.selection_type {
+						self.tags[selected_tag].move_catalogue_entry_down(catalogue_index, entry_index);
+						self.modified = true;
+					}
+				}
+			},
+			Message::SetCatalogueEntryClassifier(entry_index, new_classifier) => {
+				if let Some(selected_tag) = self.selected_tag {
+					if let Tag::Agent(tag) = &mut self.tags[selected_tag] {
+						if let SelectionType::Catalogue(catalogue_index) = self.selection_type {
+							if let Some(Catalogue::Inline{ entries, .. }) = tag.catalogues.get_mut(catalogue_index) {
+								if entry_index < entries.len() {
+									entries[entry_index].classifier = new_classifier;
+									self.modified = true;
+								}
+							}
+						}
+					}
+				}
+			},
+			Message::SetCatalogueEntryName(entry_index, new_name) => {
+				if let Some(selected_tag) = self.selected_tag {
+					if let Tag::Agent(tag) = &mut self.tags[selected_tag] {
+						if let SelectionType::Catalogue(catalogue_index) = self.selection_type {
+							if let Some(Catalogue::Inline{ entries, .. }) = tag.catalogues.get_mut(catalogue_index) {
+								if entry_index < entries.len() {
+									entries[entry_index].name = new_name;
+									self.modified = true;
+								}
+							}
+						}
+					}
+				}
+			},
+			Message::SetCatalogueEntryDescription(entry_index, new_description) => {
+				if let Some(selected_tag) = self.selected_tag {
+					if let Tag::Agent(tag) = &mut self.tags[selected_tag] {
+						if let SelectionType::Catalogue(catalogue_index) = self.selection_type {
+							if let Some(Catalogue::Inline{ entries, .. }) = tag.catalogues.get_mut(catalogue_index) {
+								if entry_index < entries.len() {
+									entries[entry_index].description = new_description;
+									self.modified = true;
+								}
+							}
+						}
+					}
+				}
+			},
+
 			_ => {
 				println!("MESSAGE: {:?}", message);
 			}
@@ -372,7 +664,8 @@ impl Application for Main {
 							}
 						}
 					},
-					_ => ()
+					Tag::Egg(_tag) => (),
+					Tag::Empty => ()
 				}
 			}
 		}
@@ -440,6 +733,16 @@ impl Main {
 		};
 	}
 
+	fn new_file(&mut self) {
+		if !self.modified || confirm_discard_changes() {
+			self.filename = String::from("untitled.the");
+			self.path = String::from("");
+			self.tags = vec![ Tag::Agent(AgentTag::new(String::from("My Agent"))) ];
+			self.selected_tag = Some(0);
+			self.modified = false;
+		}
+	}
+
 	fn open(&mut self, path: PathBuf) {
 		self.set_path_and_name(&path);
 		let extension = match path.extension() {
@@ -505,7 +808,7 @@ impl Main {
 		}
 	}
 
-	fn add_file_from_path(&mut self, file_path: PathBuf, allow_file_open: bool) {
+	fn add_file_from_path(&mut self, file_path: PathBuf, file_dropped: bool) {
 		let path = match file_path.parent() {
 			Some(parent) => parent.to_string_lossy().into_owned() + "/",
 			None => String::from("")
@@ -523,7 +826,7 @@ impl Main {
 			None => String::from("")
 		};
 
-		if allow_file_open
+		if file_dropped
 			&& (extension == "the" || extension == "txt" || extension == "agent" || extension == "agents")
 			&& (!self.modified || confirm_discard_changes()) {
 				self.open(file_path);
@@ -546,24 +849,29 @@ impl Main {
 					match extension.as_str() {
 						"cos" => {
 							tag.scripts.push(Script::new(&filename, &tag.supported_game.to_string()));
+							self.selection_type = SelectionType::Script(tag.scripts.len() - 1);
 						},
 						"c16" => {
 							tag.sprites.push(Sprite::new(&filename));
+							self.selection_type = SelectionType::Sprite(tag.sprites.len() - 1);
 						},
 						"blk" => {
 							tag.backgrounds.push(Background::new(&filename));
+							self.selection_type = SelectionType::Background(tag.backgrounds.len() - 1);
 						},
 						"wav" => {
 							tag.sounds.push(Sound::new(&filename));
+							self.selection_type = SelectionType::Sound(tag.sounds.len() - 1);
 						},
 						"catalogue" => {
 							tag.catalogues.push(Catalogue::new(&filename));
+							self.selection_type = SelectionType::Catalogue(tag.catalogues.len() - 1);
 						},
 						"png" => {
 							let mut sprite = Sprite::new(format!("{}.c16", &title).as_str());
-							let frame = SpriteFrame::new(&filename);
-							sprite.add_frame(frame);
+							sprite.add_frame(&filename);
 							tag.sprites.push(sprite);
+							self.selection_type = SelectionType::Sprite(tag.sprites.len() - 1);
 						},
 						_ => {
 							// TODO: alert user that they picked an invalid file type for an agent tag
@@ -571,9 +879,47 @@ impl Main {
 					}
 					self.modified = true;
 				},
-				_ => ()
+				Tag::Egg(_tag) => (),
+				Tag::Empty => ()
 			}
 		}
+	}
+
+	fn add_sprite_frame(&mut self) {
+		let file = FileDialog::new()
+			.add_filter("Creatures Files", &["cos", "c16", "blk", "wav", "catalogue", "png"])
+			.set_directory(&self.path)
+			.pick_file();
+		if let Some(file_path) = file {
+			self.add_sprite_frame_from_path(file_path, false);
+		}
+	}
+
+	fn add_sprite_frame_from_path(&mut self, file_path: PathBuf, file_dropped: bool) -> bool {
+		if let Some(path) = file_path.parent() {
+			if let Some(filename) = file_path.file_name() {
+				if let Some(extension) = file_path.extension() {
+					let path = path.to_string_lossy().into_owned() + "/";
+					let filename = filename.to_string_lossy().into_owned();
+					let extension = extension.to_string_lossy().into_owned();
+					if self.path == path {
+						if extension == "png" {
+							if let Some(selected_tag) = self.selected_tag {
+								if let SelectionType::Sprite(index) = self.selection_type {
+									self.tags[selected_tag].add_sprite_frame(index, filename);
+									return true;
+								}
+							}
+						} else if !file_dropped {
+							alert_wrong_filetype("png");
+						}
+					} else if !file_dropped {
+						alert_wrong_folder();
+					}
+				}
+			}
+		}
+		false
 	}
 }
 
@@ -582,23 +928,50 @@ fn confirm_discard_changes() -> bool {
 		.set_title("File modified")
 		.set_description("Do you want to continue anyway and lose any unsaved work?")
 		.set_level(MessageLevel::Warning)
-		.set_buttons(MessageButtons::OkCancel)
+		.set_buttons(MessageButtons::YesNo)
 		.show()
 }
 
 fn confirm_delete_tag() -> bool {
 	MessageDialog::new()
-		.set_title("Delete tag")
+		.set_title("Delete tag?")
 		.set_description("Are you sure you want to delete this tag? It won't delete any files it refers to, but you will lose all info stored in the tag itself.")
 		.set_level(MessageLevel::Warning)
-		.set_buttons(MessageButtons::OkCancel)
+		.set_buttons(MessageButtons::YesNo)
 		.show()
 }
 
-fn alert_wrong_folder() -> bool{
+fn confirm_delete_item(name: &str) -> bool {
+	MessageDialog::new()
+		.set_title(format!("Delete {}?", name).as_str())
+		.set_description(format!("Are you sure you want to delete this {} from the tag? It won't delete any files it refers to.", name).as_str())
+		.set_level(MessageLevel::Warning)
+		.set_buttons(MessageButtons::YesNo)
+		.show()
+}
+
+fn confirm_exit() -> bool {
+	MessageDialog::new()
+		.set_title("File modified")
+		.set_description("Do you want to exit and lose any unsaved work?")
+		.set_level(MessageLevel::Warning)
+		.set_buttons(MessageButtons::YesNo)
+		.show()
+}
+
+fn alert_wrong_folder() -> bool {
 	MessageDialog::new()
 		.set_title("Wrong folder")
 		.set_description("Unable to load file. All files must be located in the same folder.")
+		.set_level(MessageLevel::Warning)
+		.set_buttons(MessageButtons::Ok)
+		.show()
+}
+
+fn alert_wrong_filetype(extension: &str) -> bool {
+	MessageDialog::new()
+		.set_title("Wrong file type")
+		.set_description(format!("Unable to load file. File must be of type \"{}\".", extension).as_str())
 		.set_level(MessageLevel::Warning)
 		.set_buttons(MessageButtons::Ok)
 		.show()
