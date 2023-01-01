@@ -197,7 +197,7 @@ pub fn decode(contents: &[u8]) -> Result<(Vec<Tag>, Vec<FileData>), Box<dyn Erro
 										let png_filename = format!("{}-{}.png", &filename.title, i + 1);
 										for tag in &mut tags {
 											if let Tag::Agent(tag) = tag {
-												for sprite in &mut tag.sprites {
+												for sprite in tag.sprites.iter_mut() {
 													if let Sprite::Frames { filename: sprite_filename, frames } = sprite {
 														if sprite_filename.title.starts_with(&filename.title) {
 															frames.push(SpriteFrame { filename: Filename::new(png_filename.as_str()) });
@@ -356,7 +356,7 @@ fn write_agent_block(buffer: &mut BytesMut, tag: &AgentTag) {
 	let mut dependency_count = 0;
 
 	println!("  Write sprite dependencies");
-	for sprite in &tag.sprites {
+	for sprite in tag.sprites.iter() {
 		dependency_count += 1;
 		int_values.push(IntValue{
 			name: format!("Dependency Category {}", dependency_count),
@@ -369,7 +369,7 @@ fn write_agent_block(buffer: &mut BytesMut, tag: &AgentTag) {
 	}
 
 	println!("  Write background dependencies");
-	for background in &tag.backgrounds {
+	for background in tag.backgrounds.iter() {
 		dependency_count += 1;
 		int_values.push(IntValue{
 			name: format!("Dependency Category {}", dependency_count),
@@ -382,7 +382,7 @@ fn write_agent_block(buffer: &mut BytesMut, tag: &AgentTag) {
 	}
 
 	println!("  Write sound dependencies");
-	for sound in &tag.sounds {
+	for sound in tag.sounds.iter() {
 		dependency_count += 1;
 		int_values.push(IntValue{
 			name: format!("Dependency Category {}", dependency_count),
@@ -395,7 +395,7 @@ fn write_agent_block(buffer: &mut BytesMut, tag: &AgentTag) {
 	}
 
 	println!("  Write catalogue dependencies");
-	for catalogue in &tag.catalogues {
+	for catalogue in tag.catalogues.iter() {
 		dependency_count += 1;
 		int_values.push(IntValue{
 			name: format!("Dependency Category {}", dependency_count),

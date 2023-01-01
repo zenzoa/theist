@@ -1,8 +1,9 @@
-use crate::ui::*;
+use crate::ui::messages::Message;
+use crate::ui::messages::sound_message::SoundMessage;
 use crate::agent::sound::*;
 
-use iced::widget::{ column, Column, text, horizontal_rule };
-use iced::{ Alignment };
+use iced::widget::{ row, column, Column, button, text, horizontal_rule };
+use iced::{ Alignment, Length };
 
 pub fn properties(sound: &Sound) -> Column<Message> {
 	column![
@@ -11,7 +12,7 @@ pub fn properties(sound: &Sound) -> Column<Message> {
 	].padding(20).spacing(20)
 }
 
-pub fn list(sounds: &Vec<Sound>) -> Column<Message> {
+pub fn list(sounds: &SoundList) -> Column<Message> {
 	let mut sound_list = column![
 		text("Sounds")
 	].spacing(10);
@@ -19,19 +20,19 @@ pub fn list(sounds: &Vec<Sound>) -> Column<Message> {
 	for (i, sound) in sounds.iter().enumerate() {
 		let buttons = if sounds.len() > 1 {
 			row![
-				button("^").on_press(Message::MoveSoundUp(i)),
-				button("v").on_press(Message::MoveSoundDown(i)),
-				button("x").on_press(Message::DeleteSound(i))
+				button("^").on_press(Message::Sound(SoundMessage::MoveUp(i))),
+				button("v").on_press(Message::Sound(SoundMessage::MoveDown(i))),
+				button("x").on_press(Message::Sound(SoundMessage::Remove(i)))
 			].spacing(5)
 		} else {
 			row![
-				button("x").on_press(Message::DeleteSound(i))
+				button("x").on_press(Message::Sound(SoundMessage::Remove(i)))
 			].spacing(5)
 		};
 		sound_list = sound_list.push(
 			row![
 				button(sound.filename.string.as_str())
-					.on_press(Message::SelectSound(i))
+					.on_press(Message::Sound(SoundMessage::Select(i)))
 					.width(Length::Fill),
 				buttons
 			].spacing(5).align_items(Alignment::Center)

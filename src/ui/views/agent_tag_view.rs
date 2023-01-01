@@ -1,6 +1,10 @@
-use crate::ui::*;
+use crate::ui::messages::Message;
+use crate::ui::messages::tag_message::TagMessage;
+use crate::ui::messages::catalogue_message::CatalogueMessage;
+use crate::ui::views::{ script_view, sprite_view, background_view, sound_view, catalogue_view };
 use crate::agent::*;
 use crate::agent::agent_tag::*;
+use crate::agent::sprite::*;
 
 use iced::widget::{ row, column, Column, text, text_input, button, radio, checkbox, pick_list, scrollable, horizontal_rule };
 use iced::{ Alignment, Length };
@@ -15,7 +19,7 @@ pub fn properties(tag: &AgentTag) -> Column<Message> {
 	let mut preview = column![
 		row![
 			text("Injector Preview"),
-			checkbox("Auto", tag.preview == Preview::Auto, Message::SetTagPreviewAuto)
+			checkbox("Auto", tag.preview == Preview::Auto, |x| Message::Tag(TagMessage::SetPreviewAuto(x)))
 		].spacing(20).align_items(Alignment::Center)
 	].spacing(10);
 
@@ -29,8 +33,8 @@ pub fn properties(tag: &AgentTag) -> Column<Message> {
 	if let Preview::Manual { sprite, animation } = &tag.preview {
 		preview = preview.push(
 			row![
-				pick_list(sprite_names, Some(sprite.to_string()), Message::SetTagPreviewSprite),
-				text_input("Animation String", animation, Message::SetTagPreviewAnimation)
+				pick_list(sprite_names, Some(sprite.to_string()), |x| Message::Tag(TagMessage::SetPreviewSprite(x))),
+				text_input("Animation String", animation, |x| Message::Tag(TagMessage::SetPreviewAnimation(x)))
 			].spacing(5).align_items(Alignment::Center)
 		);
 	}
@@ -38,7 +42,7 @@ pub fn properties(tag: &AgentTag) -> Column<Message> {
 	let mut removescript = column![
 		row![
 			text("Remove Script"),
-			checkbox("Auto", tag.removescript == RemoveScript::Auto, Message::SetTagRemoveScriptAuto)
+			checkbox("Auto", tag.removescript == RemoveScript::Auto, |x| Message::Tag(TagMessage::SetRemoveScriptAuto(x)))
 		].spacing(20).align_items(Alignment::Center)
 	].spacing(10);
 
@@ -49,7 +53,7 @@ pub fn properties(tag: &AgentTag) -> Column<Message> {
 			String::from("")
 		};
 		removescript = removescript.push(
-			text_input("Remove Script", &removescript_text, Message::SetTagRemoveScript)
+			text_input("Remove Script", &removescript_text, |x| Message::Tag(TagMessage::SetRemoveScript(x)))
 		);
 	}
 
@@ -57,7 +61,7 @@ pub fn properties(tag: &AgentTag) -> Column<Message> {
 		column![
 			row![
 				text(format!("Agent Tag \"{}\"", &tag.name)).width(Length::Fill),
-				button("x").on_press(Message::DeleteTag)
+				button("x").on_press(Message::Tag(TagMessage::Remove))
 			].spacing(5).align_items(Alignment::Center),
 			horizontal_rule(1),
 		].padding([20, 20, 0, 20]).spacing(20),
@@ -65,21 +69,26 @@ pub fn properties(tag: &AgentTag) -> Column<Message> {
 			column![
 				row![
 						text("Name").width(Length::FillPortion(1)),
-						text_input("My Agent", &tag.name, Message::SetTagName).width(Length::FillPortion(3))
+						text_input("My Agent", &tag.name, |x| Message::Tag(TagMessage::SetName(x)))
+							.width(Length::FillPortion(3))
 					].spacing(5).align_items(Alignment::Center),
 				row![
 						text("Description").width(Length::FillPortion(1)),
-						text_input("Something that does some stuff", &tag.description, Message::SetTagDescription).width(Length::FillPortion(3))
+						text_input("Something that does some stuff", &tag.description, |x| Message::Tag(TagMessage::SetDescription(x)))
+							.width(Length::FillPortion(3))
 					].spacing(5).align_items(Alignment::Center),
 				row![
 						text("Version").width(Length::FillPortion(1)),
-						text_input("1.0", &tag.version, Message::SetTagVersion).width(Length::FillPortion(3))
+						text_input("1.0", &tag.version, |x| Message::Tag(TagMessage::SetVersion(x))).width(Length::FillPortion(3))
 					].spacing(5).align_items(Alignment::Center),
 				row![
 						text("Game").width(Length::FillPortion(1)),
-						radio("C3 + DS", 0, supported_game_index, Message::SetTagSupportedGame).width(Length::FillPortion(1)),
-						radio("C3 only", 1, supported_game_index, Message::SetTagSupportedGame).width(Length::FillPortion(1)),
-						radio("DS only", 2, supported_game_index, Message::SetTagSupportedGame).width(Length::FillPortion(1))
+						radio("C3 + DS", 0, supported_game_index, |x| Message::Tag(TagMessage::SetSupportedGame(x)))
+							.width(Length::FillPortion(1)),
+						radio("C3 only", 1, supported_game_index, |x| Message::Tag(TagMessage::SetSupportedGame(x)))
+							.width(Length::FillPortion(1)),
+						radio("DS only", 2, supported_game_index, |x| Message::Tag(TagMessage::SetSupportedGame(x)))
+							.width(Length::FillPortion(1))
 					].spacing(5).align_items(Alignment::Center),
 				preview,
 				removescript
@@ -91,8 +100,8 @@ pub fn properties(tag: &AgentTag) -> Column<Message> {
 pub fn listing(tag: &AgentTag) -> Column<Message> {
 	let mut listing = column![
 		row![
-			button("+ Add File").on_press(Message::AddFile),
-			button("+ Add Inline Catalogue").on_press(Message::AddInlineCatalogue)
+			button("+ Add File").on_press(Message::Tag(TagMessage::AddFile)),
+			button("+ Add Inline Catalogue").on_press(Message::Catalogue(CatalogueMessage::AddInlineCatalogue))
 		].spacing(5)
 	].spacing(20);
 

@@ -1,7 +1,9 @@
-use crate::ui::*;
+use crate::ui::messages::Message;
+use crate::ui::messages::script_message::ScriptMessage;
+use crate::agent::*;
 use crate::agent::script::*;
 
-use iced::widget::{ row, column, Column, text, radio };
+use iced::widget::{ row, column, Column, button, text, radio, horizontal_rule };
 use iced::{ Alignment, Length };
 
 pub fn properties(script: &Script) -> Column<Message> {
@@ -18,16 +20,19 @@ pub fn properties(script: &Script) -> Column<Message> {
 				horizontal_rule(1),
 				row![
 					text("Game").width(Length::FillPortion(1)),
-					radio("C3 + DS", 0, supported_game_index, Message::SetScriptSupportedGame).width(Length::FillPortion(1)),
-					radio("C3 only", 1, supported_game_index, Message::SetScriptSupportedGame).width(Length::FillPortion(1)),
-					radio("DS only", 2, supported_game_index, Message::SetScriptSupportedGame).width(Length::FillPortion(1))
+					radio("C3 + DS", 0, supported_game_index, |x| Message::Script(ScriptMessage::SetSupportedGame(x)))
+						.width(Length::FillPortion(1)),
+					radio("C3 only", 1, supported_game_index, |x| Message::Script(ScriptMessage::SetSupportedGame(x)))
+						.width(Length::FillPortion(1)),
+					radio("DS only", 2, supported_game_index, |x| Message::Script(ScriptMessage::SetSupportedGame(x)))
+						.width(Length::FillPortion(1))
 				].spacing(5).align_items(Alignment::Center)
 			].padding(20).spacing(20)
 		}
 	}
 }
 
-pub fn list(scripts: &Vec<Script>) -> Column<Message> {
+pub fn list(scripts: &ScriptList) -> Column<Message> {
 	let mut script_list = column![
 		text("Scripts")
 	].spacing(10);
@@ -38,19 +43,19 @@ pub fn list(scripts: &Vec<Script>) -> Column<Message> {
 		};
 		let buttons = if scripts.len() > 1 {
 			row![
-				button("^").on_press(Message::MoveScriptUp(i)),
-				button("v").on_press(Message::MoveScriptDown(i)),
-				button("x").on_press(Message::DeleteScript(i))
+				button("^").on_press(Message::Script(ScriptMessage::MoveUp(i))),
+				button("v").on_press(Message::Script(ScriptMessage::MoveDown(i))),
+				button("x").on_press(Message::Script(ScriptMessage::Remove(i)))
 			].spacing(5)
 		} else {
 			row![
-				button("x").on_press(Message::DeleteScript(i))
+				button("x").on_press(Message::Script(ScriptMessage::Remove(i)))
 			].spacing(5)
 		};
 		script_list = script_list.push(
 			row![
 				button(filename.string.as_str())
-					.on_press(Message::SelectScript(i))
+					.on_press(Message::Script(ScriptMessage::Select(i)))
 					.width(Length::Fill),
 				buttons
 			].spacing(5).align_items(Alignment::Center)

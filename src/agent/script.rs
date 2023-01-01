@@ -29,4 +29,68 @@ impl Script {
 			}
 		}
 	}
+
+	pub fn set_supported_game(&mut self, new_supported_game: usize) {
+		let Script::File{ supported_game, .. } = self;
+		*supported_game = match new_supported_game {
+			1 => SupportedGame::C3,
+			2 => SupportedGame::DS,
+			_ => SupportedGame::C3DS
+		};
+	}
+}
+
+#[derive(Clone)]
+pub struct ScriptList(Vec<Script>);
+
+impl ScriptList {
+	pub fn new() -> ScriptList {
+		ScriptList(Vec::new())
+	}
+
+	pub fn is_empty(&self) -> bool {
+		self.0.is_empty()
+	}
+
+	pub fn len(&self) -> usize {
+		self.0.len()
+	}
+
+	pub fn iter(&self) -> std::slice::Iter<'_, Script> {
+		self.0.iter()
+	}
+
+	pub fn iter_mut(&mut self) -> std::slice::IterMut<'_, Script> {
+		self.0.iter_mut()
+	}
+
+	pub fn get(&self, index: usize) -> Option<&Script> {
+		self.0.get(index)
+	}
+
+	pub fn get_mut(&mut self, index: usize) -> Option<&mut Script> {
+		self.0.get_mut(index)
+	}
+
+	pub fn push(&mut self, script: Script) {
+		self.0.push(script)
+	}
+
+	pub fn remove(&mut self, index: usize) {
+		if index < self.0.len() {
+			self.0.remove(index);
+		}
+	}
+
+	pub fn move_up(&mut self, index: usize) {
+		if index > 0 && index < self.0.len() {
+			self.0.swap(index, index - 1);
+		}
+	}
+
+	pub fn move_down(&mut self, index: usize) {
+		if index + 1 < self.0.len() {
+			self.0.swap(index, index + 1);
+		}
+	}
 }

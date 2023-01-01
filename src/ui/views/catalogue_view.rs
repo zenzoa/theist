@@ -1,4 +1,5 @@
-use crate::ui::*;
+use crate::ui::messages::Message;
+use crate::ui::messages::catalogue_message::CatalogueMessage;
 use crate::agent::catalogue::*;
 
 use iced::widget::{ row, column, Column, text, text_input, button, scrollable, horizontal_rule };
@@ -16,26 +17,26 @@ pub fn properties(catalogue: &Catalogue) -> Column<Message> {
 			let mut entry_list = column![
 				row![
 					text(format!("Entries ({})", entries.len())).width(Length::Fill),
-					button("+").on_press(Message::AddCatalogueEntry)
+					button("+").on_press(Message::Catalogue(CatalogueMessage::AddEntry))
 				].spacing(5).align_items(Alignment::Center)
 			].spacing(20);
 
 			for (i, entry) in entries.iter().enumerate() {
 				let set_classifier = move |new_classifier: String| -> Message {
-					Message::SetCatalogueEntryClassifier(i, new_classifier)
+					Message::Catalogue(CatalogueMessage::SetEntryClassifier(i, new_classifier))
 				};
 				let set_name = move |new_name: String| -> Message {
-					Message::SetCatalogueEntryName(i, new_name)
+					Message::Catalogue(CatalogueMessage::SetEntryName(i, new_name))
 				};
 				let set_description = move |new_description: String| -> Message {
-					Message::SetCatalogueEntryDescription(i, new_description)
+					Message::Catalogue(CatalogueMessage::SetEntryDescription(i, new_description))
 				};
 				let first_row = if entries.len() > 1 {
 					row![
 						text_input("Name", &entry.name, set_name).width(Length::Fill),
-						button("^").on_press(Message::MoveCatalogueEntryUp(i)),
-						button("v").on_press(Message::MoveCatalogueEntryDown(i)),
-						button("x").on_press(Message::DeleteCatalogueEntry(i))
+						button("^").on_press(Message::Catalogue(CatalogueMessage::MoveEntryUp(i))),
+						button("v").on_press(Message::Catalogue(CatalogueMessage::MoveEntryDown(i))),
+						button("x").on_press(Message::Catalogue(CatalogueMessage::RemoveEntry(i)))
 					]
 				} else {
 					row![
@@ -64,7 +65,7 @@ pub fn properties(catalogue: &Catalogue) -> Column<Message> {
 				].padding([20, 20, 0, 20]).spacing(20),
 				scrollable(
 					column![
-						text_input("Name", &filename.title, Message::SetCatalogueName),
+						text_input("Name", &filename.title, |x| Message::Catalogue(CatalogueMessage::SetName(x))),
 						entry_list
 					].padding(20).spacing(20)
 				).height(Length::Fill)
@@ -73,7 +74,7 @@ pub fn properties(catalogue: &Catalogue) -> Column<Message> {
 	}
 }
 
-pub fn list(catalogues: &Vec<Catalogue>) -> Column<Message> {
+pub fn list(catalogues: &CatalogueList) -> Column<Message> {
 	let mut catalogue_list = column![
 		text("Catalogues")
 	].spacing(10);
@@ -85,19 +86,19 @@ pub fn list(catalogues: &Vec<Catalogue>) -> Column<Message> {
 		};
 		let buttons = if catalogues.len() > 1 {
 			row![
-				button("^").on_press(Message::MoveCatalogueUp(i)),
-				button("v").on_press(Message::MoveCatalogueDown(i)),
-				button("x").on_press(Message::DeleteCatalogue(i))
+				button("^").on_press(Message::Catalogue(CatalogueMessage::MoveUp(i))),
+				button("v").on_press(Message::Catalogue(CatalogueMessage::MoveDown(i))),
+				button("x").on_press(Message::Catalogue(CatalogueMessage::Remove(i)))
 			].spacing(5)
 		} else {
 			row![
-				button("x").on_press(Message::DeleteCatalogue(i))
+				button("x").on_press(Message::Catalogue(CatalogueMessage::Remove(i)))
 			].spacing(5)
 		};
 		catalogue_list = catalogue_list.push(
 			row![
 				button(filename.string.as_str())
-					.on_press(Message::SelectCatalogue(i))
+					.on_press(Message::Catalogue(CatalogueMessage::Select(i)))
 					.width(Length::Fill),
 				buttons
 			].spacing(5).align_items(Alignment::Center)

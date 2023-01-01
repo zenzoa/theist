@@ -14,11 +14,11 @@ pub struct AgentTag {
 	pub removescript: RemoveScript,
 	pub preview: Preview,
 
-	pub scripts: Vec<Script>,
-	pub sprites: Vec<Sprite>,
-	pub backgrounds: Vec<Background>,
-	pub sounds: Vec<Sound>,
-	pub catalogues: Vec<Catalogue>,
+	pub scripts: ScriptList,
+	pub sprites: SpriteList,
+	pub backgrounds: BackgroundList,
+	pub sounds: SoundList,
+	pub catalogues: CatalogueList,
 
 	pub script_files: Vec<Bytes>,
 	pub sprite_files: Vec<Bytes>,
@@ -38,11 +38,11 @@ impl AgentTag {
 			removescript: RemoveScript::Auto,
 			preview: Preview::Auto,
 
-			scripts: Vec::new(),
-			sprites: Vec::new(),
-			backgrounds: Vec::new(),
-			sounds: Vec::new(),
-			catalogues: Vec::new(),
+			scripts: ScriptList::new(),
+			sprites: SpriteList::new(),
+			backgrounds: BackgroundList::new(),
+			sounds: SoundList::new(),
+			catalogues: CatalogueList::new(),
 
 			script_files: Vec::new(),
 			sprite_files: Vec::new(),
@@ -50,6 +50,17 @@ impl AgentTag {
 			sound_files: Vec::new(),
 			catalogue_files: Vec::new()
 		}
+	}
+
+	pub fn add_inline_catalogue(&mut self) {
+		self.catalogues.push(
+			Catalogue::Inline{
+				filename: Filename::new("my_catalogue.catalogue"),
+				entries: vec![
+					CatalogueEntry::new("0 0 0000", self.name.as_str(), self.description.as_str())
+				]
+			}
+		);
 	}
 }
 

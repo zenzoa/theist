@@ -6,13 +6,13 @@ use std::error::Error;
 use bytes::Bytes;
 
 #[derive(Clone)]
-pub struct Sound {
+pub struct Genetics {
 	pub filename: Filename
 }
 
-impl Sound {
-	pub fn new(filename: &str) -> Sound {
-		Sound {
+impl Genetics {
+	pub fn new(filename: &str) -> Genetics {
+		Genetics {
 			filename: Filename::new(filename)
 		}
 	}
@@ -30,11 +30,11 @@ impl Sound {
 }
 
 #[derive(Clone)]
-pub struct SoundList(Vec<Sound>);
+pub struct GeneticsList(Vec<Genetics>);
 
-impl SoundList {
-	pub fn new() -> SoundList {
-		SoundList(Vec::new())
+impl GeneticsList {
+	pub fn new() -> GeneticsList {
+		GeneticsList(Vec::new())
 	}
 
 	pub fn is_empty(&self) -> bool {
@@ -45,24 +45,24 @@ impl SoundList {
 		self.0.len()
 	}
 
-	pub fn iter(&self) -> std::slice::Iter<'_, Sound> {
+	pub fn iter(&self) -> std::slice::Iter<'_, Genetics> {
 		self.0.iter()
 	}
 
-	pub fn iter_mut(&mut self) -> std::slice::IterMut<'_, Sound> {
+	pub fn iter_mut(&mut self) -> std::slice::IterMut<'_, Genetics> {
 		self.0.iter_mut()
 	}
 
-	pub fn get(&self, index: usize) -> Option<&Sound> {
+	pub fn get(&self, index: usize) -> Option<&Genetics> {
 		self.0.get(index)
 	}
 
-	pub fn get_mut(&mut self, index: usize) -> Option<&mut Sound> {
+	pub fn get_mut(&mut self, index: usize) -> Option<&mut Genetics> {
 		self.0.get_mut(index)
 	}
 
-	pub fn push(&mut self, sound: Sound) {
-		self.0.push(sound)
+	pub fn push(&mut self, genetics: Genetics) {
+		self.0.push(genetics)
 	}
 
 	pub fn remove(&mut self, index: usize) {

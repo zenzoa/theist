@@ -12,10 +12,10 @@ pub struct EggTag {
 	pub preview_sprite_female: String,
 	pub preview_animation: String,
 
-	// pub genetics: Vec<Genetics>,
-	pub sprites: Vec<Sprite>,
+	pub genetics: Vec<Genetics>,
+	pub sprites: SpriteList,
 
-	// pub genetic_files: Vec<Bytes>,
+	pub genetics_files: Vec<Bytes>,
 	pub sprite_files: Vec<Bytes>
 }
 
@@ -28,7 +28,9 @@ impl EggTag {
 			preview_sprite_male: String::from(""),
 			preview_sprite_female: String::from(""),
 			preview_animation: String::from(""),
-			sprites: Vec::new(),
+			genetics: Vec::new(),
+			sprites: SpriteList::new(),
+			genetics_files: Vec::new(),
 			sprite_files: Vec::new()
 		}
 	}

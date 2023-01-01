@@ -201,7 +201,7 @@ fn compile(filepath: &Filepath, output_path: &String, output_title: &String) -> 
 	match File::open(output_filepath.to_string()) {
 		Err(_why) => {
 			let contents = fs::read_to_string(filepath.to_string())?;
-			let tags = agent::parse_source(&contents, &filepath.path);
+			let tags = agent::decode::decode_source(&contents, &filepath.path);
 			println!();
 			let data = agent::compile(tags);
 			println!();
