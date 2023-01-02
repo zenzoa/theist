@@ -36,6 +36,15 @@ pub fn confirm_remove_item(name: &str) -> bool {
 		.show()
 }
 
+pub fn confirm_extract(file_count: usize) -> bool {
+	MessageDialog::new()
+		.set_title("Extract files?")
+		.set_description(format!("Do you want to extract the {} files associated with this agent?", file_count).as_str())
+		.set_level(MessageLevel::Warning)
+		.set_buttons(MessageButtons::YesNo)
+		.show()
+}
+
 pub fn confirm_exit() -> bool {
 	MessageDialog::new()
 		.set_title("File modified")

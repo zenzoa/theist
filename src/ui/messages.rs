@@ -75,7 +75,7 @@ pub fn check_message(main: &mut Main, message: Message) {
 				Event::Keyboard(KeyPressed{ key_code: KeyCode::S, modifiers }) => {
 					if modifiers.control() || modifiers.command() {
 						if modifiers.shift() {
-							save_file_as(main);
+							save_file_as(main, main.filename.clone());
 						} else {
 							save_file(main);
 						}

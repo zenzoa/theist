@@ -44,7 +44,7 @@ pub fn check_file_message(main: &mut Main, message: FileMessage) {
 		},
 
 		FileMessage::SaveAs => {
-			save_file_as(main);
+			save_file_as(main, main.filename.clone());
 		},
 
 		FileMessage::Compile => {
@@ -80,6 +80,7 @@ pub fn open_file(main: &mut Main) {
 
 pub fn open_file_from_path(main: &mut Main, path: PathBuf) {
 	main.set_path_and_name(&path);
+
 	let extension = match path.extension() {
 		Some(extension) => extension.to_string_lossy().into_owned(),
 		None => String::from("")
@@ -113,12 +114,12 @@ pub fn open_file_from_path(main: &mut Main, path: PathBuf) {
 					}
 				}
 			}
-			main.modified = false;
 			if main.tags.is_empty() {
 				main.selected_tag = None;
 			} else {
 				main.selected_tag = Some(0);
 			}
+			main.modified = false;
 		},
 		Err(why) => {
 			main.add_alert("Unable to open file", true);
@@ -128,29 +129,32 @@ pub fn open_file_from_path(main: &mut Main, path: PathBuf) {
 }
 
 pub fn save_file(main: &mut Main) {
-	let filepath = format!("{}{}", &main.path, &main.filename);
-	match File::open(&filepath) {
-		Ok(_file) => {
-			save_file_to_path(main, PathBuf::from(filepath));
-			main.modified = false;
-		},
-		Err(_why) => {
-			let file = FileDialog::new()
-				.set_directory(&main.path)
-				.set_file_name(&main.filename)
-				.save_file();
-			if let Some(path) = file {
-				save_file_to_path(main, path);
-				main.modified = false;
-			}
-		}
+	let mut filename = main.filename.clone();
+	let is_pray_file = filename.ends_with(".agent") || filename.ends_with(".agents");
+	if filename.ends_with(".agent") {
+		filename = filename.replace(".agent", ".the");
+	} else if filename.ends_with(".agents") {
+		filename = filename.replace(".agents", ".the");
+	}
+
+	let filepath = format!("{}{}", &main.path, filename);
+	let file_exists = match File::open(&filepath) {
+		Ok(_file) => true,
+		Err(_why) => false
+	};
+
+	if file_exists && !is_pray_file {
+		save_file_to_path(main, PathBuf::from(filepath));
+		main.modified = false;
+	} else {
+		save_file_as(main, filename);
 	}
 }
 
-pub fn save_file_as(main: &mut Main) {
+pub fn save_file_as(main: &mut Main, default_filename: String) {
 	let file = FileDialog::new()
 		.set_directory(&main.path)
-		.set_file_name(&main.filename)
+		.set_file_name(&default_filename)
 		.save_file();
 	if let Some(path) = file {
 		save_file_to_path(main, path);
@@ -165,10 +169,26 @@ pub fn save_file_to_path(main: &mut Main, path: PathBuf) {
 	match File::create(filepath) {
 		Ok(mut file) => {
 			file.write_all(&data).unwrap();
-			// TODO: save any files loaded locally but not yet in the path
+			if !main.files.is_empty() && confirm_extract(main.files.len()) {
+				extract_files(main);
+			}
 		},
 		Err(why) => {
 			println!("ERROR: {}", why);
+		}
+	}
+}
+
+pub fn extract_files(main: &mut Main) {
+	for inline_file in &main.files {
+		match File::create(format!("{}{}", &main.path, &inline_file.name)) {
+			Ok(mut file) => {
+				file.write_all(&inline_file.data).unwrap();
+			},
+			Err(why) => {
+				// main.add_alert(format!("Unable to extract file {}", &inline_file.name).as_str(), true);
+				println!("ERROR: Unable to extract file {}: {}", &inline_file.name, why);
+			}
 		}
 	}
 }
