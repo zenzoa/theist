@@ -85,7 +85,7 @@ pub fn properties(tag: &AgentTag) -> Column<Message> {
 					].spacing(5).align_items(Alignment::Center),
 				row![
 						text("Description").width(Length::FillPortion(1)),
-						text_input("Something that does some stuff", &tag.description, |x| Message::Tag(TagMessage::SetDescription(x)))
+						text_input("Something descriptive", &tag.description, |x| Message::Tag(TagMessage::SetDescription(x)))
 							.width(Length::FillPortion(3))
 					].spacing(5).align_items(Alignment::Center),
 				row![

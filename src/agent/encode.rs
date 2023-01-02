@@ -7,53 +7,86 @@ pub fn encode_source(tags: Vec<Tag>) -> Bytes {
 	let mut source = String::from("");
 
 	for tag in tags {
-		if let Tag::Agent(tag) = tag {
-			source += format!("agent \"{}\" {}\n", &tag.name, &tag.supported_game).as_str();
+		match tag {
+			Tag::Agent(tag) => {
+				source += format!("agent \"{}\" {}\n", &tag.name, &tag.supported_game).as_str();
 
-			if !tag.description.is_empty() {
-				source += format!("\tdescription \"{}\"\n", &tag.description).as_str();
-			}
+				if !tag.description.is_empty() {
+					source += format!("\tdescription \"{}\"\n", &tag.description).as_str();
+				}
 
-			if let Preview::Manual { sprite, animation } = tag.preview {
-				source += format!("\tpreview \"{}\" \"{}\"\n", &sprite, &animation).as_str();
-			}
+				if let Preview::Manual { sprite, animation } = tag.preview {
+					source += format!("\tpreview \"{}\" \"{}\"\n", &sprite, &animation).as_str();
+				}
 
-			match tag.removescript {
-				RemoveScript::Manual(removescript) => {
-					// TODO: escape doublequotes
-					source += format!("\tremovescript \"{}\"\n", &removescript).as_str();
-				},
-				RemoveScript::Auto => {
-					source += "\tremovescript auto\n";
-				},
-				_ => ()
-			}
+				match tag.removescript {
+					RemoveScript::Manual(removescript) => {
+						// TODO: escape doublequotes
+						if !removescript.is_empty() {
+							source += format!("\tremovescript \"{}\"\n", &removescript).as_str();
+						}
+					},
+					RemoveScript::Auto => {
+						source += "\tremovescript auto\n";
+					},
+					_ => ()
+				}
 
-			for script in tag.scripts.iter() {
-				let Script::File { filename, supported_game } = script;
-				source += format!("\tdescription \"{}\" {}\n", &filename, &supported_game).as_str();
-			}
+				for script in tag.scripts.iter() {
+					let Script::File { filename, supported_game } = script;
+					source += format!("\tscript \"{}\" {}\n", &filename, &supported_game).as_str();
+				}
 
-			for sprite in tag.sprites.iter() {
-				source += format!("\tsprite \"{}\"\n", sprite.get_filename()).as_str();
-				if let Sprite::Frames { frames, .. } = sprite {
-					for frame in frames {
-						source += format!("\t\tframe \"{}\"\n", frame.filename).as_str();
+				for sprite in tag.sprites.iter() {
+					source += format!("\tsprite \"{}\"\n", sprite.get_filename()).as_str();
+					if let Sprite::Frames { frames, .. } = sprite {
+						for frame in frames {
+							source += format!("\t\tframe \"{}\"\n", frame.filename).as_str();
+						}
 					}
 				}
-			}
 
-			for background in tag.backgrounds.iter() {
-				source += format!("\tbackground \"{}\"\n", &background.get_filename()).as_str();
-			}
+				for background in tag.backgrounds.iter() {
+					source += format!("\tbackground \"{}\"\n", &background.get_filename()).as_str();
+				}
 
-			for sound in tag.sounds.iter() {
-				source += format!("\tsound \"{}\"\n", &sound.get_filename()).as_str();
-			}
+				for sound in tag.sounds.iter() {
+					source += format!("\tsound \"{}\"\n", &sound.get_filename()).as_str();
+				}
 
-			for catalogue in tag.catalogues.iter() {
-				source += format!("\tcatalogue \"{}\"\n", &catalogue.get_filename()).as_str();
-			}
+				for catalogue in tag.catalogues.iter() {
+					source += format!("\tcatalogue \"{}\"\n", &catalogue.get_filename()).as_str();
+				}
+
+				source += "\n";
+			},
+
+			Tag::Egg(tag) => {
+				source += format!("egg \"{}\"", &tag.name).as_str();
+
+				source += format!("\tpreview \"{}\" \"{}\" \"{}\"\n", &tag.preview_sprite_male, &tag.preview_sprite_female, &tag.preview_animation).as_str();
+
+				for genetics in tag.genetics.iter() {
+					source += format!("\tgenetics \"{}\"\n", &genetics.get_filename()).as_str();
+				}
+
+				for sprite in tag.sprites.iter() {
+					source += format!("\tsprite \"{}\"\n", sprite.get_filename()).as_str();
+					if let Sprite::Frames { frames, .. } = sprite {
+						for frame in frames {
+							source += format!("\t\tframe \"{}\"\n", frame.filename).as_str();
+						}
+					}
+				}
+
+				for body_data in tag.body_data.iter() {
+					source += format!("\tbodydata \"{}\"\n", &body_data.get_filename()).as_str();
+				}
+
+				source += "\n";
+			},
+
+			Tag::Empty => ()
 		}
 	}
 

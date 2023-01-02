@@ -8,14 +8,17 @@ use crate::agent::sound::*;
 use crate::agent::catalogue::*;
 use crate::agent::genetics::*;
 use crate::agent::body_data::*;
+use crate::agent::encode::*;
 use crate::agent::decode::*;
 use crate::ui::{ Main, SelectionType };
 use crate::ui::dialogs::*;
 
-use std::fs;
 use std::str;
+use std::fs;
 use std::fs::File;
 use std::path::PathBuf;
+use std::io;
+use std::io::prelude::*;
 use rfd::FileDialog;
 
 #[derive(Debug, Clone)]
@@ -146,8 +149,17 @@ pub fn open_file(main: &mut Main, path: PathBuf) {
 
 pub fn save_file(main: &mut Main, path: PathBuf) {
 	main.set_path_and_name(&path);
-	// TODO: save theist source file
-	// TODO: save any files loaded locally but not yet in the path
+	let data = encode_source(main.tags.clone());
+	let filepath = format!("{}{}", main.path, main.filename);
+	match File::create(&filepath) {
+		Ok(mut file) => {
+			file.write_all(&data);
+			// TODO: save any files loaded locally but not yet in the path
+		},
+		Err(why) => {
+			println!("ERROR: {}", why);
+		}
+	}
 }
 
 pub fn add_file(main: &mut Main) {
