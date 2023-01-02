@@ -28,13 +28,6 @@ fn parse_tokens(s: &str) -> Vec<String> {
 						is_in_quote = true;
 					}
 				},
-				'\'' => {
-					if is_in_quote {
-						is_in_quote = false;
-					} else {
-						is_in_quote = true;
-					}
-				},
 				'\\' => {
 					is_escaped = true;
 				},
@@ -127,7 +120,7 @@ pub fn decode_source(contents: &str, path: &str) -> Vec<Tag> {
 							None => RemoveScript::None,
 							Some(i) => match i.as_str() {
 								"auto" => RemoveScript::Auto,
-								_ => RemoveScript::Manual(i.to_string())
+								_ => RemoveScript::Manual(i.to_string().replace("\\\"", "\""))
 							}
 						};
 						println!("  Remove script: {}", tag.removescript)

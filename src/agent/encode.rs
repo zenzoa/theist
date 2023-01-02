@@ -21,9 +21,8 @@ pub fn encode_source(tags: Vec<Tag>) -> Bytes {
 
 				match tag.removescript {
 					RemoveScript::Manual(removescript) => {
-						// TODO: escape doublequotes
 						if !removescript.is_empty() {
-							source += format!("\tremovescript \"{}\"\n", &removescript).as_str();
+							source += format!("\tremovescript \"{}\"\n", &removescript.replace("\"", "\\\"")).as_str();
 						}
 					},
 					RemoveScript::Auto => {
