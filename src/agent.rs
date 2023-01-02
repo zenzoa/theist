@@ -13,6 +13,7 @@ pub mod decode;
 
 use tag::*;
 use agent_tag::*;
+use egg_tag::*;
 use script::*;
 use sprite::*;
 use background::*;

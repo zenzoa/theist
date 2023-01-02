@@ -52,6 +52,32 @@ fn parse_tokens(s: &str) -> Vec<String> {
 	tokens
 }
 
+fn add_agent_tag(path: &str, tokens: &Vec<String>) -> Tag {
+	let mut tag = AgentTag::new(String::from(""));
+	if let Some(i) = tokens.get(1) {
+		tag.name = String::from(i);
+	}
+	if let Some(i) = tokens.get(2) {
+		tag.supported_game = SupportedGame::new(i.as_str());
+	}
+	tag.filepath = String::from(path);
+	println!("Add agent \"{}\"", tag.name);
+	println!("  Path: {}", tag.filepath);
+	println!("  Supported game: {}", tag.supported_game);
+	Tag::Agent(tag)
+}
+
+fn add_egg_tag(path: &str, tokens: &Vec<String>) -> Tag {
+	let mut tag = EggTag::new(String::from(""));
+	if let Some(i) = tokens.get(1) {
+		tag.name = String::from(i);
+	}
+	tag.filepath = String::from(path);
+	println!("Add egg \"{}\"", tag.name);
+	println!("  Path: {}", tag.filepath);
+	Tag::Egg(tag)
+}
+
 pub fn decode_source(contents: &str, path: &str) -> Vec<Tag> {
 	let mut tags: Vec<Tag> = Vec::new();
 
@@ -168,28 +194,15 @@ pub fn decode_source(contents: &str, path: &str) -> Vec<Tag> {
 							}
 						}
 					},
+					"agent" => tags.push(add_agent_tag(path, &tokens)),
+					"egg" => tags.push(add_egg_tag(path, &tokens)),
 					_ => ()
 				}
 			},
 			_ => {
 				match token {
-					"agent" => {
-						let mut tag = AgentTag::new(String::from(""));
-						if let Some(i) = tokens.get(1) {
-							tag.name = String::from(i);
-						}
-						if let Some(i) = tokens.get(2) {
-							tag.supported_game = SupportedGame::new(i.as_str());
-						}
-						tag.filepath = String::from(path);
-						println!("Add agent \"{}\"", tag.name);
-						println!("  Path: {}", tag.filepath);
-						println!("  Supported game: {}", tag.supported_game);
-						tags.push(Tag::Agent(tag));
-					},
-					"egg" => {
-						println!("Add egg");
-					},
+					"agent" => tags.push(add_agent_tag(path, &tokens)),
+					"egg" => tags.push(add_egg_tag(path, &tokens)),
 					_ => ()
 				}
 			}
