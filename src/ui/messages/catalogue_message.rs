@@ -93,12 +93,14 @@ pub fn check_catalogue_message(main: &mut Main, message: CatalogueMessage) {
 		},
 
 		CatalogueMessage::RemoveEntry(entry_index) => {
-			if let Some(selected_tag) = main.selected_tag {
-				if let SelectionType::Catalogue(catalogue_index) = main.selection_type {
-					if let Tag::Agent(tag) = &mut main.tags[selected_tag] {
-						if let Some(catalogue) = &mut tag.catalogues.get_mut(catalogue_index) {
-							catalogue.remove_entry(entry_index);
-							main.modified = true;
+			if confirm_remove_item("catalogue entry") {
+				if let Some(selected_tag) = main.selected_tag {
+					if let SelectionType::Catalogue(catalogue_index) = main.selection_type {
+						if let Tag::Agent(tag) = &mut main.tags[selected_tag] {
+							if let Some(catalogue) = &mut tag.catalogues.get_mut(catalogue_index) {
+								catalogue.remove_entry(entry_index);
+								main.modified = true;
+							}
 						}
 					}
 				}
