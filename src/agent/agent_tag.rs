@@ -1,4 +1,5 @@
 use crate::agent::*;
+use crate::agent::egg_tag::*;
 use crate::agent::background::*;
 
 use std::fmt;
@@ -61,6 +62,28 @@ impl AgentTag {
 				]
 			}
 		);
+	}
+
+	pub fn convert_to_egg(&mut self) -> EggTag {
+		let mut egg_tag = EggTag::new(self.name.clone());
+		egg_tag.filepath = self.filepath.clone();
+		egg_tag.version = self.version.clone();
+		egg_tag.sprites = self.sprites.clone();
+		match &self.preview {
+			Preview::Auto => {
+				if let Some(sprite) = &self.sprites.get(0) {
+					egg_tag.preview_sprite_female = sprite.get_title();
+					egg_tag.preview_sprite_male = sprite.get_title();
+				}
+				egg_tag.preview_animation = String::from("0");
+			},
+			Preview::Manual{ sprite, animation } => {
+				egg_tag.preview_sprite_female = sprite.clone();
+				egg_tag.preview_sprite_male = sprite.clone();
+				egg_tag.preview_animation = animation.clone();
+			}
+		}
+		egg_tag
 	}
 }
 
