@@ -22,6 +22,8 @@ use crate::ui::{ Main, SelectionType };
 use crate::ui::dialogs::*;
 
 use iced::{ Event, window };
+use iced::keyboard::KeyCode;
+use iced::keyboard::Event::KeyPressed;
 
 #[derive(Debug, Clone)]
 pub enum Message {
@@ -53,6 +55,35 @@ pub fn check_message(main: &mut Main, message: Message) {
 				Event::Window(window::Event::CloseRequested) => {
 					if !main.modified || confirm_exit() {
 						main.exit = true;
+					}
+				},
+				Event::Keyboard(KeyPressed{ key_code: KeyCode::Q, .. }) => {
+					if !main.modified || confirm_exit() {
+						main.exit = true;
+					}
+				},
+				Event::Keyboard(KeyPressed{ key_code: KeyCode::N, modifiers }) => {
+					if modifiers.control() || modifiers.command() {
+						new_file(main);
+					}
+				},
+				Event::Keyboard(KeyPressed{ key_code: KeyCode::O, modifiers }) => {
+					if modifiers.control() || modifiers.command() {
+						open_file(main);
+					}
+				},
+				Event::Keyboard(KeyPressed{ key_code: KeyCode::S, modifiers }) => {
+					if modifiers.control() || modifiers.command() {
+						if modifiers.shift() {
+							save_file_as(main);
+						} else {
+							save_file(main);
+						}
+					}
+				},
+				Event::Keyboard(KeyPressed{ key_code: KeyCode::E, modifiers }) => {
+					if modifiers.control() || modifiers.command() {
+						println!("compile");
 					}
 				},
 				_ => ()

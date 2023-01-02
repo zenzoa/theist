@@ -36,47 +36,15 @@ pub fn check_file_message(main: &mut Main, message: FileMessage) {
 		},
 
 		FileMessage::Open => {
-			if !main.modified || confirm_discard_changes() {
-				let file = FileDialog::new()
-					.add_filter("theist", &["the", "txt"])
-					.add_filter("agent", &["agent", "agents"])
-					.set_directory(&main.path)
-					.pick_file();
-				if let Some(path) = file {
-					open_file(main, path);
-				}
-			}
+			open_file(main);
 		},
 
 		FileMessage::Save => {
-			let filepath = format!("{}{}", &main.path, &main.filename);
-			match File::open(&filepath) {
-				Ok(_file) => {
-					save_file(main, PathBuf::from(filepath));
-					main.modified = false;
-				},
-				Err(_why) => {
-					let file = FileDialog::new()
-						.set_directory(&main.path)
-						.set_file_name(&main.filename)
-						.save_file();
-					if let Some(path) = file {
-						save_file(main, path);
-						main.modified = false;
-					}
-				}
-			}
+			save_file(main);
 		},
 
 		FileMessage::SaveAs => {
-			let file = FileDialog::new()
-				.set_directory(&main.path)
-				.set_file_name(&main.filename)
-				.save_file();
-			if let Some(path) = file {
-				save_file(main, path);
-				main.modified = false;
-			}
+			save_file_as(main);
 		},
 
 		FileMessage::Compile => {
@@ -97,7 +65,20 @@ pub fn new_file(main: &mut Main) {
 	}
 }
 
-pub fn open_file(main: &mut Main, path: PathBuf) {
+pub fn open_file(main: &mut Main) {
+	if !main.modified || confirm_discard_changes() {
+		let file = FileDialog::new()
+			.add_filter("theist", &["the", "txt"])
+			.add_filter("agent", &["agent", "agents"])
+			.set_directory(&main.path)
+			.pick_file();
+		if let Some(path) = file {
+			open_file_from_path(main, path);
+		}
+	}
+}
+
+pub fn open_file_from_path(main: &mut Main, path: PathBuf) {
 	main.set_path_and_name(&path);
 	let extension = match path.extension() {
 		Some(extension) => extension.to_string_lossy().into_owned(),
@@ -146,7 +127,38 @@ pub fn open_file(main: &mut Main, path: PathBuf) {
 	}
 }
 
-pub fn save_file(main: &mut Main, path: PathBuf) {
+pub fn save_file(main: &mut Main) {
+	let filepath = format!("{}{}", &main.path, &main.filename);
+	match File::open(&filepath) {
+		Ok(_file) => {
+			save_file_to_path(main, PathBuf::from(filepath));
+			main.modified = false;
+		},
+		Err(_why) => {
+			let file = FileDialog::new()
+				.set_directory(&main.path)
+				.set_file_name(&main.filename)
+				.save_file();
+			if let Some(path) = file {
+				save_file_to_path(main, path);
+				main.modified = false;
+			}
+		}
+	}
+}
+
+pub fn save_file_as(main: &mut Main) {
+	let file = FileDialog::new()
+		.set_directory(&main.path)
+		.set_file_name(&main.filename)
+		.save_file();
+	if let Some(path) = file {
+		save_file_to_path(main, path);
+		main.modified = false;
+	}
+}
+
+pub fn save_file_to_path(main: &mut Main, path: PathBuf) {
 	main.set_path_and_name(&path);
 	let data = encode_source(main.tags.clone());
 	let filepath = format!("{}{}", main.path, main.filename);
@@ -192,7 +204,7 @@ pub fn add_file_from_path(main: &mut Main, file_path: PathBuf, file_dropped: boo
 	if file_dropped
 		&& (extension == "the" || extension == "txt" || extension == "agent" || extension == "agents")
 		&& (!main.modified || confirm_discard_changes()) {
-			open_file(main, file_path);
+			open_file_from_path(main, file_path);
 			return;
 	}
 
