@@ -9,7 +9,7 @@ pub fn properties(catalogue: &Catalogue) -> Column<Message> {
 	match catalogue {
 		Catalogue::File{ filename } => {
 			column![
-				text(format!("Catalogue \"{}\"", &filename.title)),
+				text(format!("Catalogue \"{}\"", &filename.string)),
 				horizontal_rule(1)
 			].padding(20).spacing(20)
 		},
@@ -76,7 +76,7 @@ pub fn properties(catalogue: &Catalogue) -> Column<Message> {
 
 pub fn list(catalogues: &CatalogueList) -> Column<Message> {
 	let mut catalogue_list = column![
-		text("Catalogues")
+		text(format!("Catalogues ({})", catalogues.len()))
 	].spacing(10);
 
 	for (i, catalogue) in catalogues.iter().enumerate() {

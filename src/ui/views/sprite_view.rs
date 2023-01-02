@@ -9,7 +9,7 @@ pub fn properties(sprite: &Sprite, allow_conversion: bool) -> Column<Message> {
 	match sprite {
 		Sprite::C16{ filename } => {
 			column![
-				text(format!("Sprite \"{}\"", &filename.title)),
+				text(format!("Sprite \"{}\"", &filename.string)),
 				horizontal_rule(1)
 			].padding(20).spacing(20)
 		},
@@ -52,7 +52,7 @@ pub fn properties(sprite: &Sprite, allow_conversion: bool) -> Column<Message> {
 
 			column![
 				column![
-					text(format!("Sprite \"{}\"", &filename.title)),
+					text(format!("Sprite \"{}\"", &filename.string)),
 					horizontal_rule(1),
 				].padding([20, 20, 0, 20]).spacing(20),
 				scrollable(
@@ -68,7 +68,7 @@ pub fn properties(sprite: &Sprite, allow_conversion: bool) -> Column<Message> {
 
 pub fn list(sprites: &SpriteList) -> Column<Message> {
 	let mut sprite_list = column![
-		text("Sprites")
+		text(format!("Sprites ({})", sprites.len()))
 	].spacing(10);
 
 	for (i, sprite) in sprites.iter().enumerate() {

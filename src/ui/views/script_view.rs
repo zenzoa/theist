@@ -16,7 +16,7 @@ pub fn properties(script: &Script) -> Column<Message> {
 			};
 
 			column![
-				text(format!("Script \"{}\"", &filename.title)),
+				text(format!("Script \"{}\"", &filename.string)),
 				horizontal_rule(1),
 				row![
 					text("Game").width(Length::FillPortion(1)),
@@ -34,7 +34,7 @@ pub fn properties(script: &Script) -> Column<Message> {
 
 pub fn list(scripts: &ScriptList) -> Column<Message> {
 	let mut script_list = column![
-		text("Scripts")
+		text(format!("Scripts ({})", scripts.len()))
 	].spacing(10);
 
 	for (i, script) in scripts.iter().enumerate() {

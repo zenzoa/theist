@@ -183,7 +183,7 @@ pub fn add_sprite_frame_from_path(main: &mut Main, file_path: PathBuf, file_drop
 							}
 						}
 					} else if !file_dropped {
-						alert_wrong_filetype("png");
+						alert_wrong_filetype("PNG");
 					}
 				} else if !file_dropped {
 					alert_wrong_folder();

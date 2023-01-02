@@ -12,7 +12,7 @@ use bytes::Bytes;
 pub enum Sprite {
 	C16 { filename: Filename },
 	Frames { filename: Filename, frames: Vec<SpriteFrame> },
-	//Spritesheet { filename: Filename, spritesheet_filename: Filename, cols: u32, rows: u32 }
+	// Spritesheet { filename: Filename, source: Filename, cols: u32, rows: u32, tile_width: u32, tile_height: u32 }
 }
 
 impl Sprite {
@@ -74,16 +74,23 @@ impl Sprite {
 	}
 
 	pub fn add_frame(&mut self, frame_filename: &str) {
-		let frame = SpriteFrame::new(frame_filename);
+		if let Sprite::Frames{ frames, .. } = self {
+			for existing_frame in frames {
+				if existing_frame.filename.string == frame_filename {
+					return;
+				}
+			}
+		}
+		let new_frame = SpriteFrame::new(frame_filename);
 		match self {
 			Sprite::C16 { filename } => {
 				*self = Sprite::Frames {
 					filename: filename.clone(),
-					frames: vec![ frame ]
+					frames: vec![ new_frame ]
 				}
 			},
 			Sprite::Frames { frames, .. } => {
-				frames.push(frame);
+				frames.push(new_frame);
 			}
 		}
 	}
@@ -140,6 +147,15 @@ impl SpriteList {
 
 	pub fn len(&self) -> usize {
 		self.0.len()
+	}
+
+	pub fn includes(&self, filename: &String) -> bool {
+		for x in &self.0 {
+			if x.get_filename() == *filename || format!("{}.png", x.get_title()) == *filename {
+				return true;
+			}
+		}
+		false
 	}
 
 	pub fn iter(&self) -> std::slice::Iter<'_, Sprite> {

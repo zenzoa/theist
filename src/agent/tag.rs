@@ -87,14 +87,32 @@ impl Tag {
 		}
 	}
 
+	pub fn set_female_preview_sprite(&mut self, new_sprite: String) {
+		if let Tag::Egg(tag) = self {
+			tag.preview_sprite_female = new_sprite;
+		}
+	}
+
+	pub fn set_male_preview_sprite(&mut self, new_sprite: String) {
+		if let Tag::Egg(tag) = self {
+			tag.preview_sprite_male = new_sprite;
+		}
+	}
+
 	pub fn set_preview_animation(&mut self, new_animation: String) {
-		if let Tag::Agent(tag) = self {
-			if let Preview::Manual{ sprite, .. } = &tag.preview {
-				tag.preview = Preview::Manual{
-					sprite: sprite.clone(),
-					animation: new_animation
+		match self {
+			Tag::Agent(tag) => {
+				if let Preview::Manual{ sprite, .. } = &tag.preview {
+					tag.preview = Preview::Manual{
+						sprite: sprite.clone(),
+						animation: new_animation
+					};
 				}
-			}
+			},
+			Tag::Egg(tag) => {
+				tag.preview_animation = new_animation;
+			},
+			Tag::Empty => ()
 		}
 	}
 

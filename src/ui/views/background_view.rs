@@ -9,13 +9,13 @@ pub fn properties(background: &Background) -> Column<Message> {
 	match background {
 		Background::Blk{ filename } => {
 			column![
-				text(format!("Background Image \"{}\"", &filename.title)),
+				text(format!("Background Image \"{}\"", &filename.string)),
 				horizontal_rule(1)
 			].padding(20).spacing(20)
 		},
 		Background::Png{ filename, source } => {
 			column![
-				text(format!("Background Image \"{}\"", &filename.title)),
+				text(format!("Background Image \"{}\"", &filename.string)),
 				horizontal_rule(1),
 				text(format!("From \"{}\"", &source.string)),
 				horizontal_rule(1),
@@ -29,7 +29,7 @@ pub fn properties(background: &Background) -> Column<Message> {
 
 pub fn list(backgrounds: &BackgroundList) -> Column<Message> {
 	let mut background_list = column![
-		text("Background Images")
+		text(format!("Background Images ({})", backgrounds.len()))
 	].spacing(10);
 
 	for (i, background) in backgrounds.iter().enumerate() {

@@ -19,6 +19,12 @@ impl Script {
 		}
 	}
 
+	pub fn get_filename(&self) -> String {
+		match self {
+			Script::File{ filename, .. } => filename.to_string()
+		}
+	}
+
 	pub fn get_data(&self, path: &str) -> Result<Bytes, io::Error> {
 		match self {
 			Script::File { filename, .. } => {
@@ -54,6 +60,15 @@ impl ScriptList {
 
 	pub fn len(&self) -> usize {
 		self.0.len()
+	}
+
+	pub fn includes(&self, filename: &String) -> bool {
+		for x in &self.0 {
+			if x.get_filename() == *filename {
+				return true;
+			}
+		}
+		false
 	}
 
 	pub fn iter(&self) -> std::slice::Iter<'_, Script> {

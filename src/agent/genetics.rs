@@ -45,20 +45,21 @@ impl GeneticsList {
 		self.0.len()
 	}
 
+	pub fn includes(&self, filename: &String) -> bool {
+		for x in &self.0 {
+			if x.get_filename() == *filename {
+				return true;
+			}
+		}
+		false
+	}
+
 	pub fn iter(&self) -> std::slice::Iter<'_, Genetics> {
 		self.0.iter()
 	}
 
-	pub fn iter_mut(&mut self) -> std::slice::IterMut<'_, Genetics> {
-		self.0.iter_mut()
-	}
-
 	pub fn get(&self, index: usize) -> Option<&Genetics> {
 		self.0.get(index)
-	}
-
-	pub fn get_mut(&mut self, index: usize) -> Option<&mut Genetics> {
-		self.0.get_mut(index)
 	}
 
 	pub fn push(&mut self, genetics: Genetics) {

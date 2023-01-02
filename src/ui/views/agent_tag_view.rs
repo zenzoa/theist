@@ -57,6 +57,17 @@ pub fn properties(tag: &AgentTag) -> Column<Message> {
 		);
 	}
 
+	let mut convert_to_egg = column![].spacing(20);
+
+	if tag.scripts.is_empty() && tag.catalogues.is_empty() && tag.sounds.is_empty() && tag.backgrounds.is_empty() {
+		convert_to_egg = convert_to_egg.push(horizontal_rule(1));
+		convert_to_egg = convert_to_egg.push(
+			button("Convert to Egg Tag")
+				.on_press(Message::Tag(TagMessage::ConvertToEgg))
+				.width(Length::FillPortion(1))
+		);
+	}
+
 	column![
 		column![
 			row![
@@ -91,7 +102,8 @@ pub fn properties(tag: &AgentTag) -> Column<Message> {
 							.width(Length::FillPortion(1))
 					].spacing(5).align_items(Alignment::Center),
 				preview,
-				removescript
+				removescript,
+				convert_to_egg
 			].padding(20).spacing(20)
 		).height(Length::Fill)
 	]

@@ -151,6 +151,15 @@ impl CatalogueList {
 		self.0.len()
 	}
 
+	pub fn includes(&self, filename: &String) -> bool {
+		for x in &self.0 {
+			if x.get_filename() == *filename {
+				return true;
+			}
+		}
+		false
+	}
+
 	pub fn iter(&self) -> std::slice::Iter<'_, Catalogue> {
 		self.0.iter()
 	}

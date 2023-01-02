@@ -83,6 +83,15 @@ impl BackgroundList {
 		self.0.len()
 	}
 
+	pub fn includes(&self, filename: &String) -> bool {
+		for x in &self.0 {
+			if x.get_filename() == *filename {
+				return true;
+			}
+		}
+		false
+	}
+
 	pub fn iter(&self) -> std::slice::Iter<'_, Background> {
 		self.0.iter()
 	}
@@ -93,10 +102,6 @@ impl BackgroundList {
 
 	pub fn get(&self, index: usize) -> Option<&Background> {
 		self.0.get(index)
-	}
-
-	pub fn get_mut(&mut self, index: usize) -> Option<&mut Background> {
-		self.0.get_mut(index)
 	}
 
 	pub fn push(&mut self, background: Background) {

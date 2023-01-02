@@ -6,6 +6,7 @@ pub mod background_message;
 pub mod sound_message;
 pub mod catalogue_message;
 pub mod genetics_message;
+pub mod body_data_message;
 
 use file_message::*;
 use tag_message::*;
@@ -15,6 +16,7 @@ use background_message::*;
 use sound_message::*;
 use catalogue_message::*;
 use genetics_message::*;
+use body_data_message::*;
 
 use crate::ui::{ Main, SelectionType };
 use crate::ui::dialogs::*;
@@ -31,7 +33,8 @@ pub enum Message {
 	Background(BackgroundMessage),
 	Sound(SoundMessage),
 	Catalogue(CatalogueMessage),
-	Genetics(GeneticsMessage)
+	Genetics(GeneticsMessage),
+	BodyData(BodyDataMessage)
 }
 
 pub fn check_message(main: &mut Main, message: Message) {
@@ -71,5 +74,7 @@ pub fn check_message(main: &mut Main, message: Message) {
 		Message::Catalogue(msg) => check_catalogue_message(main, msg),
 
 		Message::Genetics(msg) => check_genetics_message(main, msg),
+
+		Message::BodyData(msg) => check_body_data_message(main, msg)
 	}
 }

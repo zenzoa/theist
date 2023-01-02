@@ -7,14 +7,14 @@ use iced::{ Alignment, Length };
 
 pub fn properties(sound: &Sound) -> Column<Message> {
 	column![
-		text(format!("Sound \"{}\"", &sound.filename.title)),
+		text(format!("Sound \"{}\"", &sound.filename.string)),
 		horizontal_rule(1)
 	].padding(20).spacing(20)
 }
 
 pub fn list(sounds: &SoundList) -> Column<Message> {
 	let mut sound_list = column![
-		text("Sounds")
+		text(format!("Sounds ({})", sounds.len()))
 	].spacing(10);
 
 	for (i, sound) in sounds.iter().enumerate() {

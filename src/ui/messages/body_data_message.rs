@@ -3,24 +3,24 @@ use crate::ui::{ Main, SelectionType };
 use crate::ui::dialogs::*;
 
 #[derive(Debug, Clone)]
-pub enum GeneticsMessage {
+pub enum BodyDataMessage {
 	Select(usize),
 	Remove(usize),
 	MoveUp(usize),
 	MoveDown(usize),
 }
 
-pub fn check_genetics_message(main: &mut Main, message: GeneticsMessage) {
+pub fn check_body_data_message(main: &mut Main, message: BodyDataMessage) {
 	match message {
-		GeneticsMessage::Select(index) => {
-			main.selection_type = SelectionType::Genetics(index);
+		BodyDataMessage::Select(index) => {
+			main.selection_type = SelectionType::BodyData(index);
 		},
 
-		GeneticsMessage::Remove(index) => {
-			if confirm_remove_item("genetics file") {
+		BodyDataMessage::Remove(index) => {
+			if confirm_remove_item("body data file") {
 				if let Some(selected_tag) = main.selected_tag {
 					if let Tag::Egg(tag) = &mut main.tags[selected_tag] {
-						tag.genetics.remove(index);
+						tag.body_data.remove(index);
 						main.selection_type = SelectionType::Tag;
 						main.modified = true;
 					}
@@ -28,19 +28,19 @@ pub fn check_genetics_message(main: &mut Main, message: GeneticsMessage) {
 			}
 		},
 
-		GeneticsMessage::MoveUp(index) => {
+		BodyDataMessage::MoveUp(index) => {
 			if let Some(selected_tag) = main.selected_tag {
 				if let Tag::Egg(tag) = &mut main.tags[selected_tag] {
-					tag.genetics.move_up(index);
+					tag.body_data.move_up(index);
 					main.modified = true;
 				}
 			}
 		},
 
-		GeneticsMessage::MoveDown(index) => {
+		BodyDataMessage::MoveDown(index) => {
 			if let Some(selected_tag) = main.selected_tag {
 				if let Tag::Egg(tag) = &mut main.tags[selected_tag] {
-					tag.genetics.move_down(index);
+					tag.body_data.move_down(index);
 					main.modified = true;
 				}
 			}

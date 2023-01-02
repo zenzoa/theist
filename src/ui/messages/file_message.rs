@@ -6,6 +6,8 @@ use crate::agent::sprite::*;
 use crate::agent::background::*;
 use crate::agent::sound::*;
 use crate::agent::catalogue::*;
+use crate::agent::genetics::*;
+use crate::agent::body_data::*;
 use crate::agent::decode::*;
 use crate::ui::{ Main, SelectionType };
 use crate::ui::dialogs::*;
@@ -150,7 +152,7 @@ pub fn save_file(main: &mut Main, path: PathBuf) {
 
 pub fn add_file(main: &mut Main) {
 	let file = FileDialog::new()
-		.add_filter("Creatures Files", &["cos", "c16", "blk", "wav", "catalogue", "png"])
+		.add_filter("Creatures Files", &["cos", "c16", "blk", "wav", "catalogue", "png", "gen", "gno", "att"])
 		.set_directory(&main.path)
 		.pick_file();
 	if let Some(file_path) = file {
@@ -198,38 +200,123 @@ pub fn add_file_from_path(main: &mut Main, file_path: PathBuf, file_dropped: boo
 				}
 				match extension.as_str() {
 					"cos" => {
-						tag.scripts.push(Script::new(&filename, &tag.supported_game.to_string()));
-						main.selection_type = SelectionType::Script(tag.scripts.len() - 1);
+						if !tag.scripts.includes(&filename) {
+							tag.scripts.push(Script::new(&filename, &tag.supported_game.to_string()));
+							main.selection_type = SelectionType::Script(tag.scripts.len() - 1);
+							main.modified = true;
+						}
 					},
 					"c16" => {
-						tag.sprites.push(Sprite::new(&filename));
-						main.selection_type = SelectionType::Sprite(tag.sprites.len() - 1);
+						if !tag.sprites.includes(&filename) {
+							tag.sprites.push(Sprite::new(&filename));
+							main.selection_type = SelectionType::Sprite(tag.sprites.len() - 1);
+							main.modified = true;
+						}
 					},
 					"blk" => {
-						tag.backgrounds.push(Background::new(&filename));
-						main.selection_type = SelectionType::Background(tag.backgrounds.len() - 1);
+						if !tag.backgrounds.includes(&filename) {
+							tag.backgrounds.push(Background::new(&filename));
+							main.selection_type = SelectionType::Background(tag.backgrounds.len() - 1);
+							main.modified = true;
+						}
 					},
 					"wav" => {
-						tag.sounds.push(Sound::new(&filename));
-						main.selection_type = SelectionType::Sound(tag.sounds.len() - 1);
+						if !tag.sounds.includes(&filename) {
+							tag.sounds.push(Sound::new(&filename));
+							main.selection_type = SelectionType::Sound(tag.sounds.len() - 1);
+							main.modified = true;
+						}
 					},
 					"catalogue" => {
-						tag.catalogues.push(Catalogue::new(&filename));
-						main.selection_type = SelectionType::Catalogue(tag.catalogues.len() - 1);
+						if !tag.catalogues.includes(&filename) {
+							tag.catalogues.push(Catalogue::new(&filename));
+							main.selection_type = SelectionType::Catalogue(tag.catalogues.len() - 1);
+							main.modified = true;
+						}
 					},
 					"png" => {
-						let mut sprite = Sprite::new(format!("{}.c16", &title).as_str());
-						sprite.add_frame(&filename);
-						tag.sprites.push(sprite);
-						main.selection_type = SelectionType::Sprite(tag.sprites.len() - 1);
+						if !tag.sprites.includes(&filename) {
+							let mut sprite = Sprite::new(format!("{}.c16", &title).as_str());
+							sprite.add_frame(&filename);
+							tag.sprites.push(sprite);
+							main.selection_type = SelectionType::Sprite(tag.sprites.len() - 1);
+							main.modified = true;
+						}
 					},
 					_ => {
-						// TODO: alert user that they picked an invalid file type for an agent tag
+						alert_wrong_filetype("COS, C16, BLK, WAV, CATALOGUE, or PNG");
 					}
 				}
 				main.modified = true;
 			},
-			Tag::Egg(_tag) => {
+			Tag::Egg(tag) => {
+				if tag.filepath.is_empty() {
+					tag.filepath = main.path.clone();
+				}
+				match extension.as_str() {
+					"c16" => {
+						if !tag.sprites.includes(&filename) {
+							tag.sprites.push(Sprite::new(&filename));
+							main.selection_type = SelectionType::Sprite(tag.sprites.len() - 1);
+							main.modified = true;
+						}
+					},
+					"png" => {
+						if !tag.sprites.includes(&filename) {
+							let mut sprite = Sprite::new(format!("{}.c16", &title).as_str());
+							sprite.add_frame(&filename);
+							tag.sprites.push(sprite);
+							main.selection_type = SelectionType::Sprite(tag.sprites.len() - 1);
+							main.modified = true;
+						}
+					},
+					"gen" => {
+						if !tag.genetics.includes(&filename) {
+							if tag.genetics.len() >= 2 {
+								alert_too_many_genetics_files();
+							} else {
+								let new_genetics = Genetics::new(&filename);
+								if let Some(genetics) = tag.genetics.get(0) {
+									if genetics.filename.title != new_genetics.filename.title {
+										alert_wrong_genetics_title();
+										return;
+									}
+								}
+								tag.genetics.push(new_genetics);
+								main.selection_type = SelectionType::Genetics(tag.genetics.len() - 1);
+								main.modified = true;
+							}
+						}
+					},
+					"gno" => {
+						if !tag.genetics.includes(&filename) {
+							if tag.genetics.len() >= 2 {
+								alert_too_many_genetics_files();
+							} else {
+								let new_genetics = Genetics::new(&filename);
+								if let Some(genetics) = tag.genetics.get(0) {
+									if genetics.filename.title != new_genetics.filename.title {
+										alert_wrong_genetics_title();
+										return;
+									}
+								}
+								tag.genetics.push(new_genetics);
+								main.selection_type = SelectionType::Genetics(tag.genetics.len() - 1);
+								main.modified = true;
+							}
+						}
+					},
+					"att" => {
+						if !tag.body_data.includes(&filename) {
+							tag.body_data.push(BodyData::new(&filename));
+							main.selection_type = SelectionType::BodyData(tag.body_data.len() - 1);
+							main.modified = true;
+						}
+					},
+					_ => {
+						alert_wrong_filetype("C16, PNG, GEN, GNO, or ATT");
+					}
+				}
 			},
 			Tag::Empty => ()
 		}

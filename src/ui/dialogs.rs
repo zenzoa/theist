@@ -18,6 +18,15 @@ pub fn confirm_remove_tag() -> bool {
 		.show()
 }
 
+pub fn confirm_convert_tag(name: &str) -> bool {
+	MessageDialog::new()
+		.set_title("Convert tag?")
+		.set_description(format!("Are you sure you want to convert this tag to an {}?", name).as_str())
+		.set_level(MessageLevel::Warning)
+		.set_buttons(MessageButtons::YesNo)
+		.show()
+}
+
 pub fn confirm_remove_item(name: &str) -> bool {
 	MessageDialog::new()
 		.set_title(format!("Remove {}?", name).as_str())
@@ -48,7 +57,25 @@ pub fn alert_wrong_folder() -> bool {
 pub fn alert_wrong_filetype(extension: &str) -> bool {
 	MessageDialog::new()
 		.set_title("Wrong file type")
-		.set_description(format!("Unable to load file. File must be of type \"{}\".", extension).as_str())
+		.set_description(format!("Unable to load file. File must be of type {}.", extension).as_str())
+		.set_level(MessageLevel::Warning)
+		.set_buttons(MessageButtons::Ok)
+		.show()
+}
+
+pub fn alert_wrong_genetics_title() -> bool {
+	MessageDialog::new()
+		.set_title("GEN and GNO have different names")
+		.set_description("Unable to load file. An egg tag's GEN and GNO files must have the same name.")
+		.set_level(MessageLevel::Warning)
+		.set_buttons(MessageButtons::Ok)
+		.show()
+}
+
+pub fn alert_too_many_genetics_files() -> bool {
+	MessageDialog::new()
+		.set_title("Too many genetics files")
+		.set_description("Unable to load file. An egg tag can only have two genetics files, one GEN and one GNO.")
 		.set_level(MessageLevel::Warning)
 		.set_buttons(MessageButtons::Ok)
 		.show()

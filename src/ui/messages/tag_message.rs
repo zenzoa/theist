@@ -1,5 +1,6 @@
 use crate::agent::tag::*;
 use crate::agent::agent_tag::*;
+use crate::agent::egg_tag::*;
 use crate::ui::{ Main, SelectionType };
 use crate::ui::dialogs::*;
 use crate::ui::messages::file_message::add_file;
@@ -15,10 +16,14 @@ pub enum TagMessage {
 	SetSupportedGame(usize),
 	SetPreviewAuto(bool),
 	SetPreviewSprite(String),
+	SetFemalePreviewSprite(String),
+	SetMalePreviewSprite(String),
 	SetPreviewAnimation(String),
 	SetRemoveScriptAuto(bool),
 	SetRemoveScript(String),
 	AddFile,
+	ConvertToEgg,
+	ConvertToAgent
 }
 
 pub fn check_tag_message(main: &mut Main, message: TagMessage) {
@@ -94,6 +99,20 @@ pub fn check_tag_message(main: &mut Main, message: TagMessage) {
 			}
 		},
 
+		TagMessage::SetFemalePreviewSprite(new_sprite) => {
+			if let Some(selected_tag) = main.selected_tag {
+				main.tags[selected_tag].set_female_preview_sprite(new_sprite);
+				main.modified = true;
+			}
+		},
+
+		TagMessage::SetMalePreviewSprite(new_sprite) => {
+			if let Some(selected_tag) = main.selected_tag {
+				main.tags[selected_tag].set_male_preview_sprite(new_sprite);
+				main.modified = true;
+			}
+		},
+
 		TagMessage::SetPreviewAnimation(new_animation) => {
 			if let Some(selected_tag) = main.selected_tag {
 				main.tags[selected_tag].set_preview_animation(new_animation);
@@ -118,5 +137,72 @@ pub fn check_tag_message(main: &mut Main, message: TagMessage) {
 		TagMessage::AddFile => {
 			add_file(main);
 		},
+
+		TagMessage::ConvertToEgg => {
+			if confirm_convert_tag("Egg tag") {
+				if let Some(selected_tag) = main.selected_tag {
+					if let Some(Tag::Agent(agent_tag)) = main.tags.get_mut(selected_tag) {
+						let mut egg_tag = EggTag::new(agent_tag.name.clone());
+						egg_tag.filepath = agent_tag.filepath.clone();
+						egg_tag.version = agent_tag.version.clone();
+						egg_tag.sprites = agent_tag.sprites.clone();
+						match &agent_tag.preview {
+							Preview::Auto => {
+								if let Some(sprite) = &agent_tag.sprites.get(0) {
+									egg_tag.preview_sprite_female = sprite.get_title();
+									egg_tag.preview_sprite_male = sprite.get_title();
+								}
+								egg_tag.preview_animation = String::from("0");
+							},
+							Preview::Manual{ sprite, animation } => {
+								egg_tag.preview_sprite_female = sprite.clone();
+								egg_tag.preview_sprite_male = sprite.clone();
+								egg_tag.preview_animation = animation.clone();
+							}
+						}
+						main.tags[selected_tag] = Tag::Egg(egg_tag);
+						main.modified = true;
+					}
+				}
+			}
+		},
+
+		TagMessage::ConvertToAgent => {
+			if confirm_convert_tag("Agent tag") {
+				if let Some(selected_tag) = main.selected_tag {
+					if let Some(Tag::Egg(egg_tag)) = main.tags.get_mut(selected_tag) {
+						let mut agent_tag = AgentTag::new(egg_tag.name.clone());
+						agent_tag.filepath = egg_tag.filepath.clone();
+						agent_tag.version = egg_tag.version.clone();
+						agent_tag.sprites = egg_tag.sprites.clone();
+						let first_sprite_title = if let Some(sprite) = &egg_tag.sprites.get(0) {
+								sprite.get_title()
+							} else {
+								String::from("")
+							};
+						let female_is_default = egg_tag.preview_sprite_female.is_empty() || egg_tag.preview_sprite_female == first_sprite_title;
+						let male_is_default = egg_tag.preview_sprite_male.is_empty() || egg_tag.preview_sprite_male == first_sprite_title;
+						let animation_is_default = egg_tag.preview_animation.is_empty() || egg_tag.preview_animation == "0";
+						if female_is_default && male_is_default && animation_is_default {
+							agent_tag.preview = Preview::Auto;
+						} else {
+							let preview_sprite = if !female_is_default {
+									egg_tag.preview_sprite_female.clone()
+								} else if !male_is_default {
+									egg_tag.preview_sprite_male.clone()
+								} else {
+									first_sprite_title
+								};
+							agent_tag.preview = Preview::Manual{
+								sprite: preview_sprite,
+								animation: egg_tag.preview_animation.clone()
+							};
+						}
+						main.tags[selected_tag] = Tag::Agent(agent_tag);
+						main.modified = true;
+					}
+				}
+			}
+		}
 	}
 }

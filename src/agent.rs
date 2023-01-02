@@ -7,6 +7,7 @@ pub mod background;
 pub mod sound;
 pub mod catalogue;
 pub mod genetics;
+pub mod body_data;
 pub mod encode;
 pub mod decode;
 
@@ -18,6 +19,7 @@ use background::*;
 use sound::*;
 use catalogue::*;
 use genetics::*;
+use body_data::*;
 use encode::*;
 
 use crate::pray;

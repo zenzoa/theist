@@ -6,13 +6,13 @@ use std::error::Error;
 use bytes::Bytes;
 
 #[derive(Clone)]
-pub struct Sound {
+pub struct BodyData {
 	pub filename: Filename
 }
 
-impl Sound {
-	pub fn new(filename: &str) -> Sound {
-		Sound {
+impl BodyData {
+	pub fn new(filename: &str) -> BodyData {
+		BodyData {
 			filename: Filename::new(filename)
 		}
 	}
@@ -30,11 +30,11 @@ impl Sound {
 }
 
 #[derive(Clone)]
-pub struct SoundList(Vec<Sound>);
+pub struct BodyDataList(Vec<BodyData>);
 
-impl SoundList {
-	pub fn new() -> SoundList {
-		SoundList(Vec::new())
+impl BodyDataList {
+	pub fn new() -> BodyDataList {
+		BodyDataList(Vec::new())
 	}
 
 	pub fn is_empty(&self) -> bool {
@@ -54,20 +54,16 @@ impl SoundList {
 		false
 	}
 
-	pub fn iter(&self) -> std::slice::Iter<'_, Sound> {
+	pub fn iter(&self) -> std::slice::Iter<'_, BodyData> {
 		self.0.iter()
 	}
 
-	pub fn iter_mut(&mut self) -> std::slice::IterMut<'_, Sound> {
-		self.0.iter_mut()
-	}
-
-	pub fn get(&self, index: usize) -> Option<&Sound> {
+	pub fn get(&self, index: usize) -> Option<&BodyData> {
 		self.0.get(index)
 	}
 
-	pub fn push(&mut self, sound: Sound) {
-		self.0.push(sound)
+	pub fn push(&mut self, body_data: BodyData) {
+		self.0.push(body_data)
 	}
 
 	pub fn remove(&mut self, index: usize) {

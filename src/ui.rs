@@ -22,7 +22,9 @@ pub enum SelectionType {
 	Sprite(usize),
 	Background(usize),
 	Sound(usize),
-	Catalogue(usize)
+	Catalogue(usize),
+	Genetics(usize),
+	BodyData(usize)
 }
 
 pub enum Alert {
@@ -100,7 +102,8 @@ impl Application for Main {
 		for (i, tag) in self.tags.iter().enumerate() {
 			let tag_name = match tag {
 				Tag::Agent(agent_tag) => &agent_tag.name,
-				_ => ""
+				Tag::Egg(egg_tag) => &egg_tag.name,
+				Tag::Empty => ""
 			};
 			tabs = tabs.push(
 				button(tag_name)
@@ -153,9 +156,19 @@ impl Application for Main {
 					Tag::Egg(tag) => {
 						tab_contents = egg_tag_view::listing(tag);
 						match self.selection_type {
+							SelectionType::Genetics(index) => {
+								if let Some(genetics) = tag.genetics.get(index) {
+									current_properties = genetics_view::properties(genetics);
+								}
+							},
 							SelectionType::Sprite(index) => {
 								if let Some(sprite) = tag.sprites.get(index) {
 									current_properties = sprite_view::properties(sprite, false);
+								}
+							},
+							SelectionType::BodyData(index) => {
+								if let Some(body_data) = tag.body_data.get(index) {
+									current_properties = body_data_view::properties(body_data);
 								}
 							},
 							_ => {
