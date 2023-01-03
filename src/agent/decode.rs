@@ -45,7 +45,7 @@ fn parse_tokens(s: &str) -> Vec<String> {
 	tokens
 }
 
-fn add_agent_tag(path: &str, tokens: &Vec<String>) -> Tag {
+fn add_agent_tag(path: &str, tokens: &[String]) -> Tag {
 	let mut tag = AgentTag::new(String::from(""));
 	if let Some(i) = tokens.get(1) {
 		tag.name = String::from(i);
@@ -60,7 +60,7 @@ fn add_agent_tag(path: &str, tokens: &Vec<String>) -> Tag {
 	Tag::Agent(tag)
 }
 
-fn add_egg_tag(path: &str, tokens: &Vec<String>) -> Tag {
+fn add_egg_tag(path: &str, tokens: &[String]) -> Tag {
 	let mut tag = EggTag::new(String::from(""));
 	if let Some(i) = tokens.get(1) {
 		tag.name = String::from(i);

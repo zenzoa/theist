@@ -22,7 +22,7 @@ pub fn encode_source(tags: Vec<Tag>) -> Bytes {
 				match tag.removescript {
 					RemoveScript::Manual(removescript) => {
 						if !removescript.is_empty() {
-							source += format!("\tremovescript \"{}\"\n", &removescript.replace("\"", "\\\"")).as_str();
+							source += format!("\tremovescript \"{}\"\n", &removescript.replace('\"', "\\\"")).as_str();
 						}
 					},
 					RemoveScript::Auto => {
