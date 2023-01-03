@@ -1,4 +1,5 @@
 use crate::pray;
+use crate::agent;
 use crate::agent::tag::*;
 use crate::agent::agent_tag::*;
 use crate::agent::script::*;
@@ -48,7 +49,7 @@ pub fn check_file_message(main: &mut Main, message: FileMessage) {
 		},
 
 		FileMessage::Compile => {
-			// TODO: compile to agent(s) file
+			compile(main);
 		}
 	}
 }
@@ -193,6 +194,21 @@ pub fn extract_files(main: &mut Main) {
 	}
 }
 
+pub fn compile(main: &mut Main) {
+	let extension = if main.tags.len() > 1 { ".agents" } else { ".agent" };
+	let filename = main.filename.replace(".the", extension).replace(".txt", extension);
+	let file = FileDialog::new()
+		.set_directory(&main.path)
+		.set_file_name(&filename)
+		.save_file();
+	if let Some(path) = file {
+		let data = agent::compile(main.tags.clone());
+		if let Ok(mut file) = File::create(path) {
+			file.write_all(&data).unwrap();
+		}
+	}
+}
+
 pub fn add_file(main: &mut Main) {
 	let file = FileDialog::new()
 		.add_filter("Creatures Files", &["cos", "c16", "blk", "wav", "catalogue", "png", "gen", "gno", "att"])
@@ -292,6 +308,7 @@ pub fn add_file_from_path(main: &mut Main, file_path: PathBuf, file_dropped: boo
 				}
 				main.modified = true;
 			},
+
 			Tag::Egg(tag) => {
 				if tag.filepath.is_empty() {
 					tag.filepath = main.path.clone();
@@ -356,6 +373,7 @@ pub fn add_file_from_path(main: &mut Main, file_path: PathBuf, file_dropped: boo
 							main.modified = true;
 						}
 					},
+
 					_ => {
 						alert_wrong_filetype("C16, PNG, GEN, GNO, or ATT");
 					}
