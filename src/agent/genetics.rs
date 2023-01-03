@@ -58,6 +58,10 @@ impl GeneticsList {
 		self.0.iter()
 	}
 
+	pub fn iter_mut(&mut self) -> std::slice::IterMut<'_, Genetics> {
+		self.0.iter_mut()
+	}
+
 	pub fn get(&self, index: usize) -> Option<&Genetics> {
 		self.0.get(index)
 	}

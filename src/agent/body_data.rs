@@ -58,6 +58,10 @@ impl BodyDataList {
 		self.0.iter()
 	}
 
+	pub fn iter_mut(&mut self) -> std::slice::IterMut<'_, BodyData> {
+		self.0.iter_mut()
+	}
+
 	pub fn get(&self, index: usize) -> Option<&BodyData> {
 		self.0.get(index)
 	}

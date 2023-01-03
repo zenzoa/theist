@@ -233,7 +233,35 @@ impl Tag {
 				}
 			},
 
-			Tag::Egg(_tag) => (),
+			Tag::Egg(tag) => {
+				println!("Get data for egg tag \"{}\"", tag.name);
+
+				let path = &tag.filepath;
+
+				// genetics files
+				for genetics in tag.genetics.iter_mut() {
+					tag.genetics_files.push(match genetics.get_data(path) {
+						Ok(data) => data,
+						Err(_why) => Bytes::new()
+					});
+				}
+
+				// sprite files
+				for sprite in tag.sprites.iter_mut() {
+					tag.sprite_files.push(match sprite.get_data(path) {
+						Ok(data) => data,
+						Err(_why) => Bytes::new()
+					});
+				}
+
+				// body data files
+				for body_data in tag.body_data.iter_mut() {
+					tag.body_data_files.push(match body_data.get_data(path) {
+						Ok(data) => data,
+						Err(_why) => Bytes::new()
+					});
+				}
+			},
 
 			Tag::Empty => ()
 		}

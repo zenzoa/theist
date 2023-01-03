@@ -3,11 +3,14 @@ use crate::blk;
 use crate::agent::*;
 use crate::agent::tag::*;
 use crate::agent::agent_tag::*;
+use crate::agent::egg_tag::*;
 use crate::agent::script::*;
 use crate::agent::sprite::*;
 use crate::agent::background::*;
 use crate::agent::sound::*;
 use crate::agent::catalogue::*;
+use crate::agent::genetics::*;
+use crate::agent::body_data::*;
 
 use std::str;
 use std::io::Cursor;
@@ -157,6 +160,47 @@ fn read_agent_block(buffer: &mut Bytes, files: &mut Vec<FileData>, block_name: S
 	tag
 }
 
+fn read_egg_block(buffer: &mut Bytes, block_name: String) -> EggTag {
+	let mut tag = EggTag::new(block_name);
+
+	let info = read_info_block(buffer);
+	for (key, value) in info {
+		match key.as_str() {
+			"Egg Gallery female" => {
+				if let InfoValue::Str(value) = value {
+					tag.preview_sprite_female = value.clone();
+				}
+			},
+			"Egg Gallery male" => {
+				if let InfoValue::Str(value) = value {
+					tag.preview_sprite_male = value.clone();
+				}
+			},
+			"Egg Animation String" => {
+				if let InfoValue::Str(value) = value {
+					tag.preview_animation = value.clone();
+				}
+			},
+			_ => {
+				if key.starts_with("Dependency") {
+					if let InfoValue::Str(value) = value {
+						let filename = Filename::new(value.as_str());
+						match filename.extension.as_str() {
+							"c16" => tag.sprites.push(Sprite::Frames { filename, frames: Vec::new() }),
+							"gen" => tag.genetics.push(Genetics { filename }),
+							"gno" => tag.genetics.push(Genetics { filename }),
+							"att" => tag.body_data.push(BodyData { filename }),
+							_ => ()
+						}
+					}
+				}
+			}
+		}
+	}
+
+	tag
+}
+
 pub fn decode(contents: &[u8]) -> Result<(Vec<Tag>, Vec<FileData>), Box<dyn Error>> {
 	let mut tags: Vec<Tag> = Vec::new();
 	let mut files: Vec<FileData> = Vec::new();
@@ -186,6 +230,11 @@ pub fn decode(contents: &[u8]) -> Result<(Vec<Tag>, Vec<FileData>), Box<dyn Erro
 							println!("Agent Block: {}", &block_header.name);
 							let agent_tag = read_agent_block(&mut buffer, &mut files, block_header.name, SupportedGame::DS);
 							tags.push(Tag::Agent(agent_tag));
+						},
+						"EGGS" => {
+							println!("Egg Block: {}", &block_header.name);
+							let egg_tag = read_egg_block(&mut buffer, block_header.name);
+							tags.push(Tag::Egg(egg_tag));
 						},
 						"FILE" => {
 							let filename = Filename::new(block_header.name.as_str());
@@ -419,6 +468,108 @@ fn write_agent_block(buffer: &mut BytesMut, tag: &AgentTag) {
 	buffer.unsplit(block_buffer);
 }
 
+pub fn write_egg_block(buffer: &mut BytesMut, tag: &EggTag) {
+	println!("Write egg block for \"{}\"", tag.name);
+
+	let block_type = "EGGS";
+
+	let mut int_values: Vec<IntValue> = Vec::new();
+	let mut str_values: Vec<StrValue> = Vec::new();
+
+	int_values.push(IntValue{
+		name: String::from("Agent Type"),
+		value: 0
+	});
+
+	if !tag.preview_sprite_male.is_empty() {
+		str_values.push(StrValue{
+			name: String::from("Egg Gallery male"),
+			value: tag.preview_sprite_male.clone()
+		});
+		str_values.push(StrValue{
+			name: String::from("Egg Glyph File"),
+			value: format!("{}.c16", &tag.preview_sprite_male)
+		});
+	}
+
+	if !tag.preview_sprite_female.is_empty() {
+		str_values.push(StrValue{
+			name: String::from("Egg Gallery female"),
+			value: tag.preview_sprite_female.clone()
+		});
+		str_values.push(StrValue{
+			name: String::from("Egg Glyph File 2"),
+			value: format!("{}.c16", &tag.preview_sprite_female)
+		});
+	}
+
+	if !tag.preview_animation.is_empty() {
+		str_values.push(StrValue{
+			name: String::from("Egg Animation String"),
+			value: tag.preview_animation.clone()
+		});
+	}
+
+	if !tag.genetics.is_empty() {
+		str_values.push(StrValue{
+			name: String::from("Genetics File"),
+			value: format!("{}*", &tag.genetics.get(0).unwrap().filename.title)
+		});
+	}
+
+	let mut dependency_count = 0;
+
+	println!("  Write genetics dependencies");
+	for genetics_file in tag.genetics.iter() {
+		dependency_count += 1;
+		int_values.push(IntValue{
+			name: format!("Dependency Category {}", dependency_count),
+			value: 3
+		});
+		str_values.push(StrValue{
+			name: format!("Dependency {}", dependency_count),
+			value: genetics_file.get_filename()
+		});
+	}
+
+	println!("  Write sprite dependencies");
+	for sprite in tag.sprites.iter() {
+		dependency_count += 1;
+		int_values.push(IntValue{
+			name: format!("Dependency Category {}", dependency_count),
+			value: 2
+		});
+		str_values.push(StrValue{
+			name: format!("Dependency {}", dependency_count),
+			value: sprite.get_filename()
+		});
+	}
+
+	println!("  Write body data dependencies");
+	for body_data_file in tag.body_data.iter() {
+		dependency_count += 1;
+		int_values.push(IntValue{
+			name: format!("Dependency Category {}", dependency_count),
+			value: 4
+		});
+		str_values.push(StrValue{
+			name: format!("Dependency {}", dependency_count),
+			value: body_data_file.get_filename()
+		});
+	}
+
+	int_values.push(IntValue{
+		name: String::from("Dependency Count"),
+		value: dependency_count
+	});
+
+	let mut block_buffer = BytesMut::new();
+	write_info_block(&mut block_buffer, int_values, str_values);
+
+	write_block_header(buffer, block_type, &tag.name, block_buffer.len() as u32);
+	buffer.unsplit(block_buffer);
+}
+
 pub fn encode(tags: &Vec<Tag>) -> Bytes {
 	let mut buffer = BytesMut::new();
 
@@ -428,45 +579,81 @@ pub fn encode(tags: &Vec<Tag>) -> Bytes {
 	write_string(&mut buffer, 4, "PRAY");
 
 	for tag in tags {
-		if let Tag::Agent(tag) = tag {
-			// agent info
-			write_agent_block(&mut buffer, tag);
+		match tag {
+			Tag::Agent(tag) => {
+				// agent info
+				write_agent_block(&mut buffer, tag);
 
-			// sprite files
-			for (i, data) in tag.sprite_files.iter().enumerate() {
-				let filename = tag.sprites.get(i).unwrap().get_filename();
-				if !files_written.contains(&filename) {
-					write_file_block(&mut files_buffer, &filename, data);
-					files_written.push(filename);
+				// sprite files
+				for (i, data) in tag.sprite_files.iter().enumerate() {
+					let filename = tag.sprites.get(i).unwrap().get_filename();
+					if !files_written.contains(&filename) {
+						write_file_block(&mut files_buffer, &filename, data);
+						files_written.push(filename);
+					}
 				}
-			}
 
-			// background files
-			for (i, data) in tag.background_files.iter().enumerate() {
-				let filename = tag.backgrounds.get(i).unwrap().get_filename();
-				if !files_written.contains(&filename) {
-					write_file_block(&mut files_buffer, &filename, data);
-					files_written.push(filename);
+				// background files
+				for (i, data) in tag.background_files.iter().enumerate() {
+					let filename = tag.backgrounds.get(i).unwrap().get_filename();
+					if !files_written.contains(&filename) {
+						write_file_block(&mut files_buffer, &filename, data);
+						files_written.push(filename);
+					}
 				}
-			}
 
-			// sound files
-			for (i, data) in tag.sound_files.iter().enumerate() {
-				let filename = tag.sounds.get(i).unwrap().get_filename();
-				if !files_written.contains(&filename) {
-					write_file_block(&mut files_buffer, &filename, data);
-					files_written.push(filename);
+				// sound files
+				for (i, data) in tag.sound_files.iter().enumerate() {
+					let filename = tag.sounds.get(i).unwrap().get_filename();
+					if !files_written.contains(&filename) {
+						write_file_block(&mut files_buffer, &filename, data);
+						files_written.push(filename);
+					}
 				}
-			}
 
-			// catalogue files
-			for (i, data) in tag.catalogue_files.iter().enumerate() {
-				let filename = tag.catalogues.get(i).unwrap().get_filename();
-				if !files_written.contains(&filename) {
-					write_file_block(&mut files_buffer, &filename, data);
-					files_written.push(filename);
+				// catalogue files
+				for (i, data) in tag.catalogue_files.iter().enumerate() {
+					let filename = tag.catalogues.get(i).unwrap().get_filename();
+					if !files_written.contains(&filename) {
+						write_file_block(&mut files_buffer, &filename, data);
+						files_written.push(filename);
+					}
 				}
-			}
+			},
+
+			Tag::Egg(tag) => {
+				// egg info
+				write_egg_block(&mut buffer, tag);
+
+				// genetics files
+				for (i, data) in tag.genetics_files.iter().enumerate() {
+					let filename = tag.genetics.get(i).unwrap().get_filename();
+					if !files_written.contains(&filename) {
+						write_file_block(&mut files_buffer, &filename, data);
+						files_written.push(filename);
+					}
+				}
+
+				// sprite files
+				for (i, data) in tag.sprite_files.iter().enumerate() {
+					let filename = tag.sprites.get(i).unwrap().get_filename();
+					if !files_written.contains(&filename) {
+						write_file_block(&mut files_buffer, &filename, data);
+						files_written.push(filename);
+					}
+				}
+
+				// body data files
+				for (i, data) in tag.body_data_files.iter().enumerate() {
+					let filename = tag.body_data.get(i).unwrap().get_filename();
+					if !files_written.contains(&filename) {
+						write_file_block(&mut files_buffer, &filename, data);
+						files_written.push(filename);
+					}
+				}
+			},
+
+			Tag::Empty => ()
 		}
 	}
 
