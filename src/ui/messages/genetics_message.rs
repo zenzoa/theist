@@ -5,7 +5,7 @@ use crate::ui::dialogs::*;
 #[derive(Debug, Clone)]
 pub enum GeneticsMessage {
 	Select(usize),
-	Remove(usize),
+	Remove,
 	MoveUp(usize),
 	MoveDown(usize),
 }
@@ -16,13 +16,15 @@ pub fn check_genetics_message(main: &mut Main, message: GeneticsMessage) {
 			main.selection_type = SelectionType::Genetics(index);
 		},
 
-		GeneticsMessage::Remove(index) => {
+		GeneticsMessage::Remove => {
 			if confirm_remove_item("genetics file") {
 				if let Some(selected_tag) = main.selected_tag {
-					if let Tag::Egg(tag) = &mut main.tags[selected_tag] {
-						tag.genetics.remove(index);
-						main.selection_type = SelectionType::Tag;
-						main.modified = true;
+					if let SelectionType::Genetics(index) = main.selection_type {
+						if let Tag::Egg(tag) = &mut main.tags[selected_tag] {
+							tag.genetics.remove(index);
+							main.selection_type = SelectionType::Tag;
+							main.modified = true;
+						}
 					}
 				}
 			}

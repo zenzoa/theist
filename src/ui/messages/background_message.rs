@@ -5,7 +5,7 @@ use crate::ui::dialogs::*;
 #[derive(Debug, Clone)]
 pub enum BackgroundMessage {
 	Select(usize),
-	Remove(usize),
+	Remove,
 	MoveUp(usize),
 	MoveDown(usize),
 	ConvertToSprite,
@@ -17,13 +17,15 @@ pub fn check_background_message(main: &mut Main, message: BackgroundMessage) {
 			main.selection_type = SelectionType::Background(index);
 		},
 
-		BackgroundMessage::Remove(index) => {
+		BackgroundMessage::Remove => {
 			if confirm_remove_item("background") {
 				if let Some(selected_tag) = main.selected_tag {
-					if let Tag::Agent(tag) = &mut main.tags[selected_tag] {
-						tag.backgrounds.remove(index);
-						main.selection_type = SelectionType::Tag;
-						main.modified = true;
+					if let SelectionType::Background(index) = main.selection_type {
+						if let Tag::Agent(tag) = &mut main.tags[selected_tag] {
+							tag.backgrounds.remove(index);
+							main.selection_type = SelectionType::Tag;
+							main.modified = true;
+						}
 					}
 				}
 			}

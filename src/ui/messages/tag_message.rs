@@ -29,6 +29,7 @@ pub fn check_tag_message(main: &mut Main, message: TagMessage) {
 	match message {
 		TagMessage::Add => {
 			main.tags.push(Tag::Agent(AgentTag::new(String::from("My Agent"))));
+			main.selection_type = SelectionType::Tag;
 			main.selected_tag = Some(main.tags.len() - 1);
 			main.modified = true;
 		},

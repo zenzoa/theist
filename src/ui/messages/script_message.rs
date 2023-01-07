@@ -5,7 +5,7 @@ use crate::ui::dialogs::*;
 #[derive(Debug, Clone)]
 pub enum ScriptMessage {
 	Select(usize),
-	Remove(usize),
+	Remove,
 	MoveUp(usize),
 	MoveDown(usize),
 	SetSupportedGame(usize),
@@ -17,13 +17,15 @@ pub fn check_script_message(main: &mut Main, message: ScriptMessage) {
 			main.selection_type = SelectionType::Script(index);
 		},
 
-		ScriptMessage::Remove(index) => {
+		ScriptMessage::Remove => {
 			if confirm_remove_item("script") {
 				if let Some(selected_tag) = main.selected_tag {
-					if let Tag::Agent(tag) = &mut main.tags[selected_tag] {
-						tag.scripts.remove(index);
-						main.selection_type = SelectionType::Tag;
-						main.modified = true;
+					if let SelectionType::Script(index) = main.selection_type {
+						if let Tag::Agent(tag) = &mut main.tags[selected_tag] {
+							tag.scripts.remove(index);
+							main.selection_type = SelectionType::Tag;
+							main.modified = true;
+						}
 					}
 				}
 			}

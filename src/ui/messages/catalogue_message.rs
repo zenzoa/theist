@@ -7,7 +7,7 @@ use crate::ui::dialogs::*;
 pub enum CatalogueMessage {
 	AddInlineCatalogue,
 	Select(usize),
-	Remove(usize),
+	Remove,
 	MoveUp(usize),
 	MoveDown(usize),
 	SetName(String),
@@ -36,13 +36,15 @@ pub fn check_catalogue_message(main: &mut Main, message: CatalogueMessage) {
 			main.selection_type = SelectionType::Catalogue(index);
 		},
 
-		CatalogueMessage::Remove(index) => {
+		CatalogueMessage::Remove => {
 			if confirm_remove_item("catalogue") {
 				if let Some(selected_tag) = main.selected_tag {
-					if let Tag::Agent(tag) = &mut main.tags[selected_tag] {
-						tag.catalogues.remove(index);
-						main.selection_type = SelectionType::Tag;
-						main.modified = true;
+					if let SelectionType::Catalogue(index) = main.selection_type {
+						if let Tag::Agent(tag) = &mut main.tags[selected_tag] {
+							tag.catalogues.remove(index);
+							main.selection_type = SelectionType::Tag;
+							main.modified = true;
+						}
 					}
 				}
 			}

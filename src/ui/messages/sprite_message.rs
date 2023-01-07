@@ -8,7 +8,7 @@ use rfd::FileDialog;
 #[derive(Debug, Clone)]
 pub enum SpriteMessage {
 	Select(usize),
-	Remove(usize),
+	Remove,
 	MoveUp(usize),
 	MoveDown(usize),
 	SetName(String),
@@ -25,16 +25,18 @@ pub fn check_sprite_message(main: &mut Main, message: SpriteMessage) {
 			main.selection_type = SelectionType::Sprite(index);
 		},
 
-		SpriteMessage::Remove(index) => {
+		SpriteMessage::Remove => {
 			if confirm_remove_item("sprite") {
 				if let Some(selected_tag) = main.selected_tag {
-					match &mut main.tags[selected_tag] {
-						Tag::Agent(tag) => tag.sprites.remove(index),
-						Tag::Egg(tag) => tag.sprites.remove(index),
-						_ => ()
+					if let SelectionType::Sprite(index) = main.selection_type {
+						match &mut main.tags[selected_tag] {
+							Tag::Agent(tag) => tag.sprites.remove(index),
+							Tag::Egg(tag) => tag.sprites.remove(index),
+							_ => ()
+						}
+						main.selection_type = SelectionType::Tag;
+						main.modified = true;
 					}
-					main.selection_type = SelectionType::Tag;
-					main.modified = true;
 				}
 			}
 		},

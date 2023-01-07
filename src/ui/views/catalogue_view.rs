@@ -1,23 +1,30 @@
+use crate::ui::icons::*;
 use crate::ui::messages::Message;
 use crate::ui::messages::catalogue_message::CatalogueMessage;
 use crate::agent::catalogue::*;
 
 use iced::widget::{ row, column, Column, text, text_input, button, scrollable, horizontal_rule };
-use iced::{ Alignment, Length };
+use iced::{ Alignment, Length, theme };
 
 pub fn properties(catalogue: &Catalogue) -> Column<Message> {
 	match catalogue {
 		Catalogue::File{ filename } => {
 			column![
-				text(format!("Catalogue \"{}\"", &filename.string)),
+				row![
+					catalogue_icon(),
+					text(format!("Catalogue \"{}\"", &filename.string)).width(Length::Fill),
+					button(delete_icon())
+						.on_press(Message::Catalogue(CatalogueMessage::Remove))
+						.style(theme::Button::Destructive)
+				].spacing(5).align_items(Alignment::Center),
 				horizontal_rule(1)
-			].padding(20).spacing(20)
+			].padding(30).spacing(20)
 		},
 		Catalogue::Inline{ filename, entries } => {
 			let mut entry_list = column![
 				row![
 					text(format!("Entries ({})", entries.len())).width(Length::Fill),
-					button("+").on_press(Message::Catalogue(CatalogueMessage::AddEntry))
+					button(add_icon()).on_press(Message::Catalogue(CatalogueMessage::AddEntry))
 				].spacing(5).align_items(Alignment::Center)
 			].spacing(20);
 
@@ -34,9 +41,9 @@ pub fn properties(catalogue: &Catalogue) -> Column<Message> {
 				let first_row = if entries.len() > 1 {
 					row![
 						text_input("Name", &entry.name, set_name).width(Length::Fill),
-						button("^").on_press(Message::Catalogue(CatalogueMessage::MoveEntryUp(i))),
-						button("v").on_press(Message::Catalogue(CatalogueMessage::MoveEntryDown(i))),
-						button("x").on_press(Message::Catalogue(CatalogueMessage::RemoveEntry(i)))
+						button(up_icon()).on_press(Message::Catalogue(CatalogueMessage::MoveEntryUp(i))),
+						button(down_icon()).on_press(Message::Catalogue(CatalogueMessage::MoveEntryDown(i))),
+						button(delete_icon()).on_press(Message::Catalogue(CatalogueMessage::RemoveEntry(i)))
 					]
 				} else {
 					row![
@@ -60,49 +67,57 @@ pub fn properties(catalogue: &Catalogue) -> Column<Message> {
 
 			column![
 				column![
-					text(format!("Catalogue \"{}\"", &filename.title)),
+					row![
+						catalogue_icon(),
+						text(format!("Catalogue \"{}\"", &filename.title)).width(Length::Fill),
+						button(delete_icon())
+							.on_press(Message::Catalogue(CatalogueMessage::Remove))
+							.style(theme::Button::Destructive)
+					].spacing(5).align_items(Alignment::Center),
 					horizontal_rule(1),
-				].padding([20, 20, 0, 20]).spacing(20),
+				].padding([30, 30, 0, 30]).spacing(20),
 				scrollable(
 					column![
 						text_input("Name", &filename.title, |x| Message::Catalogue(CatalogueMessage::SetName(x))),
 						entry_list
-					].padding(20).spacing(20)
+					].padding(30).spacing(20)
 				).height(Length::Fill)
 			]
 		}
 	}
 }
 
-pub fn list(catalogues: &CatalogueList) -> Column<Message> {
+pub fn list(catalogues: &CatalogueList, selected_index: Option<usize>) -> Column<Message> {
 	let mut catalogue_list = column![
-		text(format!("Catalogues ({})", catalogues.len()))
+		row![
+			catalogue_icon(),
+			text(format!("Catalogues ({})", catalogues.len()))
+		].spacing(5),
 	].spacing(10);
 
 	for (i, catalogue) in catalogues.iter().enumerate() {
+		let selected = if let Some(index) = selected_index { i == index } else { false };
 		let filename = match catalogue {
 			Catalogue::File{ filename } => filename,
 			Catalogue::Inline{ filename, .. } => filename
 		};
-		let buttons = if catalogues.len() > 1 {
-			row![
-				button("^").on_press(Message::Catalogue(CatalogueMessage::MoveUp(i))),
-				button("v").on_press(Message::Catalogue(CatalogueMessage::MoveDown(i))),
-				button("x").on_press(Message::Catalogue(CatalogueMessage::Remove(i)))
-			].spacing(5)
-		} else {
-			row![
-				button("x").on_press(Message::Catalogue(CatalogueMessage::Remove(i)))
-			].spacing(5)
-		};
-		catalogue_list = catalogue_list.push(
-			row![
-				button(filename.string.as_str())
-					.on_press(Message::Catalogue(CatalogueMessage::Select(i)))
-					.width(Length::Fill),
-				buttons
-			].spacing(5).align_items(Alignment::Center)
-		);
+		let mut catalogue_row = row![
+			button(filename.string.as_str())
+				.on_press(Message::Catalogue(CatalogueMessage::Select(i)))
+				.style(if selected { theme::Button::Primary } else { theme::Button::Secondary })
+				.width(Length::Fill)
+		].spacing(5).align_items(Alignment::Center);
+		if catalogues.len() > 1 {
+			catalogue_row = catalogue_row.push(
+				button(up_icon())
+					.on_press(Message::Catalogue(CatalogueMessage::MoveUp(i)))
+					.style(theme::Button::Secondary));
+			catalogue_row = catalogue_row.push(
+				button(down_icon())
+					.on_press(Message::Catalogue(CatalogueMessage::MoveDown(i)))
+					.style(theme::Button::Secondary));
+		}
+		catalogue_list = catalogue_list.push(catalogue_row);
 	}
 
 	catalogue_list

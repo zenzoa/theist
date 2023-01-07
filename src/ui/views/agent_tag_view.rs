@@ -1,3 +1,5 @@
+use crate::ui::{ SelectionType };
+use crate::ui::icons::*;
 use crate::ui::messages::Message;
 use crate::ui::messages::tag_message::TagMessage;
 use crate::ui::messages::catalogue_message::CatalogueMessage;
@@ -7,7 +9,7 @@ use crate::agent::agent_tag::*;
 use crate::agent::sprite::*;
 
 use iced::widget::{ row, column, Column, text, text_input, button, radio, checkbox, pick_list, scrollable, horizontal_rule };
-use iced::{ Alignment, Length };
+use iced::{ alignment, Alignment, Length, theme };
 
 pub fn properties(tag: &AgentTag) -> Column<Message> {
 	let supported_game_index = match tag.supported_game {
@@ -62,8 +64,9 @@ pub fn properties(tag: &AgentTag) -> Column<Message> {
 	if tag.scripts.is_empty() && tag.catalogues.is_empty() && tag.sounds.is_empty() && tag.backgrounds.is_empty() {
 		convert_to_egg = convert_to_egg.push(horizontal_rule(1));
 		convert_to_egg = convert_to_egg.push(
-			button("Convert to Egg Tag")
+			button(text("Convert to Egg Tag").width(Length::Fill).horizontal_alignment(alignment::Horizontal::Center))
 				.on_press(Message::Tag(TagMessage::ConvertToEgg))
+				.style(theme::Button::Secondary)
 				.width(Length::FillPortion(1))
 		);
 	}
@@ -71,11 +74,14 @@ pub fn properties(tag: &AgentTag) -> Column<Message> {
 	column![
 		column![
 			row![
+				tag_icon(),
 				text(format!("Agent Tag \"{}\"", &tag.name)).width(Length::Fill),
-				button("x").on_press(Message::Tag(TagMessage::Remove))
+				button(delete_icon())
+					.on_press(Message::Tag(TagMessage::Remove))
+					.style(theme::Button::Destructive)
 			].spacing(5).align_items(Alignment::Center),
 			horizontal_rule(1),
-		].padding([20, 20, 0, 20]).spacing(20),
+		].padding([30, 30, 0, 30]).spacing(20),
 		scrollable(
 			column![
 				row![
@@ -104,33 +110,42 @@ pub fn properties(tag: &AgentTag) -> Column<Message> {
 				preview,
 				removescript,
 				convert_to_egg
-			].padding(20).spacing(20)
+			].padding(30).spacing(20)
 		).height(Length::Fill)
 	]
 }
 
-pub fn listing(tag: &AgentTag) -> Column<Message> {
+pub fn listing(tag: &AgentTag, selection_type: SelectionType) -> Column<Message> {
 	let mut listing = column![
 		row![
-			button("+ Add File").on_press(Message::Tag(TagMessage::AddFile)),
-			button("+ Add Inline Catalogue").on_press(Message::Catalogue(CatalogueMessage::AddInlineCatalogue))
+			button(row![add_icon(), text("Add File")].spacing(5))
+				.on_press(Message::Tag(TagMessage::AddFile))
+				.style(theme::Button::Secondary),
+			button(row![add_icon(), text("Add Inline Catalogue")].spacing(5))
+				.on_press(Message::Catalogue(CatalogueMessage::AddInlineCatalogue))
+				.style(theme::Button::Secondary)
 		].spacing(5)
 	].spacing(20);
 
 	if !tag.scripts.is_empty() {
-		listing = listing.push(script_view::list(&tag.scripts));
+		let script_index = if let SelectionType::Script(index) = selection_type { Some(index) } else { None };
+		listing = listing.push(script_view::list(&tag.scripts, script_index));
 	}
 	if !tag.sprites.is_empty() {
-		listing = listing.push(sprite_view::list(&tag.sprites));
+		let sprite_index = if let SelectionType::Sprite(index) = selection_type { Some(index) } else { None };
+		listing = listing.push(sprite_view::list(&tag.sprites, sprite_index));
 	}
 	if !tag.backgrounds.is_empty() {
-		listing = listing.push(background_view::list(&tag.backgrounds));
+		let background_index = if let SelectionType::Background(index) = selection_type { Some(index) } else { None };
+		listing = listing.push(background_view::list(&tag.backgrounds, background_index));
 	}
 	if !tag.sounds.is_empty() {
-		listing = listing.push(sound_view::list(&tag.sounds));
+		let sound_index = if let SelectionType::Sound(index) = selection_type { Some(index) } else { None };
+		listing = listing.push(sound_view::list(&tag.sounds, sound_index));
 	}
 	if !tag.catalogues.is_empty() {
-		listing = listing.push(catalogue_view::list(&tag.catalogues));
+		let catalogue_index = if let SelectionType::Catalogue(index) = selection_type { Some(index) } else { None };
+		listing = listing.push(catalogue_view::list(&tag.catalogues, catalogue_index));
 	}
 
 	listing

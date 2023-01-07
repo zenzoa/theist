@@ -1,7 +1,9 @@
+pub mod icons;
 pub mod messages;
 pub mod dialogs;
 pub mod views;
 
+use icons::*;
 use messages::{ Message, check_message };
 use messages::file_message::FileMessage;
 use messages::tag_message::TagMessage;
@@ -13,9 +15,10 @@ use crate::agent::agent_tag::*;
 
 use std::str;
 use std::path::Path;
-use iced::widget::{ row, column, text, button, scrollable, horizontal_space, horizontal_rule, vertical_rule };
-use iced::{ Application, Command, Element, executor, Length, subscription, Subscription, Theme };
+use iced::widget::{ row, column, container, text, button, scrollable, horizontal_space, horizontal_rule };
+use iced::{ alignment, Application, Command, Element, executor, Length, subscription, Subscription, theme, Theme };
 
+#[derive(Clone)]
 pub enum SelectionType {
 	Tag,
 	Script(usize),
@@ -89,30 +92,44 @@ impl Application for Main {
 
 	fn view(&self) -> Element<Message> {
 		let toolbar = row![
-			button("New").on_press(Message::File(FileMessage::New)),
-			button("Open").on_press(Message::File(FileMessage::Open)),
-			button("Save").on_press(Message::File(FileMessage::Save)),
-			button("Save As").on_press(Message::File(FileMessage::SaveAs)),
+			button(row![new_icon(), text("New")].spacing(5))
+				.on_press(Message::File(FileMessage::New))
+				.style(theme::Button::Secondary),
+			button(row![open_icon(), text("Open")].spacing(5))
+				.on_press(Message::File(FileMessage::Open))
+				.style(theme::Button::Secondary),
+			button(row![save_icon(), text("Save")].spacing(5))
+				.on_press(Message::File(FileMessage::Save))
+				.style(theme::Button::Secondary),
+			button("Save As")
+				.on_press(Message::File(FileMessage::SaveAs))
+				.style(theme::Button::Secondary),
 			horizontal_space(Length::Fill),
-			button("Compile").on_press(Message::File(FileMessage::Compile))
+			button(row![compile_icon(), text("Compile")].spacing(5))
+				.on_press(Message::File(FileMessage::Compile))
+				.style(theme::Button::Secondary)
 		].padding(10).spacing(5);
 
 		let mut tabs = row![].spacing(5);
 
 		for (i, tag) in self.tags.iter().enumerate() {
+			let selection_is_tag = matches!(self.selection_type, SelectionType::Tag);
+			let selected = if let Some(index) = self.selected_tag { i == index } else { false };
 			let tag_name = match tag {
 				Tag::Agent(agent_tag) => &agent_tag.name,
 				Tag::Egg(egg_tag) => &egg_tag.name,
 				Tag::Empty => ""
 			};
 			tabs = tabs.push(
-				button(tag_name)
+				button(text(tag_name).horizontal_alignment(alignment::Horizontal::Center))
 					.on_press(Message::Tag(TagMessage::Select(Some(i))))
+					.style(if selected { theme::Button::Primary } else { theme::Button::Secondary })
 					.width(Length::FillPortion(1))
 			);
 		}
 
-		tabs = tabs.push(button("+").on_press(Message::Tag(TagMessage::Add)));
+		tabs = tabs.push(button(add_icon())
+			.on_press(Message::Tag(TagMessage::Add)));
 
 		let mut tab_contents = column![];
 		let mut current_properties = column![];
@@ -121,7 +138,7 @@ impl Application for Main {
 			if let Some(tag) = self.tags.get(selected_tag) {
 				match tag {
 					Tag::Agent(tag) => {
-						tab_contents = agent_tag_view::listing(tag);
+						tab_contents = agent_tag_view::listing(tag, self.selection_type.clone());
 						match self.selection_type {
 							SelectionType::Script(index) => {
 								if let Some(script) = tag.scripts.get(index) {
@@ -154,7 +171,7 @@ impl Application for Main {
 						}
 					},
 					Tag::Egg(tag) => {
-						tab_contents = egg_tag_view::listing(tag);
+						tab_contents = egg_tag_view::listing(tag, self.selection_type.clone());
 						match self.selection_type {
 							SelectionType::Genetics(index) => {
 								if let Some(genetics) = tag.genetics.get(index) {
@@ -182,41 +199,47 @@ impl Application for Main {
 		}
 
 		let main_pane = column![
-			tabs.padding([20, 20, 0, 20]),
+			tabs.padding([30, 30, 10, 30]),
 			scrollable(
-				tab_contents.padding(20)
+				tab_contents.padding([0, 30, 30, 30])
 			).height(Length::Fill)
-		].width(Length::FillPortion(3));
+		];
 
-		let properties_pane = column![
-			current_properties
-		].spacing(5).width(Length::FillPortion(2));
+		let mut alerts_container = column![];
 
-		let mut alerts_pane = column![
-			text("Alerts")
-		].padding(10).spacing(5);
+		if !self.alerts.is_empty() {
+			let mut alerts_pane = column![
+				text("Alerts")
+			].padding(10).spacing(5);
 
-		for alert in &self.alerts {
-			match alert {
-				Alert::Update(message) => {
-					alerts_pane = alerts_pane.push(text(&message));
-				},
-				Alert::Error(message) => {
-					alerts_pane = alerts_pane.push(text(&message));
+			for alert in &self.alerts {
+				match alert {
+					Alert::Update(message) => {
+						alerts_pane = alerts_pane.push(text(&message));
+					},
+					Alert::Error(message) => {
+						alerts_pane = alerts_pane.push(text(&message));
+					}
 				}
 			}
+
+			alerts_container = column![
+				horizontal_rule(1),
+				alerts_pane
+			]
 		}
 
 		column![
 			toolbar,
 			horizontal_rule(1),
 			row![
-					main_pane,
-					vertical_rule(1),
-					properties_pane
+					main_pane.width(Length::FillPortion(1)),
+					container(current_properties)
+						.style(theme::Container::Box)
+						.width(Length::FillPortion(1))
+						.height(Length::Fill)
 				].height(Length::Fill),
-			horizontal_rule(1),
-			alerts_pane
+			alerts_container
 		].into()
 	}
 
