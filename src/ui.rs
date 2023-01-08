@@ -16,7 +16,7 @@ use crate::agent::agent_tag::*;
 use std::str;
 use std::path::Path;
 use iced::widget::{ row, column, container, text, button, scrollable, horizontal_space, horizontal_rule };
-use iced::{ alignment, Application, Command, Element, executor, Length, subscription, Subscription, theme, Theme };
+use iced::{ alignment, Alignment, Application, Command, Element, executor, Length, subscription, Subscription, theme, Theme };
 
 #[derive(Clone)]
 pub enum SelectionType {
@@ -110,7 +110,7 @@ impl Application for Main {
 				.style(theme::Button::Secondary)
 		].padding(10).spacing(5);
 
-		let mut tabs = row![].spacing(5);
+		let mut tabs = row![].spacing(5).align_items(Alignment::Center);
 
 		for (i, tag) in self.tags.iter().enumerate() {
 			let selection_is_tag = matches!(self.selection_type, SelectionType::Tag);
@@ -121,10 +121,20 @@ impl Application for Main {
 				Tag::Empty => ""
 			};
 			tabs = tabs.push(
-				button(text(tag_name).horizontal_alignment(alignment::Horizontal::Center))
+				button(
+					button(
+						text(tag_name)
+							.horizontal_alignment(alignment::Horizontal::Center)
+							.width(Length::Fill)
+					)
 					.on_press(Message::Tag(TagMessage::Select(Some(i))))
-					.style(if selected { theme::Button::Primary } else { theme::Button::Secondary })
-					.width(Length::FillPortion(1))
+					.style(if selected && selection_is_tag { theme::Button::Primary } else { theme::Button::Secondary })
+					.width(Length::Fill)
+				)
+				.on_press(Message::Tag(TagMessage::Select(Some(i))))
+				.padding(2)
+				.style(if selected { theme::Button::Primary } else { theme::Button::Text })
+				.width(Length::FillPortion(1))
 			);
 		}
 
@@ -199,7 +209,7 @@ impl Application for Main {
 		}
 
 		let main_pane = column![
-			tabs.padding([30, 30, 10, 30]),
+			tabs.padding([30, 30, 10, 28]),
 			scrollable(
 				tab_contents.padding([0, 30, 30, 30])
 			).height(Length::Fill)
