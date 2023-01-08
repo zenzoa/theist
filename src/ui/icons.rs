@@ -77,3 +77,15 @@ pub fn genetics_icon() -> Text<'static> {
 pub fn body_data_icon() -> Text<'static> {
 	icon('\u{F19D}')
 }
+
+pub fn alert_icon() -> Text<'static> {
+	icon('\u{F129}')
+}
+
+pub fn error_icon() -> Text<'static> {
+	icon('\u{F12E}')
+}
+
+pub fn dismiss_icon() -> Text<'static> {
+	icon('\u{F134}')
+}

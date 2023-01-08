@@ -14,6 +14,8 @@ use crate::agent::body_data::*;
 
 use std::str;
 use std::io::Cursor;
+use std::io::Error as ioError;
+use std::io::ErrorKind;
 use std::error::Error;
 use std::collections::HashMap;
 use bytes::{ Bytes, BytesMut, Buf, BufMut };
@@ -211,14 +213,10 @@ pub fn decode(contents: &[u8]) -> Result<(Vec<Tag>, Vec<FileData>), Box<dyn Erro
 		if file_id == "PRAY" {
 			while buffer.len() >= 144 {
 				let block_header = read_block_header(&mut buffer);
-				if block_header.is_compressed {
-					println!("ERROR: Unable to extract compressed data from block {} {}", block_header.block_type, block_header.name);
-					if buffer.len() >= block_header.size_compressed {
-						buffer.advance(block_header.size_compressed);
-					} else {
-						println!("ERROR: File ends before block {} {} ends", block_header.block_type, block_header.name);
-						break;
-					}
+				if block_header.is_compressed || block_header.size_compressed != block_header.size {
+					return Err(Box::new(ioError::new(ErrorKind::Other,
+						format!("Unable to extract compressed data from block {} {}", block_header.block_type, block_header.name)
+					)));
 				} else if buffer.len() >= block_header.size {
 					match block_header.block_type.as_str() {
 						"AGNT" => {
@@ -287,15 +285,19 @@ pub fn decode(contents: &[u8]) -> Result<(Vec<Tag>, Vec<FileData>), Box<dyn Erro
 							}
 						},
 						_ => {
-							println!("ERROR: Unknown block {} {}", block_header.block_type, block_header.name);
-							buffer.advance(block_header.size);
+							return Err(Box::new(ioError::new(ErrorKind::Other,
+								format!("Unknown block {} {}", block_header.block_type, block_header.name)
+							)));
 						}
 					}
 				} else {
-					println!("ERROR: File ends before block {} {} ends", block_header.block_type, block_header.name);
-					break;
+					return Err(Box::new(ioError::new(ErrorKind::Other,
+						format!("File ends before block {} {} ends", block_header.block_type, block_header.name)
+					)));
 				}
 			}
+		} else {
+			return Err(Box::new(ioError::new(ErrorKind::Other, "Incorrect file header")));
 		}
 	}
 

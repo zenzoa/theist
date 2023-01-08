@@ -208,17 +208,33 @@ impl Application for Main {
 		let mut alerts_container = column![];
 
 		if !self.alerts.is_empty() {
-			let mut alerts_pane = column![
-				text("Alerts")
-			].padding(10).spacing(5);
+			let mut alerts_pane = column![].padding(10).spacing(5);
 
-			for alert in &self.alerts {
+			for (i, alert) in self.alerts.iter().enumerate() {
 				match alert {
 					Alert::Update(message) => {
-						alerts_pane = alerts_pane.push(text(&message));
+						alerts_pane = alerts_pane.push(
+							button(
+								row![
+									alert_icon(),
+									text(&message).width(Length::Fill),
+									dismiss_icon()
+								].spacing(5))
+								.on_press(Message::DismissAlert(i))
+								.style(theme::Button::Positive)
+						)
 					},
 					Alert::Error(message) => {
-						alerts_pane = alerts_pane.push(text(&message));
+						alerts_pane = alerts_pane.push(
+							button(
+								row![
+									error_icon(),
+									text(&message).width(Length::Fill),
+									dismiss_icon()
+								].spacing(5))
+								.on_press(Message::DismissAlert(i))
+								.style(theme::Button::Destructive)
+						)
 					}
 				}
 			}
@@ -254,6 +270,10 @@ impl Main {
 				Alert::Update(contents.to_string())
 			}
 		);
+	}
+
+	fn clear_alerts(&mut self) {
+		self.alerts.clear();
 	}
 
 	fn set_path_and_name(&mut self, path: &Path) {

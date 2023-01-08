@@ -28,6 +28,7 @@ use iced::keyboard::Event::KeyPressed;
 #[derive(Debug, Clone)]
 pub enum Message {
 	EventOccurred(Event),
+	DismissAlert(usize),
 	File(FileMessage),
 	Tag(TagMessage),
 	Script(ScriptMessage),
@@ -88,6 +89,10 @@ pub fn check_message(main: &mut Main, message: Message) {
 				},
 				_ => ()
 			}
+		},
+
+		Message::DismissAlert(index) => {
+			main.alerts.remove(index);
 		},
 
 		Message::File(msg) => check_file_message(main, msg),

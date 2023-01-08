@@ -69,8 +69,7 @@ pub fn new_file(main: &mut Main) {
 pub fn open_file(main: &mut Main) {
 	if !main.modified || confirm_discard_changes() {
 		let file = FileDialog::new()
-			.add_filter("theist", &["the", "txt"])
-			.add_filter("agent", &["agent", "agents"])
+			.add_filter("theist or agent", &["the", "txt", "agent", "agents"])
 			.set_directory(&main.path)
 			.pick_file();
 		if let Some(path) = file {
@@ -80,52 +79,56 @@ pub fn open_file(main: &mut Main) {
 }
 
 pub fn open_file_from_path(main: &mut Main, path: PathBuf) {
-	main.set_path_and_name(&path);
+	main.clear_alerts();
 
+	let filepath = match path.parent() {
+		Some(parent) => parent.to_string_lossy().into_owned() + "/",
+		None => String::from("")
+	};
+	let filename = match path.file_name() {
+		Some(filename) => filename.to_string_lossy().into_owned(),
+		None => String::from("untitled.the")
+	};
 	let extension = match path.extension() {
 		Some(extension) => extension.to_string_lossy().into_owned(),
 		None => String::from("")
 	};
 
-	match fs::read(format!("{}{}", &main.path, &main.filename)) {
+	match fs::read(format!("{}{}", &filepath, &filename)) {
 		Ok(contents) => {
 			if extension == "agent" || extension == "agents" {
 				match pray::decode(&contents) {
 					Ok((tags, files)) => {
+						main.set_path_and_name(&path);
 						main.tags = tags;
+						if main.tags.is_empty() {
+							main.selected_tag = None;
+						} else {
+							main.selected_tag = Some(0);
+						}
 						main.files = files;
+						main.modified = false;
 					},
-					Err(why) => {
-						main.add_alert("Unable to understand file", true);
-						println!("ERROR: Unable to understand file: {}", why);
-					}
+					Err(why) => main.add_alert(format!("ERROR: {}", why).as_str(), true)
 				}
 			} else {
 				match str::from_utf8(&contents) {
 					Ok(contents) => {
+						main.set_path_and_name(&path);
 						main.tags = decode_source(contents, &main.path);
-						// TODO - parse_source should send back any alerts
 						if main.tags.is_empty() {
+							main.selected_tag = None;
 							main.add_alert("No tags found in file", true);
+						} else {
+							main.selected_tag = Some(0);
 						}
+						main.modified = false;
 					},
-					Err(why) => {
-						main.add_alert("Unable to understand file", true);
-						println!("ERROR: Unable to understand file: {}", why);
-					}
+					Err(why) => main.add_alert(format!("ERROR: {}", why).as_str(), true)
 				}
 			}
-			if main.tags.is_empty() {
-				main.selected_tag = None;
-			} else {
-				main.selected_tag = Some(0);
-			}
-			main.modified = false;
 		},
-		Err(why) => {
-			main.add_alert("Unable to open file", true);
-			println!("ERROR: Unable to open file: {}", why);
-		}
+		Err(why) => main.add_alert(format!("ERROR: Unable to open file: {}", why).as_str(), true)
 	}
 }
 
@@ -164,6 +167,8 @@ pub fn save_file_as(main: &mut Main, default_filename: String) {
 }
 
 pub fn save_file_to_path(main: &mut Main, path: PathBuf) {
+	main.clear_alerts();
+
 	main.set_path_and_name(&path);
 	let data = encode_source(main.tags.clone());
 	let filepath = format!("{}{}", main.path, main.filename);
@@ -175,26 +180,30 @@ pub fn save_file_to_path(main: &mut Main, path: PathBuf) {
 			}
 		},
 		Err(why) => {
-			println!("ERROR: {}", why);
+			main.add_alert(format!("ERROR: {}", why).as_str(), true);
 		}
 	}
 }
 
 pub fn extract_files(main: &mut Main) {
+	let mut alerts: Vec<String> = Vec::new();
 	for inline_file in &main.files {
 		match File::create(format!("{}{}", &main.path, &inline_file.name)) {
 			Ok(mut file) => {
 				file.write_all(&inline_file.data).unwrap();
 			},
 			Err(why) => {
-				// main.add_alert(format!("Unable to extract file {}", &inline_file.name).as_str(), true);
-				println!("ERROR: Unable to extract file {}: {}", &inline_file.name, why);
+				alerts.push(format!("ERROR: Unable to extract file {}: {}", &inline_file.name, why));
 			}
 		}
+	}
+	for alert in alerts {
+		main.add_alert(alert.as_str(), true);
 	}
 }
 
 pub fn compile(main: &mut Main) {
+	main.clear_alerts();
 	let extension = if main.tags.len() > 1 { ".agents" } else { ".agent" };
 	let filename = main.filename.replace(".the", extension).replace(".txt", extension);
 	let file = FileDialog::new()
@@ -205,6 +214,7 @@ pub fn compile(main: &mut Main) {
 		let data = agent::compile(main.tags.clone());
 		if let Ok(mut file) = File::create(path) {
 			file.write_all(&data).unwrap();
+			main.add_alert(format!("SUCCESS! File compiled successfully: {}", &filename).as_str(), false);
 		}
 	}
 }
@@ -220,6 +230,8 @@ pub fn add_file(main: &mut Main) {
 }
 
 pub fn add_file_from_path(main: &mut Main, file_path: PathBuf, file_dropped: bool) {
+	main.clear_alerts();
+
 	let path = match file_path.parent() {
 		Some(parent) => parent.to_string_lossy().into_owned() + "/",
 		None => String::from("")
