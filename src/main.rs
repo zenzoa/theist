@@ -14,7 +14,7 @@ use std::io::prelude::*;
 use regex::Regex;
 use image::RgbaImage;
 use image::io::Reader as ImageReader;
-use iced::{ Application, Settings };
+use iced::{ Application, Settings, window };
 
 pub fn main() -> iced::Result {
 	let mut action = String::from("");
@@ -130,7 +130,14 @@ pub fn main() -> iced::Result {
 }
 
 fn start_gui() -> iced::Result {
-	let settings = Settings::<()> { exit_on_close_request: false, ..Default::default() };
+	let settings = Settings::<()> {
+		window: window::Settings {
+			icon: Some(window::icon::Icon::from_file_data(include_bytes!("../images/theist.png"), None).unwrap()),
+			..window::Settings::default()
+		},
+		exit_on_close_request: false,
+		..Default::default()
+	};
 	ui::Main::run(settings)
 }
 
