@@ -6,34 +6,34 @@ use std::error::Error;
 use bytes::Bytes;
 
 #[derive(Clone)]
-pub struct Sound {
+pub struct BodyData {
 	pub output_filename: String,
 	pub input_filename: String,
 	pub data: Option<Bytes>
 }
 
-impl Sound {
-	// pub fn new(input_filename: &String) -> Result<Sound, Box<dyn Error>> {
-	// 	if file_helper::extension(input_filename) == "wav" {
-	// 		Ok(Sound{
+impl BodyData {
+	// pub fn new(input_filename: &String) -> Result<BodyData, Box<dyn Error>> {
+	// 	if file_helper::extension(input_filename) == "att" {
+	// 		Ok(BodyData{
 	// 			output_filename: file_helper::filename(input_filename),
 	// 			input_filename: input_filename.to_string(),
 	// 			data: None
 	// 		})
 	// 	} else {
-	// 		Err(create_error("Unrecognized file type. Sound must be a WAV file."))
+	// 		Err(create_error("Unrecognized file type. Body data must be a ATT file."))
 	// 	}
 	// }
 
-	pub fn new_from_data(input_filename: &String, data: &mut Bytes) -> Result<Sound, Box<dyn Error>> {
-		if file_helper::extension(input_filename) == "wav" {
-			Ok(Sound{
+	pub fn new_from_data(input_filename: &String, data: &mut Bytes) -> Result<BodyData, Box<dyn Error>> {
+		if file_helper::extension(input_filename) == "att" {
+			Ok(BodyData{
 				output_filename: file_helper::filename(input_filename),
 				input_filename: input_filename.to_string(),
 				data: Some(data.clone())
 			})
 		} else {
-			Err(create_error("Unrecognized file type. Sound must be a WAV file."))
+			Err(create_error("Unrecognized file type. Body data must be a ATT file."))
 		}
 	}
 
@@ -46,7 +46,7 @@ impl Sound {
 	}
 
 	pub fn get_extension(&self) -> String {
-		"wav".to_string()
+		"att".to_string()
 	}
 
 	pub fn get_data(&self) -> Option<Bytes> {

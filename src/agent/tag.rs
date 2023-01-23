@@ -1,269 +1,59 @@
-use crate::agent::*;
-use crate::agent::background::*;
-use crate::agent::agent_tag::*;
-use crate::agent::egg_tag::*;
-
-use std::str;
-use regex::Regex;
+use std::error::Error;
 use bytes::Bytes;
+use crate::agent::file::CreaturesFile;
 
-#[derive(Clone)]
-pub enum Tag {
-	Empty,
-	Agent(AgentTag),
-	Egg(EggTag)
+pub trait Tag {
+	fn get_type(&self) -> String;
+	fn get_name(&self) -> String;
+	fn get_scripts(&self) -> Vec<String> { Vec::new() }
+	fn does_use_all_files(&self) -> bool { false }
+	fn add_files(&mut self, _files: &[CreaturesFile]) {}
+	fn write_block(&self, files: &[CreaturesFile]) -> Result<Bytes, Box<dyn Error>>;
+	fn encode(&self) -> String;
+	fn split(&self) -> Vec<Box<dyn Tag>>;
 }
 
-impl Tag {
-	pub fn set_name(&mut self, new_name: String) {
-		match self {
-			Tag::Agent(tag) => {
-				tag.name = new_name;
-			},
-			Tag::Egg(tag) => {
-				tag.name = new_name;
-			},
-			Tag::Empty => ()
-		}
-	}
+pub fn split_tags(base_tags: Vec<Box<dyn Tag>>, base_files: Vec<CreaturesFile>) -> (Vec<Box<dyn Tag>>, Vec<CreaturesFile>) {
+	let mut tags: Vec<Box<dyn Tag>> = Vec::new();
+	let mut files: Vec<CreaturesFile> = Vec::new();
 
-	pub fn set_description(&mut self, new_description: String) {
-		if let Tag::Agent(tag) = self {
-			tag.description = new_description;
-		}
-	}
+	for tag in &base_tags {
+		let scripts_before = tag.get_scripts();
 
-	pub fn set_version(&mut self, new_version: String) {
-		match self {
-			Tag::Agent(tag) => {
-				tag.version = new_version;
-			},
-			Tag::Egg(tag) => {
-				tag.version = new_version;
-			},
-			Tag::Empty => ()
-		}
-	}
+		let mut new_tags = tag.split();
 
-	pub fn set_supported_game(&mut self, new_supported_game: usize) {
-		if let Tag::Agent(tag) = self {
-			tag.supported_game = match new_supported_game {
-				1 => SupportedGame::C3,
-				2 => SupportedGame::DS,
-				_ => SupportedGame::C3DS
-			};
-		}
-	}
+		if new_tags.len() > 1 {
+			for file in &base_files {
+				if let CreaturesFile::Script(script) = file {
+					let mut script_in_list = false;
 
-	pub fn set_preview_auto(&mut self, is_auto: bool) {
-		if let Tag::Agent(tag) = self {
-			tag.preview = if is_auto {
-				Preview::Auto
-			} else {
-				let first_sprite_name = if let Some(sprite) = tag.sprites.get(0) {
-					match sprite {
-						Sprite::C16{ filename, .. } => filename.title.clone(),
-						Sprite::Frames{ filename, .. } => filename.title.clone()
+					for before_script in &scripts_before {
+						if before_script == &script.get_output_filename() {
+							script_in_list = true;
+						}
 					}
-				} else {
-					String::from("")
-				};
-				Preview::Manual {
-					sprite: first_sprite_name,
-					animation: "0".to_string()
-				}
-			};
-		}
-	}
 
-	pub fn set_preview_sprite(&mut self, new_sprite: String) {
-		if let Tag::Agent(tag) = self {
-			if let Preview::Manual{ animation, .. } = &tag.preview {
-				tag.preview = Preview::Manual{
-					sprite: new_sprite,
-					animation: animation.clone()
+					if script_in_list {
+						let mut c3_file = script.clone();
+						c3_file.output_filename = format!("{} C3.cos", &c3_file.get_title());
+						files.push(CreaturesFile::Script(c3_file));
+
+						let mut ds_file = script.clone();
+						ds_file.output_filename = format!("{} DS.cos", &ds_file.get_title());
+						files.push(CreaturesFile::Script(ds_file));
+
+					} else {
+						files.push(file.clone());
+					}
+
+				} else {
+					files.push(file.clone());
 				}
 			}
 		}
+
+		tags.append(&mut new_tags);
 	}
 
-	pub fn set_female_preview_sprite(&mut self, new_sprite: String) {
-		if let Tag::Egg(tag) = self {
-			tag.preview_sprite_female = new_sprite;
-		}
-	}
-
-	pub fn set_male_preview_sprite(&mut self, new_sprite: String) {
-		if let Tag::Egg(tag) = self {
-			tag.preview_sprite_male = new_sprite;
-		}
-	}
-
-	pub fn set_preview_animation(&mut self, new_animation: String) {
-		match self {
-			Tag::Agent(tag) => {
-				if let Preview::Manual{ sprite, .. } = &tag.preview {
-					tag.preview = Preview::Manual{
-						sprite: sprite.clone(),
-						animation: new_animation
-					};
-				}
-			},
-			Tag::Egg(tag) => {
-				tag.preview_animation = new_animation;
-			},
-			Tag::Empty => ()
-		}
-	}
-
-	pub fn set_removescript_auto(&mut self, is_auto: bool) {
-		if let Tag::Agent(tag) = self {
-			tag.removescript = if is_auto {
-				RemoveScript::Auto
-			} else {
-				RemoveScript::Manual("".to_string())
-			};
-		}
-	}
-
-	pub fn set_removescript_string(&mut self, new_removescript: String) {
-		if let Tag::Agent(tag) = self {
-			tag.removescript = RemoveScript::Manual(new_removescript);
-		}
-	}
-
-	pub fn add_data(&mut self) {
-		match self {
-			Tag::Agent(tag) => {
-				println!("Get data for agent tag \"{}\"", tag.name);
-
-				let path = &tag.filepath;
-
-				// script files
-				for script in tag.scripts.iter_mut() {
-					tag.script_files.push(match script.get_data(path) {
-						Ok(data) => data,
-						Err(_why) => Bytes::new()
-					});
-				}
-
-				// sprite files
-				for sprite in tag.sprites.iter_mut() {
-					tag.sprite_files.push(match sprite.get_data(path) {
-						Ok(data) => data,
-						Err(_why) => Bytes::new()
-					});
-				}
-
-				// background files
-				for background in tag.backgrounds.iter_mut() {
-					tag.background_files.push(match background.get_data(path) {
-						Ok(data) => data,
-						Err(_why) => Bytes::new()
-					});
-					*background = Background::Blk {
-						filename: Filename::new(format!("{}.blk", background.get_title()).as_str())
-					}
-				}
-
-				// sound files
-				for sound in tag.sounds.iter_mut() {
-					tag.sound_files.push(match sound.get_data(path) {
-						Ok(data) => data,
-						Err(_why) => Bytes::new()
-					});
-				}
-
-				// catalogue files
-				for catalogue in tag.catalogues.iter_mut() {
-					tag.catalogue_files.push(match catalogue.get_data(path) {
-						Ok(data) => data,
-						Err(_why) => Bytes::new()
-					});
-				}
-
-				// remove script
-				if !tag.script_files.is_empty() {
-					if let RemoveScript::Auto = tag.removescript {
-						match str::from_utf8(&tag.script_files[0]) {
-							Ok(script) => {
-								let removescript_pattern = Regex::new(r"[\n\r]rscr[\n\r]([\s\S]*)").unwrap();
-								match removescript_pattern.captures(script) {
-									Some(captures) => {
-										match captures.get(1) {
-											Some(removescript) => {
-												let remove_newlines_pattern = Regex::new(r"\s+").unwrap();
-												let removescript = String::from(
-													remove_newlines_pattern.replace_all(removescript.as_str(), " ").trim()
-												);
-												println!("  Remove script extracted from first script");
-												tag.removescript = RemoveScript::Manual(removescript);
-											},
-											None => {
-												println!("ERROR: No remove script found in first script.");
-												tag.removescript = RemoveScript::None;
-											}
-										}
-
-									},
-									None => {
-										println!("ERROR: No remove script found in first script.");
-										tag.removescript = RemoveScript::None;
-									}
-								}
-							},
-							Err(why) => {
-								println!("ERROR: Unable to extract remove script from first script: {}", why);
-								tag.removescript = RemoveScript::None;
-							}
-						}
-					}
-				}
-
-				// injector preview
-				if !tag.sprites.is_empty() {
-					if let Preview::Auto = tag.preview {
-						let sprite_name = &tag.sprites.get(0).unwrap().get_title();
-						tag.preview = Preview::Manual {
-							sprite: String::from(sprite_name),
-							animation: String::from("0")
-						};
-						println!("  Injector preview generated");
-					}
-				}
-			},
-
-			Tag::Egg(tag) => {
-				println!("Get data for egg tag \"{}\"", tag.name);
-
-				let path = &tag.filepath;
-
-				// genetics files
-				for genetics in tag.genetics.iter_mut() {
-					tag.genetics_files.push(match genetics.get_data(path) {
-						Ok(data) => data,
-						Err(_why) => Bytes::new()
-					});
-				}
-
-				// sprite files
-				for sprite in tag.sprites.iter_mut() {
-					tag.sprite_files.push(match sprite.get_data(path) {
-						Ok(data) => data,
-						Err(_why) => Bytes::new()
-					});
-				}
-
-				// body data files
-				for body_data in tag.body_data.iter_mut() {
-					tag.body_data_files.push(match body_data.get_data(path) {
-						Ok(data) => data,
-						Err(_why) => Bytes::new()
-					});
-				}
-			},
-
-			Tag::Empty => ()
-		}
-	}
+	(tags, files)
 }

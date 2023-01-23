@@ -1,90 +1,105 @@
-use crate::agent::*;
-use crate::agent::egg_tag::*;
-use crate::agent::background::*;
+use super::tag::Tag;
+use super::file::CreaturesFile;
+use crate::pray::agent_block::write_agent_block;
+use crate::source::agent_tag;
+use crate::file_helper;
 
-use std::fmt;
+use std::error::Error;
 use bytes::Bytes;
 
 #[derive(Clone)]
 pub struct AgentTag {
-	pub filepath: String,
 	pub name: String,
 	pub version: String,
+
 	pub description: String,
 	pub supported_game: SupportedGame,
-	pub removescript: RemoveScript,
+	pub remove_script: RemoveScript,
 	pub preview: Preview,
 
-	pub scripts: ScriptList,
-	pub sprites: SpriteList,
-	pub backgrounds: BackgroundList,
-	pub sounds: SoundList,
-	pub catalogues: CatalogueList,
+	pub scripts: Vec<String>,
+	pub sprites: Vec<String>,
+	pub sounds: Vec<String>,
+	pub catalogues: Vec<String>,
 
-	pub script_files: Vec<Bytes>,
-	pub sprite_files: Vec<Bytes>,
-	pub background_files: Vec<Bytes>,
-	pub sound_files: Vec<Bytes>,
-	pub catalogue_files: Vec<Bytes>
+	pub use_all_files: bool
 }
 
-impl AgentTag {
-	pub fn new(name: String) -> AgentTag {
-		AgentTag {
-			filepath: String::from(""),
-			name,
-			version: String::from(""),
-			description: String::from(""),
-			supported_game: SupportedGame::C3DS,
-			removescript: RemoveScript::Auto,
-			preview: Preview::Auto,
+impl Tag for AgentTag {
+	fn get_type(&self) -> String {
+		"agent".to_string()
+	}
 
-			scripts: ScriptList::new(),
-			sprites: SpriteList::new(),
-			backgrounds: BackgroundList::new(),
-			sounds: SoundList::new(),
-			catalogues: CatalogueList::new(),
+	fn get_name(&self) -> String {
+		self.name.clone()
+	}
 
-			script_files: Vec::new(),
-			sprite_files: Vec::new(),
-			background_files: Vec::new(),
-			sound_files: Vec::new(),
-			catalogue_files: Vec::new()
+	fn get_scripts(&self) -> Vec<String> {
+		self.scripts.clone()
+	}
+
+	fn does_use_all_files(&self) -> bool {
+		self.use_all_files
+	}
+
+	fn add_files(&mut self, files: &[CreaturesFile]) {
+		for file in files {
+			match file.get_extension().as_str() {
+				"cos" => self.scripts.push(file.get_output_filename()),
+				"c16" => self.sprites.push(file.get_output_filename()),
+				"s16" => self.sprites.push(file.get_output_filename()),
+				"blk" => self.sprites.push(file.get_output_filename()),
+				"wav" => self.sounds.push(file.get_output_filename()),
+				"catalogue" => self.catalogues.push(file.get_output_filename()),
+				_ => ()
+			}
 		}
 	}
 
-	pub fn add_inline_catalogue(&mut self) {
-		self.catalogues.push(
-			Catalogue::Inline{
-				filename: Filename::new("my_catalogue.catalogue"),
-				entries: vec![
-					CatalogueEntry::new("0 0 0000", self.name.as_str(), self.description.as_str())
-				]
-			}
-		);
+	fn write_block(&self, files: &[CreaturesFile]) -> Result<Bytes, Box<dyn Error>> {
+		write_agent_block(self, files)
 	}
 
-	pub fn convert_to_egg(&mut self) -> EggTag {
-		let mut egg_tag = EggTag::new(self.name.clone());
-		egg_tag.filepath = self.filepath.clone();
-		egg_tag.version = self.version.clone();
-		egg_tag.sprites = self.sprites.clone();
-		match &self.preview {
-			Preview::Auto => {
-				if let Some(sprite) = &self.sprites.get(0) {
-					egg_tag.preview_sprite_female = sprite.get_title();
-					egg_tag.preview_sprite_male = sprite.get_title();
+	fn encode(&self) -> String {
+		agent_tag::encode(self)
+	}
+
+	fn split(&self) -> Vec<Box<dyn Tag>> {
+		match self.supported_game {
+			SupportedGame::C3DS => {
+				let mut c3_tag = self.clone();
+				c3_tag.name.push_str(" C3");
+				c3_tag.supported_game = SupportedGame::C3;
+				let mut c3_scripts = Vec::new();
+				for script in &mut c3_tag.scripts {
+					c3_scripts.push(format!("{} C3.cos", file_helper::title(script)));
 				}
-				egg_tag.preview_animation = String::from("0");
+				c3_tag.scripts = c3_scripts;
+
+				let mut ds_tag = self.clone();
+				ds_tag.name.push_str(" DS");
+				ds_tag.supported_game = SupportedGame::DS;
+				let mut ds_scripts = Vec::new();
+				for script in &mut ds_tag.scripts {
+					ds_scripts.push(format!("{} DS.cos", file_helper::title(script)));
+				}
+				ds_tag.scripts = ds_scripts;
+
+				vec![ Box::new(c3_tag), Box::new(ds_tag) ]
 			},
-			Preview::Manual{ sprite, animation } => {
-				egg_tag.preview_sprite_female = sprite.clone();
-				egg_tag.preview_sprite_male = sprite.clone();
-				egg_tag.preview_animation = animation.clone();
+
+			_ => {
+				vec![ Box::new(self.clone()) ]
 			}
 		}
-		egg_tag
 	}
+}
+
+#[derive(Clone)]
+pub enum SupportedGame {
+	C3,
+	DS,
+	C3DS
 }
 
 #[derive(Clone, PartialEq)]
@@ -94,18 +109,9 @@ pub enum RemoveScript {
 	Manual(String)
 }
 
-impl fmt::Display for RemoveScript {
-	fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-		match &self {
-			RemoveScript::None => write!(f, ""),
-			RemoveScript::Auto => write!(f, "auto"),
-			RemoveScript::Manual(s) => write!(f, "{}", s),
-		}
-	}
-}
-
 #[derive(Clone, PartialEq)]
 pub enum Preview {
+	None,
 	Auto,
 	Manual { sprite: String, animation: String }
 }

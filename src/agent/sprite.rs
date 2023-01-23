@@ -1,198 +1,230 @@
-use crate::c16;
-use crate::agent::*;
+use crate::image_format::{ c16, s16, blk };
+use crate::error::create_error;
+use crate::file_helper;
 
 use std::fs;
-use std::str;
+use std::io::Cursor;
 use std::error::Error;
-use image::RgbaImage;
-use image::io::Reader as ImageReader;
 use bytes::Bytes;
+use image::io::Reader as ImageReader;
+use image::{ RgbaImage, ImageOutputFormat };
 
 #[derive(Clone)]
 pub enum Sprite {
-	C16 { filename: Filename },
-	Frames { filename: Filename, frames: Vec<SpriteFrame> },
-	// Spritesheet { filename: Filename, source: Filename, cols: u32, rows: u32, tile_width: u32, tile_height: u32 }
-}
-
-impl Sprite {
-	pub fn new(filename: &str) -> Sprite {
-		Sprite::C16 {
-			filename: Filename::new(filename)
-		}
-	}
-
-	pub fn get_filename(&self) -> String {
-		match self {
-			Sprite::C16 { filename } => filename.to_string(),
-			Sprite::Frames { filename, .. } => filename.to_string()
-		}
-	}
-
-	pub fn get_title(&self) -> String {
-		match self {
-			Sprite::C16 { filename } => filename.title.clone(),
-			Sprite::Frames { filename, .. } => filename.title.clone()
-		}
-	}
-
-	pub fn get_data(&self, path: &str) -> Result<Bytes, Box<dyn Error>> {
-		match self {
-			Sprite::C16 { filename, .. } => {
-				let filepath = format!("{}{}", path, filename);
-				let contents = fs::read(&filepath)?;
-				println!("  Got data from {}", &filepath);
-				Ok(Bytes::copy_from_slice(&contents))
-			},
-			Sprite::Frames { frames, .. } => {
-				let mut images: Vec<RgbaImage> = Vec::new();
-				for frame in frames {
-					let filepath = format!("{}{}", path, frame.filename);
-					let image_data = ImageReader::open(&filepath)?;
-					let image = image_data.decode()?;
-					println!("  Got data from {}", &filepath);
-					images.push(image.into_rgba8());
-				}
-				Ok(Bytes::from(c16::encode(images)))
-			}
-		}
-	}
-
-	pub fn set_name(&mut self, new_name: String) {
-		if let Sprite::Frames{ filename, .. } = self {
-			filename.set_title(new_name);
-		}
-	}
-
-	pub fn convert_to_background(&self) -> Option<Background> {
-		if let Sprite::Frames{ frames, .. } = self {
-			if let Some(frame) = frames.get(0) {
-				return Some(Background::new(frame.filename.to_string().as_str()));
-			}
-		}
-		None
-	}
-
-	pub fn add_frame(&mut self, frame_filename: &str) {
-		if let Sprite::Frames{ frames, .. } = self {
-			for existing_frame in frames {
-				if existing_frame.filename.string == frame_filename {
-					return;
-				}
-			}
-		}
-		let new_frame = SpriteFrame::new(frame_filename);
-		match self {
-			Sprite::C16 { filename } => {
-				*self = Sprite::Frames {
-					filename: filename.clone(),
-					frames: vec![ new_frame ]
-				}
-			},
-			Sprite::Frames { frames, .. } => {
-				frames.push(new_frame);
-			}
-		}
-	}
-
-	pub fn remove_frame(&mut self, index: usize) {
-		if let Sprite::Frames{ frames, .. } = self {
-			if index < frames.len() {
-				frames.remove(index);
-			}
-		}
-	}
-
-	pub fn move_frame_up(&mut self, index: usize) {
-		if let Sprite::Frames{ frames, .. } = self {
-			if index > 0 && index < frames.len() {
-				frames.swap(index, index - 1);
-			}
-		}
-	}
-
-	pub fn move_frame_down(&mut self, index: usize) {
-		if let Sprite::Frames{ frames, .. } = self {
-			if index + 1 < frames.len() {
-				frames.swap(index, index + 1);
-			}
-		}
+	Raw {
+		output_filename: String,
+		input_filename: String,
+		data: Option<Bytes>
+	},
+	Png {
+		output_filename: String,
+		frames: Vec<SpriteFrame>, // Blk's only care about first frame
+		data: Option<Bytes>
 	}
 }
 
 #[derive(Clone)]
 pub struct SpriteFrame {
-	pub filename: Filename
+	pub input_filename: String,
+	pub data: Option<Bytes>
+}
+
+impl Sprite {
+	// pub fn new(input_filename: &String) -> Result<Sprite, Box<dyn Error>> {
+	// 	let output_filename = file_helper::filename(input_filename);
+	// 	match file_helper::extension(input_filename).as_str() {
+	// 		"c16" => {
+	// 			Ok(Sprite::Raw{
+	// 				output_filename,
+	// 				input_filename: input_filename.to_string(),
+	// 				data: None
+	// 			})
+	// 		},
+	// 		"s16" => {
+	// 			Ok(Sprite::Raw{
+	// 				output_filename,
+	// 				input_filename: input_filename.to_string(),
+	// 				data: None
+	// 			})
+	// 		},
+	// 		"blk" => {
+	// 			Ok(Sprite::Raw{
+	// 				output_filename,
+	// 				input_filename: input_filename.to_string(),
+	// 				data: None
+	// 			})
+	// 		},
+	// 		"png" => {
+	// 			Ok(Sprite::Png{
+	// 				output_filename,
+	// 				frames: vec![ SpriteFrame::new(input_filename)? ],
+	// 				data: None
+	// 			})
+	// 		},
+	// 		_ => {
+	// 			Err(create_error("Unrecognized file type. Sprite must be a C16, S16, BLK, or PNG."))
+	// 		}
+	// 	}
+	// }
+
+	pub fn new_from_data(input_filename: &String, data: &mut Bytes) -> Result<Sprite, Box<dyn Error>> {
+		let output_filename = file_helper::filename(input_filename);
+		let title = file_helper::title(input_filename);
+		match file_helper::extension(input_filename).as_str() {
+			"c16" => {
+				let images = c16::decode(data)?;
+				let mut frames = Vec::new();
+				for (i, image) in images.iter().enumerate() {
+					let png_filename = format!("{}-{}.png", title, i + 1);
+					let mut png_data = Cursor::new(Vec::new());
+					image.write_to(&mut png_data, ImageOutputFormat::Png)?;
+					frames.push(SpriteFrame::new_from_data(&png_filename, &mut Bytes::from(png_data.into_inner()))?);
+				}
+				Ok(Sprite::Png{
+					output_filename,
+					frames,
+					data: Some(data.clone())
+				})
+			},
+			"s16" => {
+				let images = s16::decode(data)?;
+				let mut frames = Vec::new();
+				for (i, image) in images.iter().enumerate() {
+					let png_filename = format!("{}-{}.png", title, i + 1);
+					let mut png_data = Cursor::new(Vec::new());
+					image.write_to(&mut png_data, ImageOutputFormat::Png)?;
+					frames.push(SpriteFrame::new_from_data(&png_filename, &mut Bytes::from(png_data.into_inner()))?);
+				}
+				Ok(Sprite::Png{
+					output_filename,
+					frames,
+					data: Some(data.clone())
+				})
+			},
+			"blk" => {
+				let image = blk::decode(data)?;
+				let mut blk_data = Cursor::new(Vec::new());
+				image.write_to(&mut blk_data, ImageOutputFormat::Png)?;
+				let png_filename = format!("{}.png", title);
+				Ok(Sprite::Png{
+					output_filename,
+					frames: vec![ SpriteFrame::new_from_data(&png_filename, &mut Bytes::from(blk_data.into_inner()))? ],
+					data: Some(data.clone())
+				})
+			},
+			_ => {
+				Err(create_error(format!("Image {} is not a valid creatures image file.", &input_filename).as_str()))
+			}
+		}
+	}
+
+	pub fn add_frame(&mut self, new_frame: SpriteFrame) {
+		if let Sprite::Png{ frames, .. } = self {
+			let mut frame_already_in_list = false;
+			for frame in frames.iter() {
+				if frame.input_filename == new_frame.input_filename {
+					frame_already_in_list = true;
+				}
+			}
+			if !frame_already_in_list {
+				frames.push(new_frame);
+			}
+		}
+	}
+
+	// pub fn remove_frame(&mut self, index: usize) {
+	// 	if let Sprite::Png{ frames, .. } = self {
+	// 		if index < frames.len() {
+	// 			frames.remove(index);
+	// 		}
+	// 	}
+	// }
+
+	// pub fn move_frame_up(&mut self, index: usize) {
+	// 	if let Sprite::Png{ frames, .. } = self {
+	// 		if index > 0 && index < frames.len() {
+	// 			frames.swap(index, index - 1);
+	// 		}
+	// 	}
+	// }
+
+	// pub fn move_frame_down(&mut self, index: usize) {
+	// 	if let Sprite::Png{ frames, .. } = self {
+	// 		if index + 1 < frames.len() {
+	// 			frames.swap(index, index + 1);
+	// 		}
+	// 	}
+	// }
+
+	pub fn get_output_filename(&self) -> String {
+		match self {
+			Sprite::Raw{ output_filename, .. } => output_filename.to_string(),
+			Sprite::Png{ output_filename, .. } => output_filename.to_string()
+		}
+	}
+
+	pub fn get_title(&self) -> String {
+		file_helper::title(&self.get_output_filename())
+	}
+
+	pub fn get_extension(&self) -> String {
+		file_helper::extension(&self.get_output_filename())
+	}
+
+	pub fn get_data(&self) -> Option<Bytes> {
+		match self {
+			Sprite::Raw{ data, .. } => data.clone(),
+			Sprite::Png{ data, .. } => data.clone()
+		}
+	}
+
+	pub fn fetch_data(&mut self, path: &String) -> Result<(), Box<dyn Error>> {
+		let extension = self.get_extension();
+		match self {
+			Sprite::Raw{ input_filename, data, .. } => {
+				let contents = fs::read(format!("{}{}", path, input_filename))?;
+				*data = Some(Bytes::copy_from_slice(&contents));
+				Ok(())
+			},
+			Sprite::Png{ frames, data, .. } => {
+				let mut images: Vec<RgbaImage> = Vec::new();
+				for frame in frames {
+					let image_data = ImageReader::open(format!("{}{}", path, frame.input_filename))?;
+					let image = image_data.decode()?;
+					images.push(image.into_rgba8());
+				}
+				*data = match extension.as_str() {
+					"c16" => Some(c16::encode(images)),
+					"s16" => Some(s16::encode(images)),
+					"blk" => Some(if let Some(image) = images.get(0) { blk::encode(image.clone()) } else { Bytes::new() }),
+					_ => data.clone()
+				};
+				Ok(())
+			}
+		}
+	}
 }
 
 impl SpriteFrame {
-	pub fn new(filename: &str) -> SpriteFrame {
-		SpriteFrame {
-			filename: Filename::new(filename)
-		}
-	}
-}
+	// pub fn new(input_filename: &String) -> Result<SpriteFrame, Box<dyn Error>> {
+	// 	if file_helper::extension(input_filename) == "png" {
+	// 		Ok(SpriteFrame{
+	// 			input_filename: input_filename.to_string(),
+	// 			data: None
+	// 		})
+	// 	} else {
+	// 		Err(create_error(&format!("File {} has an unrecognized file type. Sprite frame must be a PNG.", input_filename)))
+	// 	}
+	// }
 
-#[derive(Clone)]
-pub struct SpriteList(Vec<Sprite>);
-
-impl SpriteList {
-	pub fn new() -> SpriteList {
-		SpriteList(Vec::new())
-	}
-
-	pub fn is_empty(&self) -> bool {
-		self.0.is_empty()
-	}
-
-	pub fn len(&self) -> usize {
-		self.0.len()
-	}
-
-	pub fn includes(&self, filename: &String) -> bool {
-		for x in &self.0 {
-			if x.get_filename() == *filename || format!("{}.png", x.get_title()) == *filename {
-				return true;
-			}
-		}
-		false
-	}
-
-	pub fn iter(&self) -> std::slice::Iter<'_, Sprite> {
-		self.0.iter()
-	}
-
-	pub fn iter_mut(&mut self) -> std::slice::IterMut<'_, Sprite> {
-		self.0.iter_mut()
-	}
-
-	pub fn get(&self, index: usize) -> Option<&Sprite> {
-		self.0.get(index)
-	}
-
-	pub fn get_mut(&mut self, index: usize) -> Option<&mut Sprite> {
-		self.0.get_mut(index)
-	}
-
-	pub fn push(&mut self, sprite: Sprite) {
-		self.0.push(sprite)
-	}
-
-	pub fn remove(&mut self, index: usize) {
-		if index < self.0.len() {
-			self.0.remove(index);
-		}
-	}
-
-	pub fn move_up(&mut self, index: usize) {
-		if index > 0 && index < self.0.len() {
-			self.0.swap(index, index - 1);
-		}
-	}
-
-	pub fn move_down(&mut self, index: usize) {
-		if index + 1 < self.0.len() {
-			self.0.swap(index, index + 1);
+	pub fn new_from_data(input_filename: &String, data: &mut Bytes) -> Result<SpriteFrame, Box<dyn Error>> {
+		if file_helper::extension(input_filename) == "png" {
+			Ok(SpriteFrame{
+				input_filename: input_filename.to_string(),
+				data: Some(data.clone())
+			})
+		} else {
+			Err(create_error(&format!("File {} has an unrecognized file type. Sprite frame must be a PNG.", input_filename)))
 		}
 	}
 }

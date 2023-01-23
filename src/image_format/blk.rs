@@ -1,4 +1,6 @@
-use std::io;
+use crate::error::create_error;
+
+use std::error::Error;
 use bytes::{ Bytes, BytesMut, Buf, BufMut };
 use image::{ RgbaImage, Rgba };
 
@@ -15,7 +17,7 @@ struct ImageHeader {
 	height: u16
 }
 
-fn read_file_header(buffer: &mut Bytes) -> Result<FileHeader, io::Error> {
+fn read_file_header(buffer: &mut Bytes) -> Result<FileHeader, Box<dyn Error>> {
 	if buffer.remaining() >= 10 {
 		Ok(FileHeader {
 			pixel_format: buffer.get_u32_le(),
@@ -24,11 +26,11 @@ fn read_file_header(buffer: &mut Bytes) -> Result<FileHeader, io::Error> {
 			image_count: buffer.get_u16_le() // TODO: assert that this is cols * rows
 		})
 	} else {
-		Err(io::Error::from(io::ErrorKind::InvalidData))
+		Err(create_error("Invalid data. File ends in the middle of file header."))
 	}
 }
 
-fn read_image_header(buffer: &mut Bytes) -> Result<ImageHeader, io::Error> {
+fn read_image_header(buffer: &mut Bytes) -> Result<ImageHeader, Box<dyn Error>> {
 	if buffer.remaining() >= 8 {
 		let first_line_offset = buffer.get_u32_le() + 4;
 		let width = buffer.get_u16_le();
@@ -40,10 +42,10 @@ fn read_image_header(buffer: &mut Bytes) -> Result<ImageHeader, io::Error> {
 				first_line_offset
 			})
 		} else {
-			Err(io::Error::from(io::ErrorKind::InvalidData))
+			Err(create_error("Invalid data. File ends in the middle of an image."))
 		}
 	} else {
-		Err(io::Error::from(io::ErrorKind::InvalidData))
+		Err(create_error("Invalid data. File ends in the middle of an image header."))
 	}
 }
 
@@ -96,7 +98,7 @@ fn combine_image_data(images: Vec<RgbaImage>, cols: u32, rows: u32) -> RgbaImage
 	output_image
 }
 
-pub fn decode(contents: &[u8]) -> Result<RgbaImage, io::Error> {
+pub fn decode(contents: &[u8]) -> Result<RgbaImage, Box<dyn Error>> {
 	let mut buffer = Bytes::copy_from_slice(contents);
 	let file_header = read_file_header(&mut buffer)?;
 	let mut image_headers: Vec<ImageHeader> = Vec::new();
@@ -142,7 +144,7 @@ fn write_pixel_data(buffer: &mut BytesMut, r: u16, g: u16, b: u16) {
 	buffer.put_u16_le(pixel_data);
 }
 
-pub fn encode(image: RgbaImage) -> BytesMut {
+pub fn encode(image: RgbaImage) -> Bytes {
 	let mut buffer = BytesMut::new();
 
 	let cols = image.width() / 128;
@@ -165,5 +167,5 @@ pub fn encode(image: RgbaImage) -> BytesMut {
 	}
 	buffer.unsplit(images_buffer);
 
-	buffer
+	buffer.freeze()
 }

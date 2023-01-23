@@ -1,4 +1,6 @@
-use std::io;
+use crate::error::create_error;
+
+use std::error::Error;
 use bytes::{ Bytes, BytesMut, Buf, BufMut };
 use image::{ RgbaImage, Rgba };
 
@@ -13,18 +15,18 @@ struct ImageHeader {
 	line_offsets: Vec<u32>
 }
 
-fn read_file_header(buffer: &mut Bytes) -> Result<FileHeader, io::Error> {
+fn read_file_header(buffer: &mut Bytes) -> Result<FileHeader, Box<dyn Error>> {
 	if buffer.remaining() >= 6 {
 		Ok(FileHeader {
 			pixel_format: buffer.get_u32_le(),
 			image_count: buffer.get_u16_le()
 		})
 	} else {
-		Err(io::Error::from(io::ErrorKind::InvalidData))
+		Err(create_error("Invalid data. File ends in the middle of file header."))
 	}
 }
 
-fn read_image_header(buffer: &mut Bytes) -> Result<ImageHeader, io::Error> {
+fn read_image_header(buffer: &mut Bytes) -> Result<ImageHeader, Box<dyn Error>> {
 	if buffer.remaining() >= 8 {
 		let mut line_offsets = vec![ buffer.get_u32_le() ];
 		let width = buffer.get_u16_le();
@@ -39,10 +41,10 @@ fn read_image_header(buffer: &mut Bytes) -> Result<ImageHeader, io::Error> {
 				line_offsets
 			})
 		} else {
-			Err(io::Error::from(io::ErrorKind::InvalidData))
+			Err(create_error("Invalid data. File ends in the middle of an image."))
 		}
 	} else {
-		Err(io::Error::from(io::ErrorKind::InvalidData))
+		Err(create_error("Invalid data. File ends in the middle of an image header."))
 	}
 }
 
@@ -93,7 +95,7 @@ fn read_pixel_data(pixel: u16, pixel_format: u32) -> Rgba<u8> {
 	}
 }
 
-pub fn decode(contents: &[u8]) -> Result<Vec::<RgbaImage>, io::Error> {
+pub fn decode(contents: &[u8]) -> Result<Vec::<RgbaImage>, Box<dyn Error>> {
 	let mut images: Vec<RgbaImage> = Vec::new();
 	let mut buffer = Bytes::copy_from_slice(contents);
 	let file_header = read_file_header(&mut buffer)?;
@@ -192,7 +194,7 @@ fn write_pixel_data(buffer: &mut BytesMut, r: u16, g: u16, b: u16) {
 	buffer.put_u16_le(pixel_data);
 }
 
-pub fn encode(images: Vec<RgbaImage>) -> BytesMut {
+pub fn encode(images: Vec<RgbaImage>) -> Bytes {
 	// write file header to buffer
 	let mut buffer = BytesMut::new();
 	write_file_header(&mut buffer, images.len() as u16);
@@ -218,5 +220,5 @@ pub fn encode(images: Vec<RgbaImage>) -> BytesMut {
 	buffer.unsplit(image_headers_buffer);
 	buffer.unsplit(images_buffer);
 
-	buffer
+	buffer.freeze()
 }

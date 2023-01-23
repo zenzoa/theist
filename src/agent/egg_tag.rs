@@ -1,72 +1,60 @@
-use crate::agent::*;
+use super::tag::Tag;
+use super::file::CreaturesFile;
+use crate::pray::egg_block::write_egg_block;
+use crate::source::egg_tag;
 
+use std::error::Error;
 use bytes::Bytes;
 
 #[derive(Clone)]
 pub struct EggTag {
-	pub filepath: String,
 	pub name: String,
 	pub version: String,
 
-	pub preview_sprite_female: String,
 	pub preview_sprite_male: String,
+	pub preview_sprite_female: String,
 	pub preview_animation: String,
+	pub genome: String,
 
-	pub genetics: GeneticsList,
-	pub sprites: SpriteList,
-	pub body_data: BodyDataList,
+	pub sprites: Vec<String>,
+	pub bodydata: Vec<String>,
 
-	pub genetics_files: Vec<Bytes>,
-	pub sprite_files: Vec<Bytes>,
-	pub body_data_files: Vec<Bytes>,
+	pub use_all_files: bool
 }
 
-impl EggTag {
-	pub fn new(name: String) -> EggTag {
-		EggTag {
-			filepath: String::from(""),
-			name,
-			version: String::from(""),
-			preview_sprite_female: String::from(""),
-			preview_sprite_male: String::from(""),
-			preview_animation: String::from(""),
-			genetics: GeneticsList::new(),
-			sprites: SpriteList::new(),
-			body_data: BodyDataList::new(),
-			genetics_files: Vec::new(),
-			sprite_files: Vec::new(),
-			body_data_files: Vec::new()
+impl Tag for EggTag {
+	fn get_type(&self) -> String {
+		"egg".to_string()
+	}
+
+	fn get_name(&self) -> String {
+		self.name.clone()
+	}
+
+	fn does_use_all_files(&self) -> bool {
+		self.use_all_files
+	}
+
+	fn add_files(&mut self, files: &[CreaturesFile]) {
+		for file in files {
+			match file.get_extension().as_str() {
+				"c16" => self.sprites.push(file.get_output_filename()),
+				"s16" => self.sprites.push(file.get_output_filename()),
+				"att" => self.bodydata.push(file.get_output_filename()),
+				_ => ()
+			}
 		}
 	}
 
-	pub fn convert_to_agent(&self) -> AgentTag {
-		let mut agent_tag = AgentTag::new(self.name.clone());
-		agent_tag.filepath = self.filepath.clone();
-		agent_tag.version = self.version.clone();
-		agent_tag.sprites = self.sprites.clone();
-		let first_sprite_title = if let Some(sprite) = &self.sprites.get(0) {
-				sprite.get_title()
-			} else {
-				String::from("")
-			};
-		let female_is_default = self.preview_sprite_female.is_empty() || self.preview_sprite_female == first_sprite_title;
-		let male_is_default = self.preview_sprite_male.is_empty() || self.preview_sprite_male == first_sprite_title;
-		let animation_is_default = self.preview_animation.is_empty() || self.preview_animation == "0";
-		if female_is_default && male_is_default && animation_is_default {
-			agent_tag.preview = Preview::Auto;
-		} else {
-			let preview_sprite = if !female_is_default {
-					self.preview_sprite_female.clone()
-				} else if !male_is_default {
-					self.preview_sprite_male.clone()
-				} else {
-					first_sprite_title
-				};
-			agent_tag.preview = Preview::Manual{
-				sprite: preview_sprite,
-				animation: self.preview_animation.clone()
-			};
-		}
-		agent_tag
+	fn write_block(&self, files: &[CreaturesFile]) -> Result<Bytes, Box<dyn Error>> {
+		write_egg_block(self, files)
+	}
+
+	fn encode(&self) -> String {
+		egg_tag::encode(self)
+	}
+
+	fn split(&self) -> Vec<Box<dyn Tag>> {
+		vec![ Box::new(self.clone()) ]
 	}
 }

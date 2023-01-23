@@ -1,90 +1,82 @@
-use crate::agent::*;
+use crate::error::create_error;
+use crate::file_helper;
 
 use std::fs;
-use std::str;
 use std::error::Error;
 use bytes::Bytes;
 
 #[derive(Clone)]
 pub struct Genetics {
-	pub filename: Filename
+	pub output_filename: String,
+	pub input_filename: String,
+	pub data: Option<Bytes>
 }
 
 impl Genetics {
-	pub fn new(filename: &str) -> Genetics {
-		Genetics {
-			filename: Filename::new(filename)
-		}
-	}
+	// pub fn new(input_filename: &String) -> Result<Genetics, Box<dyn Error>> {
+	// 	match file_helper::extension(input_filename).as_str() {
+	// 		"gen" => {
+	// 			Ok(Genetics{
+	// 				output_filename: file_helper::filename(input_filename),
+	// 				input_filename: input_filename.to_string(),
+	// 				data: None
+	// 			})
+	// 		},
+	// 		"gno" => {
+	// 			Ok(Genetics{
+	// 				output_filename: file_helper::filename(input_filename),
+	// 				input_filename: input_filename.to_string(),
+	// 				data: None
+	// 			})
+	// 		},
+	// 		_ => {
+	// 			Err(create_error("Unrecognized file type. Genetics file must be a GEN or GNO."))
+	// 		}
+	// 	}
+	// }
 
-	pub fn get_filename(&self) -> String {
-		self.filename.to_string()
-	}
-
-	pub fn get_data(&self, path: &str) -> Result<Bytes, Box<dyn Error>> {
-		let filepath = format!("{}{}", path, self.filename);
-		let contents = fs::read(&filepath)?;
-		println!("  Got data from {}", &filepath);
-		Ok(Bytes::copy_from_slice(&contents))
-	}
-}
-
-#[derive(Clone)]
-pub struct GeneticsList(Vec<Genetics>);
-
-impl GeneticsList {
-	pub fn new() -> GeneticsList {
-		GeneticsList(Vec::new())
-	}
-
-	pub fn is_empty(&self) -> bool {
-		self.0.is_empty()
-	}
-
-	pub fn len(&self) -> usize {
-		self.0.len()
-	}
-
-	pub fn includes(&self, filename: &String) -> bool {
-		for x in &self.0 {
-			if x.get_filename() == *filename {
-				return true;
+	pub fn new_from_data(input_filename: &String, data: &mut Bytes) -> Result<Genetics, Box<dyn Error>> {
+		match file_helper::extension(input_filename).as_str() {
+			"gen" => {
+				Ok(Genetics{
+					output_filename: file_helper::filename(input_filename),
+					input_filename: input_filename.to_string(),
+					data: Some(data.clone())
+				})
+			},
+			"gno" => {
+				Ok(Genetics{
+					output_filename: file_helper::filename(input_filename),
+					input_filename: input_filename.to_string(),
+					data: Some(data.clone())
+				})
+			},
+			_ => {
+				Err(create_error("Unrecognized file type. Genetics file must be a GEN or GNO."))
 			}
 		}
-		false
 	}
 
-	pub fn iter(&self) -> std::slice::Iter<'_, Genetics> {
-		self.0.iter()
+	pub fn get_output_filename(&self) -> String {
+		self.output_filename.to_string()
 	}
 
-	pub fn iter_mut(&mut self) -> std::slice::IterMut<'_, Genetics> {
-		self.0.iter_mut()
+	pub fn get_title(&self) -> String {
+		file_helper::title(&self.output_filename)
 	}
 
-	pub fn get(&self, index: usize) -> Option<&Genetics> {
-		self.0.get(index)
+	pub fn get_extension(&self) -> String {
+		file_helper::extension(&self.get_output_filename())
 	}
 
-	pub fn push(&mut self, genetics: Genetics) {
-		self.0.push(genetics)
+	pub fn get_data(&self) -> Option<Bytes> {
+		self.data.clone()
 	}
 
-	pub fn remove(&mut self, index: usize) {
-		if index < self.0.len() {
-			self.0.remove(index);
-		}
-	}
-
-	pub fn move_up(&mut self, index: usize) {
-		if index > 0 && index < self.0.len() {
-			self.0.swap(index, index - 1);
-		}
-	}
-
-	pub fn move_down(&mut self, index: usize) {
-		if index + 1 < self.0.len() {
-			self.0.swap(index, index + 1);
-		}
+	pub fn fetch_data(&mut self, path: &String) -> Result<(), Box<dyn Error>> {
+		let contents = fs::read(format!("{}{}", path, self.input_filename))?;
+		self.data = Some(Bytes::copy_from_slice(&contents));
+		Ok(())
 	}
 }
+

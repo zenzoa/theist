@@ -1,6 +1,6 @@
 [package]
 name = "theist"
-version = "0.1.0"
+version = "0.2.0"
 edition = "2021"
 
 [dependencies]
@@ -9,3 +9,4 @@ image = "0.24.5"
 regex = "1.7.0"
 iced = "0.6.0"
 rfd = "0.10.0"
+libflate = "1.2.0"

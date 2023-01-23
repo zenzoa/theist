@@ -1,200 +1,132 @@
-use crate::agent::*;
+use crate::error::create_error;
+use crate::file_helper;
 
 use std::fs;
-use std::str;
 use std::error::Error;
 use bytes::Bytes;
 
 #[derive(Clone)]
 pub enum Catalogue {
-	File { filename: Filename },
-	Inline { filename: Filename, entries: Vec<CatalogueEntry> }
-}
-
-impl Catalogue {
-	pub fn new(filename: &str) -> Catalogue {
-		Catalogue::File {
-			filename: Filename::new(filename)
-		}
-	}
-
-	pub fn get_filename(&self) -> String {
-		match self {
-			Catalogue::File { filename } => filename.to_string(),
-			Catalogue::Inline { filename, .. } => filename.to_string()
-		}
-	}
-
-	pub fn get_data(&self, path: &str) -> Result<Bytes, Box<dyn Error>> {
-		match self {
-			Catalogue::File { filename } => {
-				let filepath = format!("{}{}", path, filename);
-				let contents = fs::read(&filepath)?;
-				println!("  Got data from {}", &filepath);
-				Ok(Bytes::copy_from_slice(&contents))
-			},
-			Catalogue::Inline { filename, entries } => {
-				let mut contents = String::new();
-				for entry in entries {
-					contents += format!(
-						"TAG \"Agent Help {}\"\n\"{}\"\n\"{}\"\n\n",
-						entry.classifier,
-						entry.name,
-						entry.description
-					).as_str();
-				}
-				println!("  Catalogue created: {}", filename);
-				Ok(Bytes::copy_from_slice(contents.as_bytes()))
-			}
-		}
-	}
-
-	pub fn set_name(&mut self, new_name: String) {
-		if let Catalogue::Inline{ filename, .. } = self {
-			filename.set_title(new_name);
-		}
-	}
-
-	pub fn add_entry(&mut self, entry: CatalogueEntry) {
-		match self {
-			Catalogue::File { filename } => {
-				*self = Catalogue::Inline {
-					filename: filename.clone(),
-					entries: vec![ entry ]
-				}
-			},
-			Catalogue::Inline { entries, .. } => {
-				entries.push(entry);
-			}
-		}
-	}
-
-	pub fn remove_entry(&mut self, index: usize) {
-		if let Catalogue::Inline{ entries, .. } = self {
-			if index < entries.len() {
-				entries.remove(index);
-			}
-		}
-	}
-
-	pub fn move_entry_up(&mut self, index: usize) {
-		if let Catalogue::Inline{ entries, .. } = self {
-			if index > 0 && index < entries.len() {
-				entries.swap(index, index - 1);
-			}
-		}
-	}
-
-	pub fn move_entry_down(&mut self, index: usize) {
-		if let Catalogue::Inline{ entries, .. } = self {
-			if index + 1 < entries.len() {
-				entries.swap(index, index + 1);
-			}
-		}
-	}
-
-	pub fn set_entry_classifier(&mut self, index: usize, new_classifier: String) {
-		if let Catalogue::Inline{ entries, .. } = self {
-			if let Some(entry) = entries.get_mut(index) {
-				entry.classifier = new_classifier;
-			}
-		}
-	}
-
-	pub fn set_entry_name(&mut self, index: usize, new_name: String) {
-		if let Catalogue::Inline{ entries, .. } = self {
-			if let Some(entry) = entries.get_mut(index) {
-				entry.name = new_name;
-			}
-		}
-	}
-
-	pub fn set_entry_description(&mut self, index: usize, new_description: String) {
-		if let Catalogue::Inline{ entries, .. } = self {
-			if let Some(entry) = entries.get_mut(index) {
-				entry.description = new_description;
-			}
-		}
+	Raw {
+		output_filename: String,
+		input_filename: String,
+		data: Option<Bytes>
+	},
+	Inline {
+		output_filename: String,
+		entries: Vec<CatalogueEntry>,
+		data: Option<Bytes>
 	}
 }
 
 #[derive(Clone)]
 pub struct CatalogueEntry {
-	pub classifier: String,
 	pub name: String,
+	pub classifier: String,
 	pub description: String
 }
 
-impl CatalogueEntry {
-	pub fn new(classifier: &str, name: &str, description: &str) -> CatalogueEntry {
-		CatalogueEntry {
-			classifier: String::from(classifier),
-			name: String::from(name),
-			description: String::from(description)
+impl Catalogue {
+	// pub fn new(input_filename: &String) -> Result<Catalogue, Box<dyn Error>> {
+	// 	if file_helper::extension(input_filename) == "catalogue" {
+	// 		Ok(Catalogue::Raw{
+	// 			output_filename: file_helper::filename(input_filename),
+	// 			input_filename: input_filename.to_string(),
+	// 			data: None
+	// 		})
+	// 	} else {
+	// 		Ok(Catalogue::Inline{
+	// 			output_filename: file_helper::filename(input_filename),
+	// 			entries: Vec::new(),
+	// 			data: None
+	// 		})
+	// 	}
+	// }
+
+	pub fn new_from_data(input_filename: &String, data: &mut Bytes) -> Result<Catalogue, Box<dyn Error>> {
+		if file_helper::extension(input_filename) == "catalogue" {
+			Ok(Catalogue::Raw{
+				output_filename: file_helper::filename(input_filename),
+				input_filename: input_filename.to_string(),
+				data: Some(data.clone())
+			})
+		} else {
+			Err(create_error("Unrecognized file type. Catalogue must be a CATALOGUE file."))
 		}
 	}
-}
 
-#[derive(Clone)]
-pub struct CatalogueList(Vec<Catalogue>);
-
-impl CatalogueList {
-	pub fn new() -> CatalogueList {
-		CatalogueList(Vec::new())
+	pub fn add_entry(&mut self, new_entry: CatalogueEntry) {
+		if let Catalogue::Inline{ entries, .. } = self {
+			entries.push(new_entry);
+		}
 	}
 
-	pub fn is_empty(&self) -> bool {
-		self.0.is_empty()
+	// pub fn remove_entry(&mut self, index: usize) {
+	// 	if let Catalogue::Inline{ entries, .. } = self {
+	// 		if index < entries.len() {
+	// 			entries.remove(index);
+	// 		}
+	// 	}
+	// }
+
+	// pub fn move_frame_up(&mut self, index: usize) {
+	// 	if let Catalogue::Inline{ entries, .. } = self {
+	// 		if index > 0 && index < entries.len() {
+	// 			entries.swap(index, index - 1);
+	// 		}
+	// 	}
+	// }
+
+	// pub fn move_frame_down(&mut self, index: usize) {
+	// 	if let Catalogue::Inline{ entries, .. } = self {
+	// 		if index + 1 < entries.len() {
+	// 			entries.swap(index, index + 1);
+	// 		}
+	// 	}
+	// }
+
+	pub fn get_output_filename(&self) -> String {
+		match self {
+			Catalogue::Raw{ output_filename, .. } => output_filename.to_string(),
+			Catalogue::Inline{ output_filename, .. } => output_filename.to_string()
+		}
 	}
 
-	pub fn len(&self) -> usize {
-		self.0.len()
+	pub fn get_title(&self) -> String {
+		file_helper::title(&self.get_output_filename())
 	}
 
-	pub fn includes(&self, filename: &String) -> bool {
-		for x in &self.0 {
-			if x.get_filename() == *filename {
-				return true;
+	pub fn get_extension(&self) -> String {
+		"catalogue".to_string()
+	}
+
+	pub fn get_data(&self) -> Option<Bytes> {
+		match self {
+			Catalogue::Raw{ data, .. } => data.clone(),
+			Catalogue::Inline{ data, .. } => data.clone()
+		}
+	}
+
+	pub fn fetch_data(&mut self, path: &String) -> Result<(), Box<dyn Error>> {
+		match self {
+			Catalogue::Raw{ input_filename, data, .. } => {
+				let contents = fs::read(format!("{}{}", path, input_filename))?;
+				*data = Some(Bytes::copy_from_slice(&contents));
+				Ok(())
+			},
+			Catalogue::Inline{ entries, data, .. } => {
+				let mut contents = String::new();
+				for entry in entries {
+					contents.push_str(&format!(
+						"TAG \"Agent Help {}\"\n\"{}\"\n\"{}\"\n\n",
+						entry.classifier,
+						entry.name,
+						entry.description.replace('"', "\\\"")
+					));
+				}
+				*data = Some(Bytes::copy_from_slice(contents.as_bytes()));
+				Ok(())
 			}
-		}
-		false
-	}
-
-	pub fn iter(&self) -> std::slice::Iter<'_, Catalogue> {
-		self.0.iter()
-	}
-
-	pub fn iter_mut(&mut self) -> std::slice::IterMut<'_, Catalogue> {
-		self.0.iter_mut()
-	}
-
-	pub fn get(&self, index: usize) -> Option<&Catalogue> {
-		self.0.get(index)
-	}
-
-	pub fn get_mut(&mut self, index: usize) -> Option<&mut Catalogue> {
-		self.0.get_mut(index)
-	}
-
-	pub fn push(&mut self, catalogue: Catalogue) {
-		self.0.push(catalogue)
-	}
-
-	pub fn remove(&mut self, index: usize) {
-		if index < self.0.len() {
-			self.0.remove(index);
-		}
-	}
-
-	pub fn move_up(&mut self, index: usize) {
-		if index > 0 && index < self.0.len() {
-			self.0.swap(index, index - 1);
-		}
-	}
-
-	pub fn move_down(&mut self, index: usize) {
-		if index + 1 < self.0.len() {
-			self.0.swap(index, index + 1);
 		}
 	}
 }
