@@ -1,3 +1,4 @@
+use super::file::FileType;
 use crate::error::create_error;
 use crate::file_helper;
 
@@ -7,27 +8,17 @@ use bytes::Bytes;
 
 #[derive(Clone)]
 pub struct Script {
+	pub filetype: FileType,
 	pub output_filename: String,
 	pub input_filename: String,
 	pub data: Option<Bytes>
 }
 
 impl Script {
-	// pub fn new(input_filename: &String) -> Result<Script, Box<dyn Error>> {
-	// 	if file_helper::extension(input_filename) == "cos" {
-	// 		Ok(Script{
-	// 			output_filename: file_helper::filename(input_filename),
-	// 			input_filename: input_filename.to_string(),
-	// 			data: None
-	// 		})
-	// 	} else {
-	// 		Err(create_error("Unrecognized file type. Script must be a COS file."))
-	// 	}
-	// }
-
 	pub fn new_from_data(input_filename: &String, data: &mut Bytes) -> Result<Script, Box<dyn Error>> {
 		if file_helper::extension(input_filename) == "cos" {
 			Ok(Script{
+				filetype: FileType::Script,
 				output_filename: file_helper::filename(input_filename),
 				input_filename: input_filename.to_string(),
 				data: Some(data.clone())
@@ -43,10 +34,6 @@ impl Script {
 
 	pub fn get_title(&self) -> String {
 		file_helper::title(&self.output_filename)
-	}
-
-	pub fn get_extension(&self) -> String {
-		"cos".to_string()
 	}
 
 	pub fn get_data(&self) -> Option<Bytes> {

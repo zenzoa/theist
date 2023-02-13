@@ -1,60 +1,68 @@
-use super::tag::Tag;
-use super::file::CreaturesFile;
-use crate::pray::egg_block::write_egg_block;
-use crate::source::egg_tag;
-
-use std::error::Error;
-use bytes::Bytes;
+use crate::agent::file::CreaturesFile;
 
 #[derive(Clone)]
 pub struct EggTag {
 	pub name: String,
 	pub version: String,
 
-	pub preview_sprite_male: String,
-	pub preview_sprite_female: String,
-	pub preview_animation: String,
-	pub genome: String,
+	pub preview: EggPreview,
+	pub genome: Option<usize>,
 
-	pub sprites: Vec<String>,
-	pub bodydata: Vec<String>,
+	pub preview_backup: EggPreview,
+
+	pub sprites: Vec<usize>,
+	pub bodydata: Vec<usize>,
+	pub genetics: Vec<usize>,
 
 	pub use_all_files: bool
 }
 
-impl Tag for EggTag {
-	fn get_type(&self) -> String {
-		"egg".to_string()
+#[derive(Clone)]
+pub enum EggPreview {
+	None,
+	Manual {
+		sprite_male: usize,
+		sprite_female: usize,
+		animation: String
 	}
+}
 
-	fn get_name(&self) -> String {
-		self.name.clone()
-	}
+impl EggTag {
+	pub fn new() -> EggTag {
+		EggTag {
+			name: "Untitled Egg".to_string(),
+			version: "".to_string(),
 
-	fn does_use_all_files(&self) -> bool {
-		self.use_all_files
-	}
+			preview: EggPreview::None,
+			genome: None,
 
-	fn add_files(&mut self, files: &[CreaturesFile]) {
-		for file in files {
-			match file.get_extension().as_str() {
-				"c16" => self.sprites.push(file.get_output_filename()),
-				"s16" => self.sprites.push(file.get_output_filename()),
-				"att" => self.bodydata.push(file.get_output_filename()),
-				_ => ()
-			}
+			preview_backup: EggPreview::None,
+
+			sprites: Vec::new(),
+			bodydata: Vec::new(),
+			genetics: Vec::new(),
+
+			use_all_files: false
 		}
 	}
 
-	fn write_block(&self, files: &[CreaturesFile]) -> Result<Bytes, Box<dyn Error>> {
-		write_egg_block(self, files)
+	pub fn has_sprite(&self, file_index: usize) -> bool {
+		for sprite_index in &self.sprites {
+			if sprite_index == &file_index {
+				return true;
+			}
+		}
+		false
 	}
 
-	fn encode(&self) -> String {
-		egg_tag::encode(self)
-	}
-
-	fn split(&self) -> Vec<Box<dyn Tag>> {
-		vec![ Box::new(self.clone()) ]
+	pub fn get_first_sprite(&self, files: &[CreaturesFile]) -> Option<usize> {
+		for sprite_index in &self.sprites {
+			if let Some(sprite_file) = files.get(*sprite_index) {
+				if &sprite_file.get_extension() != "blk" {
+					return Some(*sprite_index);
+				}
+			}
+		}
+		None
 	}
 }

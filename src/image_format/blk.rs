@@ -23,7 +23,7 @@ fn read_file_header(buffer: &mut Bytes) -> Result<FileHeader, Box<dyn Error>> {
 			pixel_format: buffer.get_u32_le(),
 			cols: buffer.get_u16_le(),
 			rows: buffer.get_u16_le(),
-			image_count: buffer.get_u16_le() // TODO: assert that this is cols * rows
+			image_count: buffer.get_u16_le() // this should equal cols * rows
 		})
 	} else {
 		Err(create_error("Invalid data. File ends in the middle of file header."))

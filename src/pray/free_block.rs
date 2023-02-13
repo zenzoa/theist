@@ -14,8 +14,8 @@ pub fn write_free_block(tag: &FreeTag, _files: &[CreaturesFile]) -> Result<Bytes
 	Ok(buffer.freeze())
 }
 
-pub fn read_free_block(contents: &mut Bytes, block_type: &String, block_name: &String) -> Result<Box<dyn Tag>, Box<dyn Error>> {
-	Ok(Box::new(FreeTag {
+pub fn read_free_block(contents: &mut Bytes, block_type: &String, block_name: &String) -> Result<Tag, Box<dyn Error>> {
+	Ok(Tag::Free(FreeTag {
 		name: block_name.to_string(),
 		version: "".to_string(),
 		block_type: block_type.to_string(),

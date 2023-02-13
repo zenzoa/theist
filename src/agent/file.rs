@@ -4,9 +4,21 @@ use super::sound::Sound;
 use super::catalogue::Catalogue;
 use super::bodydata::BodyData;
 use super::genetics::Genetics;
+use crate::agent::tag::Tag;
+use crate::file_helper;
 
 use std::error::Error;
 use bytes::Bytes;
+
+#[derive(Debug, Clone)]
+pub enum FileType {
+	Script,
+	Sprite,
+	Sound,
+	Catalogue,
+	BodyData,
+	Genetics
+}
 
 #[derive(Clone)]
 pub enum CreaturesFile {
@@ -19,47 +31,109 @@ pub enum CreaturesFile {
 }
 
 impl CreaturesFile {
+	pub fn get_input_filename(&self) -> String {
+		match self {
+			CreaturesFile::Script(script) => script.input_filename.to_string(),
+			CreaturesFile::Sprite(sprite) => match sprite {
+					Sprite::Raw{ input_filename, .. } => input_filename.to_string(),
+					Sprite::Png{ input_filename, frames, .. } =>
+						match frames.len() {
+							1 => input_filename.to_string(),
+							_ => "".to_string()
+						}
+				},
+			CreaturesFile::Sound(sound) => sound.input_filename.to_string(),
+			CreaturesFile::Catalogue(catalogue) => match catalogue {
+					Catalogue::Raw{ input_filename, .. } => input_filename.to_string(),
+					Catalogue::Inline{ .. } => "".to_string()
+				},
+			CreaturesFile::BodyData(bodydata) => bodydata.input_filename.to_string(),
+			CreaturesFile::Genetics(genetics) => genetics.input_filename.to_string()
+		}
+	}
+
 	pub fn get_output_filename(&self) -> String {
 		match self {
-			CreaturesFile::Script(script) => script.get_output_filename(),
-			CreaturesFile::Sprite(sprite) => sprite.get_output_filename(),
-			CreaturesFile::Sound(sound) => sound.get_output_filename(),
-			CreaturesFile::Catalogue(catalogue) => catalogue.get_output_filename(),
-			CreaturesFile::BodyData(bodydata) => bodydata.get_output_filename(),
-			CreaturesFile::Genetics(genetics) => genetics.get_output_filename()
+			CreaturesFile::Script(script) => script.output_filename.to_string(),
+			CreaturesFile::Sprite(sprite) => match sprite {
+					Sprite::Raw{ output_filename, .. } => output_filename.to_string(),
+					Sprite::Png{ output_filename, .. } => output_filename.to_string()
+				},
+			CreaturesFile::Sound(sound) => sound.output_filename.to_string(),
+			CreaturesFile::Catalogue(catalogue) => match catalogue {
+					Catalogue::Raw{ output_filename, .. } => output_filename.to_string(),
+					Catalogue::Inline{ output_filename, .. } => output_filename.to_string()
+				},
+			CreaturesFile::BodyData(bodydata) => bodydata.output_filename.to_string(),
+			CreaturesFile::Genetics(genetics) => genetics.output_filename.to_string()
+		}
+	}
+
+	pub fn get_output_filename_ref(&self) -> &String {
+		match self {
+			CreaturesFile::Script(script) => &script.output_filename,
+			CreaturesFile::Sprite(sprite) => match sprite {
+					Sprite::Raw{ output_filename, .. } => &output_filename,
+					Sprite::Png{ output_filename, .. } => &output_filename
+				},
+			CreaturesFile::Sound(sound) => &sound.output_filename,
+			CreaturesFile::Catalogue(catalogue) => match catalogue {
+					Catalogue::Raw{ output_filename, .. } => &output_filename,
+					Catalogue::Inline{ output_filename, .. } => &output_filename
+				},
+			CreaturesFile::BodyData(bodydata) => &bodydata.output_filename,
+			CreaturesFile::Genetics(genetics) => &genetics.output_filename
 		}
 	}
 
 	pub fn get_title(&self) -> String {
-		match self {
-			CreaturesFile::Script(script) => script.get_title(),
-			CreaturesFile::Sprite(sprite) => sprite.get_title(),
-			CreaturesFile::Sound(sound) => sound.get_title(),
-			CreaturesFile::Catalogue(catalogue) => catalogue.get_title(),
-			CreaturesFile::BodyData(bodydata) => bodydata.get_title(),
-			CreaturesFile::Genetics(genetics) => genetics.get_title()
-		}
+		file_helper::title(&self.get_output_filename())
 	}
 
 	pub fn get_extension(&self) -> String {
+		file_helper::extension(&self.get_output_filename())
+	}
+
+	pub fn get_category_id(&self) -> usize {
+		match self.get_extension().as_str() {
+			"cos" => 0,
+			"c16" => 1,
+			"s16" => 2,
+			"blk" => 3,
+			"wav" => 4,
+			"catalogue" => 5,
+			"att" => 6,
+			"gen" => 7,
+			"gno" => 8,
+			_ => 9
+		}
+	}
+
+	pub fn get_filetype(&self) -> FileType {
 		match self {
-			CreaturesFile::Script(script) => script.get_extension(),
-			CreaturesFile::Sprite(sprite) => sprite.get_extension(),
-			CreaturesFile::Sound(sound) => sound.get_extension(),
-			CreaturesFile::Catalogue(catalogue) => catalogue.get_extension(),
-			CreaturesFile::BodyData(bodydata) => bodydata.get_extension(),
-			CreaturesFile::Genetics(genetics) => genetics.get_extension()
+			CreaturesFile::Script(_script) => FileType::Script,
+			CreaturesFile::Sprite(_sprite) => FileType::Sprite,
+			CreaturesFile::Sound(_sound) => FileType::Sound,
+			CreaturesFile::Catalogue(_catalogue) => FileType::Catalogue,
+			CreaturesFile::BodyData(_bodydata) => FileType::BodyData,
+			CreaturesFile::Genetics(_genetics) => FileType::Genetics
 		}
 	}
 
 	pub fn get_data(&self) -> Option<Bytes> {
 		match self {
-			CreaturesFile::Script(script) => script.get_data(),
-			CreaturesFile::Sprite(sprite) => sprite.get_data(),
-			CreaturesFile::Sound(sound) => sound.get_data(),
-			CreaturesFile::Catalogue(catalogue) => catalogue.get_data(),
-			CreaturesFile::BodyData(bodydata) => bodydata.get_data(),
-			CreaturesFile::Genetics(genetics) => genetics.get_data()
+			CreaturesFile::Script(script) => script.data.clone(),
+			CreaturesFile::Sprite(sprite) => match sprite {
+					Sprite::Raw{ data, .. } => data.clone(),
+					Sprite::Png{ data, .. } => data.clone()
+				},
+			CreaturesFile::Sound(sound) => sound.data.clone(),
+			CreaturesFile::Catalogue(catalogue) => match catalogue {
+					Catalogue::Raw{ data, .. } => data.clone(),
+					Catalogue::Inline{ data, .. } => data.clone()
+				},
+			CreaturesFile::BodyData(bodydata) => bodydata.data.clone(),
+			CreaturesFile::Genetics(genetics) => genetics.data.clone()
 		}
 	}
 
@@ -75,47 +149,28 @@ impl CreaturesFile {
 	}
 }
 
-// pub struct FileList {
-// 	items: Vec<CreaturesFile>
-// }
+pub fn lookup_file_index(files: &[CreaturesFile], filename: &String) -> Option<usize> {
+	for (i, file) in files.iter().enumerate() {
+		if &file.get_output_filename() == filename {
+			return Some(i);
+		}
+	}
+	None
+}
 
-// impl FileList {
-// 	pub fn get_item(&self, filename: String) -> Option<&CreaturesFile> {
-// 		for item in &self.items {
-// 			if item.get_output_filename() == filename {
-// 				return Some(item);
-// 			}
-// 		}
-// 		None
-// 	}
-
-// 	pub fn add_item(&mut self, new_item: CreaturesFile) {
-// 		let mut file_already_in_list = false;
-// 		for item in &self.items {
-// 			if item.get_output_filename() == new_item.get_output_filename() {
-// 				file_already_in_list = true;
-// 			}
-// 		}
-// 		if !file_already_in_list {
-// 			self.items.push(new_item);
-// 		}
-// 	}
-
-// 	pub fn remove_item(&mut self, index: usize) {
-// 		if index < self.items.len() {
-// 			self.items.remove(index);
-// 		}
-// 	}
-
-// 	pub fn move_item_up(&mut self, index: usize) {
-// 		if index > 0 && index < self.items.len() {
-// 			self.items.swap(index, index - 1);
-// 		}
-// 	}
-
-// 	pub fn move_item_down(&mut self, index: usize) {
-// 		if index + 1 < self.items.len() {
-// 			self.items.swap(index, index + 1);
-// 		}
-// 	}
-// }
+pub fn only_used_files(tags: &Vec<Tag>, files: &Vec<CreaturesFile>) -> Vec<CreaturesFile> {
+	let mut used_files: Vec<CreaturesFile> = Vec::new();
+	for (i, file) in files.iter().enumerate() {
+		let mut is_used = false;
+		for tag in tags {
+			if tag.has_file(&file.get_filetype(), i) {
+				is_used = true;
+				break;
+			}
+		}
+		if is_used {
+			used_files.push(file.clone());
+		}
+	}
+	used_files
+}

@@ -1,3 +1,4 @@
+use super::file::FileType;
 use crate::error::create_error;
 use crate::file_helper;
 
@@ -8,11 +9,13 @@ use bytes::Bytes;
 #[derive(Clone)]
 pub enum Catalogue {
 	Raw {
+		filetype: FileType,
 		output_filename: String,
 		input_filename: String,
 		data: Option<Bytes>
 	},
 	Inline {
+		filetype: FileType,
 		output_filename: String,
 		entries: Vec<CatalogueEntry>,
 		data: Option<Bytes>
@@ -27,25 +30,28 @@ pub struct CatalogueEntry {
 }
 
 impl Catalogue {
-	// pub fn new(input_filename: &String) -> Result<Catalogue, Box<dyn Error>> {
-	// 	if file_helper::extension(input_filename) == "catalogue" {
-	// 		Ok(Catalogue::Raw{
-	// 			output_filename: file_helper::filename(input_filename),
-	// 			input_filename: input_filename.to_string(),
-	// 			data: None
-	// 		})
-	// 	} else {
-	// 		Ok(Catalogue::Inline{
-	// 			output_filename: file_helper::filename(input_filename),
-	// 			entries: Vec::new(),
-	// 			data: None
-	// 		})
-	// 	}
-	// }
+	pub fn new(input_filename: &String) -> Result<Catalogue, Box<dyn Error>> {
+		if file_helper::extension(input_filename) == "catalogue" {
+			Ok(Catalogue::Raw{
+				filetype: FileType::Catalogue,
+				output_filename: file_helper::filename(input_filename),
+				input_filename: input_filename.to_string(),
+				data: None
+			})
+		} else {
+			Ok(Catalogue::Inline{
+				filetype: FileType::Catalogue,
+				output_filename: format!("{}.catalogue", file_helper::title(input_filename)),
+				entries: Vec::new(),
+				data: None
+			})
+		}
+	}
 
 	pub fn new_from_data(input_filename: &String, data: &mut Bytes) -> Result<Catalogue, Box<dyn Error>> {
 		if file_helper::extension(input_filename) == "catalogue" {
 			Ok(Catalogue::Raw{
+				filetype: FileType::Catalogue,
 				output_filename: file_helper::filename(input_filename),
 				input_filename: input_filename.to_string(),
 				data: Some(data.clone())
@@ -61,49 +67,40 @@ impl Catalogue {
 		}
 	}
 
-	// pub fn remove_entry(&mut self, index: usize) {
-	// 	if let Catalogue::Inline{ entries, .. } = self {
-	// 		if index < entries.len() {
-	// 			entries.remove(index);
-	// 		}
-	// 	}
-	// }
+	pub fn remove_entry(&mut self, index: usize) -> bool {
+		if let Catalogue::Inline{ entries, .. } = self {
+			if index < entries.len() {
+				entries.remove(index);
+				return true;
+			}
+		}
+		false
+	}
 
-	// pub fn move_frame_up(&mut self, index: usize) {
-	// 	if let Catalogue::Inline{ entries, .. } = self {
-	// 		if index > 0 && index < entries.len() {
-	// 			entries.swap(index, index - 1);
-	// 		}
-	// 	}
-	// }
+	pub fn move_entry_up(&mut self, index: usize) -> bool {
+		if let Catalogue::Inline{ entries, .. } = self {
+			if index > 0 && index < entries.len() {
+				entries.swap(index, index - 1);
+				return true;
+			}
+		}
+		false
+	}
 
-	// pub fn move_frame_down(&mut self, index: usize) {
-	// 	if let Catalogue::Inline{ entries, .. } = self {
-	// 		if index + 1 < entries.len() {
-	// 			entries.swap(index, index + 1);
-	// 		}
-	// 	}
-	// }
+	pub fn move_entry_down(&mut self, index: usize) -> bool {
+		if let Catalogue::Inline{ entries, .. } = self {
+			if index + 1 < entries.len() {
+				entries.swap(index, index + 1);
+				return true;
+			}
+		}
+		false
+	}
 
 	pub fn get_output_filename(&self) -> String {
 		match self {
 			Catalogue::Raw{ output_filename, .. } => output_filename.to_string(),
 			Catalogue::Inline{ output_filename, .. } => output_filename.to_string()
-		}
-	}
-
-	pub fn get_title(&self) -> String {
-		file_helper::title(&self.get_output_filename())
-	}
-
-	pub fn get_extension(&self) -> String {
-		"catalogue".to_string()
-	}
-
-	pub fn get_data(&self) -> Option<Bytes> {
-		match self {
-			Catalogue::Raw{ data, .. } => data.clone(),
-			Catalogue::Inline{ data, .. } => data.clone()
 		}
 	}
 

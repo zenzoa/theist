@@ -1,4 +1,4 @@
-use crate::agent::file::CreaturesFile;
+use crate::agent::file::{ CreaturesFile, FileType };
 use crate::agent::script::Script;
 use crate::agent::sprite::Sprite;
 use crate::agent::sound::Sound;
@@ -81,6 +81,7 @@ fn read_sprite(contents: &mut Bytes, block_name: &String) -> Result<Vec<Creature
 		for frame in frames {
 			if let Some(frame_data) = &frame.data {
 				frame_files.push(CreaturesFile::Sprite(Sprite::Raw{
+					filetype: FileType::Sprite,
 					output_filename: file_helper::filename(&frame.input_filename),
 					input_filename: frame.input_filename.to_string(),
 					data: Some(frame_data.clone())

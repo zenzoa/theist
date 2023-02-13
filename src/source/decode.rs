@@ -7,20 +7,37 @@ use std::str;
 use std::error::Error;
 
 pub struct DecodeResult {
-	pub tags: Vec<Box<dyn Tag>>,
+	pub tags: Vec<Tag>,
 	pub files: Vec<CreaturesFile>
 }
 
 pub fn decode(contents: &str) -> Result<DecodeResult, Box<dyn Error>> {
-	let mut tags: Vec<Box<dyn Tag>> = Vec::new();
+	let mut tags: Vec<Tag> = Vec::new();
 	let mut files: Vec<CreaturesFile> = Vec::new();
 
 	let lines: Vec<&str> = contents.lines().collect();
 
+	// first get list of files
 	let mut i = 0;
 	while i < lines.len() {
 		let tokens = parse_tokens(lines[i]);
+		for token in &tokens {
+			match token.as_str() {
+				"files" => {
+					let (mut new_files, lines_to_skip) = file::decode(Vec::from(&lines[i+1..]));
+					files.append(&mut new_files);
+					i += lines_to_skip;
+				},
+				_ => ()
+			}
+		}
+		i += 1;
+	}
 
+	// then decode tags
+	i = 0;
+	while i < lines.len() {
+		let tokens = parse_tokens(lines[i]);
 		for token in &tokens {
 			match token.as_str() {
 				"agent" => {
@@ -39,8 +56,8 @@ pub fn decode(contents: &str) -> Result<DecodeResult, Box<dyn Error>> {
 								}
 							}
 						}
-						let (agent_tag, lines_to_skip) = agent_tag::decode(Vec::from(&lines[i+1..]), name, supported_game);
-						tags.push(Box::new(agent_tag));
+						let (agent_tag, lines_to_skip) = agent_tag::decode(Vec::from(&lines[i+1..]), name, supported_game, &files);
+						tags.push(Tag::Agent(agent_tag));
 						i += lines_to_skip;
 					}
 				},
@@ -48,8 +65,8 @@ pub fn decode(contents: &str) -> Result<DecodeResult, Box<dyn Error>> {
 				"egg" => {
 					if let Some(value) = tokens.get(1) {
 						let name = value.to_string();
-						let (egg_tag, lines_to_skip) = egg_tag::decode(Vec::from(&lines[i+1..]), name);
-						tags.push(Box::new(egg_tag));
+						let (egg_tag, lines_to_skip) = egg_tag::decode(Vec::from(&lines[i+1..]), name, &files);
+						tags.push(Tag::Egg(egg_tag));
 						i += lines_to_skip;
 					}
 				},
@@ -63,15 +80,9 @@ pub fn decode(contents: &str) -> Result<DecodeResult, Box<dyn Error>> {
 							String::new()
 						};
 						let (free_tag, lines_to_skip) = free_tag::decode(Vec::from(&lines[i+1..]), name, block_type);
-						tags.push(Box::new(free_tag));
+						tags.push(Tag::Free(free_tag));
 						i += lines_to_skip;
 					}
-				},
-
-				"files" => {
-					let (mut new_files, lines_to_skip) = file::decode(Vec::from(&lines[i+1..]));
-					files.append(&mut new_files);
-					i += lines_to_skip;
 				},
 
 				_ => ()

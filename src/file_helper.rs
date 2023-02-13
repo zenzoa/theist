@@ -1,44 +1,37 @@
-use regex::Regex;
-
-fn get_captures(filename: &str) -> Option<regex::Captures> {
-	let filename_pattern = Regex::new(r"(.*[\\/])?([^\.]+)(\..*)?").unwrap();
-	filename_pattern.captures(filename)
-}
+use std::fs::File;
+use std::path::{ PathBuf, MAIN_SEPARATOR };
 
 pub fn path(filename: &str) -> String {
-	if let Some(captures) = get_captures(filename) {
-		if let Some(path) = captures.get(1) {
-			return path.as_str().to_string();
-		}
+	match PathBuf::from(filename).parent() {
+		Some(parent) => format!("{}{}", parent.to_string_lossy().into_owned(), MAIN_SEPARATOR),
+		None => "".to_string()
 	}
-	"".to_string()
 }
 
 pub fn title(filename: &str) -> String {
-	if let Some(captures) = get_captures(filename) {
-		if let Some(title) = captures.get(2) {
-			return title.as_str().to_string();
-		}
+	match PathBuf::from(filename).file_stem() {
+		Some(file_stem) => file_stem.to_string_lossy().into_owned(),
+		None => "".to_string()
 	}
-	"".to_string()
 }
 
 pub fn extension(filename: &str) -> String {
-	if let Some(captures) = get_captures(filename) {
-		if let Some(extension) = captures.get(3) {
-			return extension.as_str()[1..].to_string();
-		}
+	match PathBuf::from(filename).extension() {
+		Some(extension) => extension.to_string_lossy().into_owned(),
+		None => "".to_string()
 	}
-	"".to_string()
 }
 
 pub fn filename(filename: &str) -> String {
-	if let Some(captures) = get_captures(filename) {
-		if let Some(title) = captures.get(2) {
-			if let Some(path) = captures.get(3) {
-				return format!("{}{}", title.as_str(), path.as_str());
-			}
-		}
+	match PathBuf::from(filename).file_name() {
+		Some(file_name) => file_name.to_string_lossy().into_owned(),
+		None => "".to_string()
 	}
-	"".to_string()
+}
+
+pub fn exists(filepath: &str) -> bool {
+	match File::open(filepath) {
+		Err(_why) => false,
+		Ok(_file) => true
+	}
 }

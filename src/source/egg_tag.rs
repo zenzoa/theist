@@ -1,25 +1,39 @@
 use super::decode::parse_tokens;
-use crate::agent::egg_tag::EggTag;
-use crate::file_helper;
+use crate::agent::file::{ CreaturesFile, FileType, lookup_file_index };
+use crate::agent::egg_tag::{ EggTag, EggPreview };
 
-pub fn encode(tag: &EggTag) -> String {
+pub fn encode(tag: &EggTag, files: &[CreaturesFile]) -> String {
 	let mut content = String::new();
 
 	content.push_str(&format!("egg \"{}\"\n", &tag.name));
 
-	content.push_str(&format!("\tpreview \"{}\" \"{}\" \"{}\"\n",
-		&tag.preview_sprite_male,
-		&tag.preview_sprite_female,
-		&tag.preview_animation));
+	if let EggPreview::Manual{ sprite_male, sprite_female, animation } = &tag.preview {
+		if let Some(sprite_male_file) = files.get(sprite_male.clone()) {
+			if let Some(sprite_female_file) = files.get(sprite_female.clone()) {
+				content.push_str(&format!("\tpreview \"{}\" \"{}\" \"{}\"\n",
+					sprite_male_file.get_output_filename(),
+					sprite_female_file.get_output_filename(),
+					animation));
+			}
+		}
+	}
 
-	content.push_str(&format!("\tgenome \"{}\"\n", &tag.genome));
+	if let Some(genome) = tag.genome {
+		if let Some(CreaturesFile::Genetics(genome_file)) = files.get(genome) {
+			content.push_str(&format!("\tgenome \"{}\"\n", genome_file.get_title()));
+		}
+	}
 
 	for sprite in &tag.sprites {
-		content.push_str(&format!("\tsprite \"{}\"\n", &sprite));
+		if let Some(CreaturesFile::Sprite(sprite_file)) = files.get(sprite.clone()) {
+			content.push_str(&format!("\tuse \"{}\"\n", sprite_file.get_output_filename()));
+		}
 	}
 
 	for bodydata in &tag.bodydata {
-		content.push_str(&format!("\tbodydata \"{}\"\n", &bodydata));
+		if let Some(CreaturesFile::BodyData(bodydata_file)) = files.get(bodydata.clone()) {
+			content.push_str(&format!("\tuse \"{}\"\n", bodydata_file.get_output_filename()));
+		}
 	}
 
 	content.push('\n');
@@ -27,15 +41,14 @@ pub fn encode(tag: &EggTag) -> String {
 	content
 }
 
-pub fn decode(lines: Vec<&str>, name: String) -> (EggTag, usize) {
+pub fn decode(lines: Vec<&str>, name: String, files: &[CreaturesFile]) -> (EggTag, usize) {
 	let mut version = String::new();
-	let mut preview_sprite_male = String::new();
-	let mut preview_sprite_female = String::new();
-	let mut preview_animation = String::new();
-	let mut genome = String::new();
+	let mut preview = EggPreview::None;
+	let mut genome = None;
 
-	let mut sprites: Vec<String> = Vec::new();
-	let mut bodydata: Vec<String> = Vec::new();
+	let mut sprites: Vec<usize> = Vec::new();
+	let mut bodydata: Vec<usize> = Vec::new();
+	let mut genetics: Vec<usize> = Vec::new();
 
 	let mut use_all_files = false;
 
@@ -52,20 +65,34 @@ pub fn decode(lines: Vec<&str>, name: String) -> (EggTag, usize) {
 				},
 
 				"preview" => {
-					if let Some(value) = tokens.get(1) {
-						if let Some(value2) = tokens.get(2) {
-							if let Some(value3) = tokens.get(3) {
-								preview_sprite_male = value.to_string();
-								preview_sprite_female = value2.to_string();
-								preview_animation = value3.to_string();
+					if let Some(sprite_male) = tokens.get(1) {
+						if let Some(sprite_female) = tokens.get(2) {
+							if let Some(animation) = tokens.get(3) {
+								if let Some(sprite_male_index) = lookup_file_index(files, sprite_male) {
+									if let Some(sprite_female_index) = lookup_file_index(files, sprite_female) {
+										preview = EggPreview::Manual{
+											sprite_male: sprite_male_index,
+											sprite_female: sprite_female_index,
+											animation: animation.to_string()
+										}
+									}
+								}
 							}
 						}
 					}
 				},
 
 				"genome" => {
-					if let Some(filename) = tokens.get(1) {
-						genome = filename.to_string();
+					if let Some(title) = tokens.get(1) {
+						let gen_filename = format!("{}.gen", title);
+						let gno_filename = format!("{}.gno", title);
+						if let Some(file_index) = lookup_file_index(files, &gen_filename) {
+							genome = Some(file_index);
+							genetics.push(file_index);
+						}
+						if let Some(file_index) = lookup_file_index(files, &gno_filename) {
+							genetics.push(file_index);
+						}
 					}
 				},
 
@@ -75,11 +102,13 @@ pub fn decode(lines: Vec<&str>, name: String) -> (EggTag, usize) {
 						if filename == &"all" {
 							use_all_files = true;
 						} else {
-							match file_helper::extension(filename).as_str() {
-								"c16" => sprites.push(filename.to_string()),
-								"s16" => sprites.push(filename.to_string()),
-								"att" => bodydata.push(filename.to_string()),
-								_ => ()
+							if let Some(file_index) = lookup_file_index(files, filename) {
+								match files[file_index].get_filetype() {
+									FileType::Sprite => sprites.push(file_index),
+									FileType::BodyData => bodydata.push(file_index),
+									FileType::Genetics => genetics.push(file_index),
+									_ => ()
+								}
 							}
 						}
 						token_index += 1;
@@ -99,13 +128,14 @@ pub fn decode(lines: Vec<&str>, name: String) -> (EggTag, usize) {
 		name,
 		version,
 
-		preview_sprite_male,
-		preview_sprite_female,
-		preview_animation,
+		preview,
 		genome,
+
+		preview_backup: EggPreview::None,
 
 		sprites,
 		bodydata,
+		genetics,
 
 		use_all_files
 	}, i)

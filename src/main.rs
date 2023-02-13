@@ -1,9 +1,16 @@
+// FUTURE FEATURES
+// - support for free tags (since no big text box, may need individual tag lines)
+// - spritesheet support (esp. important for egg tags)
+// - preview sprites/frames
+// - inline scripts for different common agent types
+
 mod error;
 mod file_helper;
 mod image_format;
 mod agent;
 mod pray;
 mod source;
+mod ui;
 
 use crate::pray::compile::compile as compile_pray;
 use crate::pray::decompile::decompile as decompile_pray;
@@ -16,8 +23,9 @@ use std::fs;
 use std::fs::File;
 use std::error::Error;
 use std::io::prelude::*;
+use iced::{ Application, Settings, window };
 
-pub fn main() {
+pub fn main() -> iced::Result {
 	let args: Vec<String> = env::args().collect();
 
 	if let Some(command) = args.get(1) {
@@ -42,9 +50,28 @@ pub fn main() {
 
 			"help" => print_help(),
 
-			_ => () // TODO: attempt to open given filename with theist ui
+			_ => ()
 		}
+
+		Ok(())
+
+	} else {
+
+		start_gui()
+
 	}
+}
+
+fn start_gui() -> iced::Result {
+	let settings = Settings::<()> {
+		window: window::Settings {
+			icon: Some(window::icon::Icon::from_file_data(include_bytes!("../images/theist.png"), None).unwrap()),
+			..window::Settings::default()
+		},
+		exit_on_close_request: false,
+		..Default::default()
+	};
+	ui::Main::run(settings)
 }
 
 fn compile(input_filename: &String, output_filename: Option<&String>) -> Result<(), Box<dyn Error>> {
@@ -54,7 +81,7 @@ fn compile(input_filename: &String, output_filename: Option<&String>) -> Result<
 
 	println!("\ndecoding theist source...");
 	let result = decode_source(&contents)?;
-	let (tags, mut files) = split_tags(result.tags, result.files);
+	let (tags, mut files) = split_tags(&result.tags, &result.files);
 	println!("  success!");
 
 	println!("\nparsed {} tag(s):", &tags.len());
@@ -114,8 +141,8 @@ fn decompile(input_filename: &String, output_path: Option<&String>) -> Result<()
 
 	let source_filename = format!("{}{}.the", &output_path, file_helper::title(input_filename));
 	println!("\nsaving theist file: {}", &source_filename);
-	let result2 = decompile_pray(&contents, false)?; // get sprite frames still bundled together with their sprites
-	let source_contents = encode_source(result.tags, result2.files)?;
+	let mut result2 = decompile_pray(&contents, false)?; // get sprite frames still bundled together with their sprites
+	let source_contents = encode_source(&result.tags, &mut result2.files)?;
 	fs::write(source_filename, source_contents)?;
 	println!("  success!");
 

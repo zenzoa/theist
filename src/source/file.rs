@@ -1,5 +1,5 @@
 use super::decode::parse_tokens;
-use crate::agent::file::CreaturesFile;
+use crate::agent::file::{ CreaturesFile, FileType };
 use crate::agent::script::Script;
 use crate::agent::sprite::{ Sprite, SpriteFrame };
 use crate::agent::sound::Sound;
@@ -11,19 +11,21 @@ use std::error::Error;
 
 pub fn encode(file: &CreaturesFile) -> Result<String, Box<dyn Error>> {
 	let mut content = String::new();
+	let output_filename = file.get_output_filename().to_string();
+
 	match file {
 		CreaturesFile::Script(script) => {
-			content.push_str(&format!("\tscript \"{}\"\n", &script.get_output_filename()));
-			if script.input_filename != script.get_output_filename() {
+			content.push_str(&format!("\tscript \"{}\"\n", &output_filename));
+			if script.input_filename != output_filename {
 				content.push_str(&format!("\t\tsource \"{}\"\n", &script.input_filename));
 			}
 		},
 
 		CreaturesFile::Sprite(sprite) => {
-			content.push_str(&format!("\tsprite \"{}\"\n", &sprite.get_output_filename()));
+			content.push_str(&format!("\tsprite \"{}\"\n", &output_filename));
 			match sprite {
 				Sprite::Raw{ input_filename, .. } => {
-					if input_filename != &sprite.get_output_filename() {
+					if input_filename != &output_filename {
 						content.push_str(&format!("\t\tsource \"{}\"\n", &input_filename));
 					}
 				},
@@ -36,17 +38,17 @@ pub fn encode(file: &CreaturesFile) -> Result<String, Box<dyn Error>> {
 		},
 
 		CreaturesFile::Sound(sound) => {
-			content.push_str(&format!("\tsound \"{}\"\n", &sound.get_output_filename()));
-			if sound.input_filename != sound.get_output_filename() {
+			content.push_str(&format!("\tsound \"{}\"\n", &output_filename));
+			if sound.input_filename != output_filename {
 				content.push_str(&format!("\t\tsource \"{}\"\n", &sound.input_filename));
 			}
 		},
 
 		CreaturesFile::Catalogue(catalogue) => {
-			content.push_str(&format!("\tcatalogue \"{}\"\n", &catalogue.get_output_filename()));
+			content.push_str(&format!("\tcatalogue \"{}\"\n", &output_filename));
 			match catalogue {
 				Catalogue::Raw{ input_filename, .. } => {
-					if input_filename != &catalogue.get_output_filename() {
+					if input_filename != &output_filename {
 						content.push_str(&format!("\t\tsource \"{}\"\n", &input_filename));
 					}
 				},
@@ -60,15 +62,15 @@ pub fn encode(file: &CreaturesFile) -> Result<String, Box<dyn Error>> {
 		},
 
 		CreaturesFile::BodyData(bodydata) => {
-			content.push_str(&format!("\tbodydata \"{}\"\n", &bodydata.get_output_filename()));
-			if bodydata.input_filename != bodydata.get_output_filename() {
+			content.push_str(&format!("\tbodydata \"{}\"\n", &output_filename));
+			if bodydata.input_filename != output_filename {
 				content.push_str(&format!("\t\tsource \"{}\"\n", &bodydata.input_filename));
 			}
 		},
 
 		CreaturesFile::Genetics(genetics) => {
-			content.push_str(&format!("\tgenome \"{}\"\n", &genetics.get_output_filename()));
-			if genetics.input_filename != genetics.get_output_filename() {
+			content.push_str(&format!("\tgenome \"{}\"\n", &output_filename));
+			if genetics.input_filename != output_filename {
 				content.push_str(&format!("\t\tsource \"{}\"\n", &genetics.input_filename));
 			}
 		}
@@ -88,6 +90,7 @@ pub fn decode(lines: Vec<&str>) -> (Vec<CreaturesFile>, usize) {
 				"script" => {
 					if let Some(filename) = tokens.get(1) {
 						files.push(CreaturesFile::Script(Script{
+							filetype: FileType::Script,
 							output_filename: filename.to_string(),
 							input_filename: filename.to_string(),
 							data: None
@@ -98,6 +101,7 @@ pub fn decode(lines: Vec<&str>) -> (Vec<CreaturesFile>, usize) {
 				"sprite" => {
 					if let Some(filename) = tokens.get(1) {
 						files.push(CreaturesFile::Sprite(Sprite::Raw{
+							filetype: FileType::Sprite,
 							output_filename: filename.to_string(),
 							input_filename: filename.to_string(),
 							data: None
@@ -108,6 +112,7 @@ pub fn decode(lines: Vec<&str>) -> (Vec<CreaturesFile>, usize) {
 				"sound" => {
 					if let Some(filename) = tokens.get(1) {
 						files.push(CreaturesFile::Sound(Sound{
+							filetype: FileType::Sound,
 							output_filename: filename.to_string(),
 							input_filename: filename.to_string(),
 							data: None
@@ -118,6 +123,7 @@ pub fn decode(lines: Vec<&str>) -> (Vec<CreaturesFile>, usize) {
 				"catalogue" => {
 					if let Some(filename) = tokens.get(1) {
 						files.push(CreaturesFile::Catalogue(Catalogue::Raw{
+							filetype: FileType::Catalogue,
 							output_filename: filename.to_string(),
 							input_filename: filename.to_string(),
 							data: None
@@ -128,6 +134,7 @@ pub fn decode(lines: Vec<&str>) -> (Vec<CreaturesFile>, usize) {
 				"genome" => {
 					if let Some(filename) = tokens.get(1) {
 						files.push(CreaturesFile::Genetics(Genetics{
+							filetype: FileType::Genetics,
 							output_filename: filename.to_string(),
 							input_filename: filename.to_string(),
 							data: None
@@ -138,6 +145,7 @@ pub fn decode(lines: Vec<&str>) -> (Vec<CreaturesFile>, usize) {
 				"bodydata" => {
 					if let Some(filename) = tokens.get(1) {
 						files.push(CreaturesFile::BodyData(BodyData{
+							filetype: FileType::BodyData,
 							output_filename: filename.to_string(),
 							input_filename: filename.to_string(),
 							data: None
@@ -150,7 +158,9 @@ pub fn decode(lines: Vec<&str>) -> (Vec<CreaturesFile>, usize) {
 						if let Some(CreaturesFile::Sprite(sprite)) = files.last_mut() {
 							if let Sprite::Raw{ output_filename, .. } = sprite {
 								*sprite = Sprite::Png{
-									output_filename: output_filename.clone(),
+									filetype: FileType::Sprite,
+									output_filename: output_filename.to_string(),
+									input_filename: input_filename.to_string(),
 									frames: Vec::new(),
 									data: None
 								}
@@ -170,6 +180,7 @@ pub fn decode(lines: Vec<&str>) -> (Vec<CreaturesFile>, usize) {
 								if let Some(CreaturesFile::Catalogue(catalogue)) = files.last_mut() {
 									if let Catalogue::Raw{ output_filename, .. } = catalogue {
 										*catalogue = Catalogue::Inline{
+											filetype: FileType::Catalogue,
 											output_filename: output_filename.clone(),
 											entries: Vec::new(),
 											data: None
@@ -198,7 +209,9 @@ pub fn decode(lines: Vec<&str>) -> (Vec<CreaturesFile>, usize) {
 								CreaturesFile::Sprite(sprite) => {
 									if let Sprite::Raw{ output_filename, .. } = sprite {
 										*sprite = Sprite::Png{
-											output_filename: output_filename.clone(),
+											filetype: FileType::Sprite,
+											output_filename: output_filename.to_string(),
+											input_filename: input_filename.to_string(),
 											frames: vec![SpriteFrame{
 												input_filename: input_filename.to_string(),
 												data: None

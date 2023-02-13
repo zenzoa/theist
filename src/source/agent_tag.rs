@@ -1,8 +1,8 @@
 use super::decode::parse_tokens;
+use crate::agent::file::{ CreaturesFile, FileType, lookup_file_index };
 use crate::agent::agent_tag::{ AgentTag, SupportedGame, Preview, RemoveScript };
-use crate::file_helper;
 
-pub fn encode(tag: &AgentTag) -> String {
+pub fn encode(tag: &AgentTag, files: &[CreaturesFile]) -> String {
 	let mut content = String::new();
 
 	let supported_game = match tag.supported_game {
@@ -34,23 +34,38 @@ pub fn encode(tag: &AgentTag) -> String {
 	}
 
 	if let Preview::Manual{ sprite, animation } = &tag.preview {
-		content.push_str(&format!("\tpreview \"{}\" \"{}\"\n", &sprite, &animation));
+		if let Some(CreaturesFile::Sprite(sprite_file)) = files.get(sprite.clone()) {
+			content.push_str(&format!("\tpreview \"{}\" \"{}\"\n", sprite_file.get_output_filename(), &animation));
+		}
 	}
 
-	for script in &tag.scripts {
-		content.push_str(&format!("\tuse \"{}\"\n", &script));
-	}
+	if tag.scripts.len() + tag.sprites.len() + tag.sounds.len() + tag.catalogues.len() == files.len() {
+		content.push_str("\tuse all");
 
-	for sprite in &tag.sprites {
-		content.push_str(&format!("\tuse \"{}\"\n", &sprite));
-	}
+	} else {
+		for script in &tag.scripts {
+			if let Some(CreaturesFile::Script(script_file)) = files.get(script.clone()) {
+				content.push_str(&format!("\tuse \"{}\"\n", script_file.get_output_filename()));
+			}
+		}
 
-	for sound in &tag.sounds {
-		content.push_str(&format!("\tuse \"{}\"\n", &sound));
-	}
+		for sprite in &tag.sprites {
+			if let Some(CreaturesFile::Sprite(sprite_file)) = files.get(sprite.clone()) {
+				content.push_str(&format!("\tuse \"{}\"\n", sprite_file.get_output_filename()));
+			}
+		}
 
-	for catalogue in &tag.catalogues {
-		content.push_str(&format!("\tuse \"{}\"\n", &catalogue));
+		for sound in &tag.sounds {
+			if let Some(CreaturesFile::Sound(sound_file)) = files.get(sound.clone()) {
+				content.push_str(&format!("\tuse \"{}\"\n", sound_file.get_output_filename()));
+			}
+		}
+
+		for catalogue in &tag.catalogues {
+			if let Some(CreaturesFile::Catalogue(catalogue_file)) = files.get(catalogue.clone()) {
+				content.push_str(&format!("\tuse \"{}\"\n", catalogue_file.get_output_filename()));
+			}
+		}
 	}
 
 	content.push('\n');
@@ -58,16 +73,16 @@ pub fn encode(tag: &AgentTag) -> String {
 	content
 }
 
-pub fn decode(lines: Vec<&str>, name: String, supported_game: SupportedGame) -> (AgentTag, usize) {
+pub fn decode(lines: Vec<&str>, name: String, supported_game: SupportedGame, files: &[CreaturesFile]) -> (AgentTag, usize) {
 	let mut version = String::new();
 	let mut description = String::new();
 	let mut preview = Preview::None;
 	let mut remove_script = RemoveScript::None;
 
-	let mut scripts: Vec<String> = Vec::new();
-	let mut sprites: Vec<String> = Vec::new();
-	let mut sounds: Vec<String> = Vec::new();
-	let mut catalogues: Vec<String> = Vec::new();
+	let mut scripts: Vec<usize> = Vec::new();
+	let mut sprites: Vec<usize> = Vec::new();
+	let mut sounds: Vec<usize> = Vec::new();
+	let mut catalogues: Vec<usize> = Vec::new();
 
 	let mut use_all_files = false;
 
@@ -104,10 +119,12 @@ pub fn decode(lines: Vec<&str>, name: String, supported_game: SupportedGame) -> 
 						if value == "auto" {
 							preview = Preview::Auto;
 						} else if let Some(value2) = tokens.get(2) {
-							preview = Preview::Manual{
-								sprite: value.to_string(),
-								animation: value2.to_string()
-							};
+							if let Some(sprite_index) = lookup_file_index(files, value) {
+								preview = Preview::Manual{
+									sprite: sprite_index,
+									animation: value2.to_string()
+								};
+							}
 						}
 					}
 				},
@@ -118,14 +135,14 @@ pub fn decode(lines: Vec<&str>, name: String, supported_game: SupportedGame) -> 
 						if filename == &"all" {
 							use_all_files = true;
 						} else {
-							match file_helper::extension(filename).as_str() {
-								"cos" => scripts.push(filename.to_string()),
-								"c16" => sprites.push(filename.to_string()),
-								"s16" => sprites.push(filename.to_string()),
-								"blk" => sprites.push(filename.to_string()),
-								"wav" => sounds.push(filename.to_string()),
-								"catalogue" => catalogues.push(filename.to_string()),
-								_ => ()
+							if let Some(file_index) = lookup_file_index(files, filename) {
+								match files[file_index].get_filetype() {
+									FileType::Script => scripts.push(file_index),
+									FileType::Sprite => sprites.push(file_index),
+									FileType::Sound => sounds.push(file_index),
+									FileType::Catalogue => catalogues.push(file_index),
+									_ => ()
+								}
 							}
 						}
 						token_index += 1;
@@ -149,6 +166,9 @@ pub fn decode(lines: Vec<&str>, name: String, supported_game: SupportedGame) -> 
 		supported_game,
 		preview,
 		remove_script,
+
+		remove_script_backup: RemoveScript::None,
+		preview_backup: Preview::None,
 
 		scripts,
 		sprites,

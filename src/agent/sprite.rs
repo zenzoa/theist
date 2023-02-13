@@ -1,4 +1,5 @@
 use crate::image_format::{ c16, s16, blk };
+use super::file::FileType;
 use crate::error::create_error;
 use crate::file_helper;
 
@@ -12,12 +13,15 @@ use image::{ RgbaImage, ImageOutputFormat };
 #[derive(Clone)]
 pub enum Sprite {
 	Raw {
+		filetype: FileType,
 		output_filename: String,
 		input_filename: String,
 		data: Option<Bytes>
 	},
 	Png {
+		filetype: FileType,
 		output_filename: String,
+		input_filename: String,
 		frames: Vec<SpriteFrame>, // Blk's only care about first frame
 		data: Option<Bytes>
 	}
@@ -30,43 +34,6 @@ pub struct SpriteFrame {
 }
 
 impl Sprite {
-	// pub fn new(input_filename: &String) -> Result<Sprite, Box<dyn Error>> {
-	// 	let output_filename = file_helper::filename(input_filename);
-	// 	match file_helper::extension(input_filename).as_str() {
-	// 		"c16" => {
-	// 			Ok(Sprite::Raw{
-	// 				output_filename,
-	// 				input_filename: input_filename.to_string(),
-	// 				data: None
-	// 			})
-	// 		},
-	// 		"s16" => {
-	// 			Ok(Sprite::Raw{
-	// 				output_filename,
-	// 				input_filename: input_filename.to_string(),
-	// 				data: None
-	// 			})
-	// 		},
-	// 		"blk" => {
-	// 			Ok(Sprite::Raw{
-	// 				output_filename,
-	// 				input_filename: input_filename.to_string(),
-	// 				data: None
-	// 			})
-	// 		},
-	// 		"png" => {
-	// 			Ok(Sprite::Png{
-	// 				output_filename,
-	// 				frames: vec![ SpriteFrame::new(input_filename)? ],
-	// 				data: None
-	// 			})
-	// 		},
-	// 		_ => {
-	// 			Err(create_error("Unrecognized file type. Sprite must be a C16, S16, BLK, or PNG."))
-	// 		}
-	// 	}
-	// }
-
 	pub fn new_from_data(input_filename: &String, data: &mut Bytes) -> Result<Sprite, Box<dyn Error>> {
 		let output_filename = file_helper::filename(input_filename);
 		let title = file_helper::title(input_filename);
@@ -81,7 +48,9 @@ impl Sprite {
 					frames.push(SpriteFrame::new_from_data(&png_filename, &mut Bytes::from(png_data.into_inner()))?);
 				}
 				Ok(Sprite::Png{
+					filetype: FileType::Sprite,
 					output_filename,
+					input_filename: input_filename.replace(".c16", ".png"),
 					frames,
 					data: Some(data.clone())
 				})
@@ -96,7 +65,9 @@ impl Sprite {
 					frames.push(SpriteFrame::new_from_data(&png_filename, &mut Bytes::from(png_data.into_inner()))?);
 				}
 				Ok(Sprite::Png{
+					filetype: FileType::Sprite,
 					output_filename,
+					input_filename: input_filename.replace(".s16", ".png"),
 					frames,
 					data: Some(data.clone())
 				})
@@ -107,10 +78,23 @@ impl Sprite {
 				image.write_to(&mut blk_data, ImageOutputFormat::Png)?;
 				let png_filename = format!("{}.png", title);
 				Ok(Sprite::Png{
+					filetype: FileType::Sprite,
 					output_filename,
+					input_filename: input_filename.replace(".blk", ".png"),
 					frames: vec![ SpriteFrame::new_from_data(&png_filename, &mut Bytes::from(blk_data.into_inner()))? ],
 					data: Some(data.clone())
 				})
+			},
+			"png" => {
+				let mut new_sprite = Sprite::Png{
+					filetype: FileType::Sprite,
+					output_filename: format!("{}.c16", title),
+					input_filename: input_filename.to_string(),
+					frames: vec![ SpriteFrame::new_from_data(input_filename, data)? ],
+					data: None
+				};
+				new_sprite.fetch_data(&"".to_string())?;
+				Ok(new_sprite)
 			},
 			_ => {
 				Err(create_error(format!("Image {} is not a valid creatures image file.", &input_filename).as_str()))
@@ -118,43 +102,62 @@ impl Sprite {
 		}
 	}
 
-	pub fn add_frame(&mut self, new_frame: SpriteFrame) {
-		if let Sprite::Png{ frames, .. } = self {
-			let mut frame_already_in_list = false;
-			for frame in frames.iter() {
-				if frame.input_filename == new_frame.input_filename {
-					frame_already_in_list = true;
-				}
-			}
-			if !frame_already_in_list {
-				frames.push(new_frame);
-			}
-		}
+	pub fn new_from_data_raw(input_filename: &String, data: &mut Bytes) -> Result<Sprite, Box<dyn Error>> {
+		Ok(Sprite::Raw{
+			filetype: FileType::Sprite,
+			output_filename: file_helper::filename(input_filename),
+			input_filename: input_filename.to_string(),
+			data: Some(data.clone())
+		})
 	}
 
-	// pub fn remove_frame(&mut self, index: usize) {
-	// 	if let Sprite::Png{ frames, .. } = self {
-	// 		if index < frames.len() {
-	// 			frames.remove(index);
-	// 		}
-	// 	}
-	// }
+	pub fn add_frame(&mut self, new_frame: SpriteFrame) -> bool {
+		if let Sprite::Png{ output_filename, frames, .. } = self {
+			if file_helper::extension(output_filename) != "blk" || frames.is_empty() {
+				let mut frame_already_in_list = false;
+				for frame in frames.iter() {
+					if frame.input_filename == new_frame.input_filename {
+						frame_already_in_list = true;
+					}
+				}
+				if !frame_already_in_list {
+					frames.push(new_frame);
+					return true;
+				}
+			}
+		}
+		false
+	}
 
-	// pub fn move_frame_up(&mut self, index: usize) {
-	// 	if let Sprite::Png{ frames, .. } = self {
-	// 		if index > 0 && index < frames.len() {
-	// 			frames.swap(index, index - 1);
-	// 		}
-	// 	}
-	// }
+	pub fn remove_frame(&mut self, index: usize) -> bool {
+		if let Sprite::Png{ frames, .. } = self {
+			if index < frames.len() {
+				frames.remove(index);
+				return true;
+			}
+		}
+		false
+	}
 
-	// pub fn move_frame_down(&mut self, index: usize) {
-	// 	if let Sprite::Png{ frames, .. } = self {
-	// 		if index + 1 < frames.len() {
-	// 			frames.swap(index, index + 1);
-	// 		}
-	// 	}
-	// }
+	pub fn move_frame_up(&mut self, index: usize) -> bool {
+		if let Sprite::Png{ frames, .. } = self {
+			if index > 0 && index < frames.len() {
+				frames.swap(index, index - 1);
+				return true;
+			}
+		}
+		false
+	}
+
+	pub fn move_frame_down(&mut self, index: usize) -> bool {
+		if let Sprite::Png{ frames, .. } = self {
+			if index + 1 < frames.len() {
+				frames.swap(index, index + 1);
+				return true;
+			}
+		}
+		false
+	}
 
 	pub fn get_output_filename(&self) -> String {
 		match self {
@@ -163,37 +166,23 @@ impl Sprite {
 		}
 	}
 
-	pub fn get_title(&self) -> String {
-		file_helper::title(&self.get_output_filename())
-	}
-
-	pub fn get_extension(&self) -> String {
-		file_helper::extension(&self.get_output_filename())
-	}
-
-	pub fn get_data(&self) -> Option<Bytes> {
-		match self {
-			Sprite::Raw{ data, .. } => data.clone(),
-			Sprite::Png{ data, .. } => data.clone()
-		}
-	}
-
 	pub fn fetch_data(&mut self, path: &String) -> Result<(), Box<dyn Error>> {
-		let extension = self.get_extension();
 		match self {
 			Sprite::Raw{ input_filename, data, .. } => {
 				let contents = fs::read(format!("{}{}", path, input_filename))?;
 				*data = Some(Bytes::copy_from_slice(&contents));
 				Ok(())
 			},
-			Sprite::Png{ frames, data, .. } => {
+			Sprite::Png{ output_filename, frames, data, .. } => {
 				let mut images: Vec<RgbaImage> = Vec::new();
 				for frame in frames {
-					let image_data = ImageReader::open(format!("{}{}", path, frame.input_filename))?;
-					let image = image_data.decode()?;
-					images.push(image.into_rgba8());
+					let image_data = match &frame.data {
+						Some(bytes) => ImageReader::new(Cursor::new(bytes)).with_guessed_format()?.decode()?,
+						None => ImageReader::open(format!("{}{}", path, frame.input_filename))?.decode()?
+					};
+					images.push(image_data.into_rgba8());
 				}
-				*data = match extension.as_str() {
+				*data = match file_helper::extension(output_filename).as_str() {
 					"c16" => Some(c16::encode(images)),
 					"s16" => Some(s16::encode(images)),
 					"blk" => Some(if let Some(image) = images.get(0) { blk::encode(image.clone()) } else { Bytes::new() }),
@@ -206,17 +195,6 @@ impl Sprite {
 }
 
 impl SpriteFrame {
-	// pub fn new(input_filename: &String) -> Result<SpriteFrame, Box<dyn Error>> {
-	// 	if file_helper::extension(input_filename) == "png" {
-	// 		Ok(SpriteFrame{
-	// 			input_filename: input_filename.to_string(),
-	// 			data: None
-	// 		})
-	// 	} else {
-	// 		Err(create_error(&format!("File {} has an unrecognized file type. Sprite frame must be a PNG.", input_filename)))
-	// 	}
-	// }
-
 	pub fn new_from_data(input_filename: &String, data: &mut Bytes) -> Result<SpriteFrame, Box<dyn Error>> {
 		if file_helper::extension(input_filename) == "png" {
 			Ok(SpriteFrame{
