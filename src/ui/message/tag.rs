@@ -51,6 +51,9 @@ pub enum TagMessage {
 	MoveFileDown(FileType, usize),
 	RemoveFile(FileType, usize, String),
 	AddFile,
+	BeginAddExistingFile,
+	AddExistingFile(usize),
+	CancelModal,
 	AddInlineCatalogue
 }
 
@@ -473,6 +476,19 @@ pub fn check_tag_message(main: &mut Main, message: TagMessage) {
 			add_file(main);
 		},
 
+		TagMessage::BeginAddExistingFile => {
+			main.is_adding_existing_file = true;
+		},
+
+		TagMessage::AddExistingFile(file_index) => {
+			main.is_adding_existing_file = false;
+			add_existing_file(main, file_index);
+		},
+
+		TagMessage::CancelModal => {
+			main.is_adding_existing_file = false;
+		},
+
 		TagMessage::AddInlineCatalogue => {
 			let catalogue_index = main.files.len();
 			if let Some(Tag::Agent(tag)) = main.get_selected_tag_mut() {
@@ -566,39 +582,8 @@ pub fn add_file_from_path(main: &mut Main, filepath: String, from_drop: bool) {
 								file_index = Some(main.files.len() - 1);
 							}
 
-							let mut file_added = false;
 							if let Some(file_index) = file_index {
-								if let Some(tag) = main.get_selected_tag_mut() {
-									if !tag.has_file(&filetype, file_index) {
-										match tag.add_file(&filetype, file_index) {
-											Some(index) => {
-												match filetype {
-													FileType::Script => { main.selection = Selection::Script(index); },
-													FileType::Sprite => { main.selection = Selection::Sprite(index); },
-													FileType::Sound => { main.selection = Selection::Sound(index); },
-													FileType::Catalogue => { main.selection = Selection::Catalogue(index); },
-													FileType::BodyData => { main.selection = Selection::BodyData(index); }
-													FileType::Genetics => { main.selection = Selection::Genetics(index); },
-												}
-												file_added = true;
-												main.modified = true;
-											},
-											None => {
-												main.add_alert(&format!("ERROR: Unable to add {}: wrong filetype for this tag", filename), true);
-											}
-										}
-									}
-								}
-
-								if file_added {
-									if let Some(Tag::Egg(egg_tag)) = main.get_selected_tag_mut() {
-										if let None = egg_tag.genome {
-											if file_helper::extension(&input_filename) == "gen" {
-												egg_tag.genome = Some(file_index);
-											}
-										}
-									}
-								}
+								add_existing_file(main, file_index);
 							}
 						},
 						Err(why) => {
@@ -614,6 +599,55 @@ pub fn add_file_from_path(main: &mut Main, filepath: String, from_drop: bool) {
 
 		None => {
 			alert_wrong_folder();
+		}
+	}
+}
+
+fn add_existing_file(main: &mut Main, file_index: usize) -> bool {
+	let file = main.files.get(file_index);
+	match file {
+		Some(file) => {
+			let filename = file.get_output_filename();
+			let filetype = file.get_filetype();
+			let extension = file.get_extension();
+			let mut file_added = false;
+			if let Some(tag) = main.get_selected_tag_mut() {
+				if !tag.has_file(&filetype, file_index) {
+					match tag.add_file(&filetype, file_index) {
+						Some(index) => {
+							match filetype {
+								FileType::Script => { main.selection = Selection::Script(index); },
+								FileType::Sprite => { main.selection = Selection::Sprite(index); },
+								FileType::Sound => { main.selection = Selection::Sound(index); },
+								FileType::Catalogue => { main.selection = Selection::Catalogue(index); },
+								FileType::BodyData => { main.selection = Selection::BodyData(index); }
+								FileType::Genetics => { main.selection = Selection::Genetics(index); },
+							}
+							file_added = true;
+							main.modified = true;
+						},
+						None => {
+							main.add_alert(&format!("ERROR: Unable to add {}: wrong filetype for this tag", filename), true);
+						}
+					}
+				}
+			}
+
+			if file_added {
+				if let Some(Tag::Egg(egg_tag)) = main.get_selected_tag_mut() {
+					if let None = egg_tag.genome {
+						if extension == "gen" {
+							egg_tag.genome = Some(file_index);
+						}
+					}
+				}
+			}
+			file_added
+		},
+		None => {
+			// :(
+			main.add_alert(&format!("ERROR: Unable to add file index {} as it no longer exists.", file_index), true);
+			false
 		}
 	}
 }
