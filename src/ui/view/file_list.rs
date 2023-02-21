@@ -10,10 +10,21 @@ use iced::{ Alignment, Length, theme };
 
 pub fn view(main: &Main) -> Column<Message> {
 	if let Some(tag) = main.get_selected_tag() {
+		// Adding an existing file acts as a modal dialog over the file list, so it gets special behaviour.
+		if main.is_adding_existing_file {
+			return view_adding_existing_file(main);
+		}
+
+		// Otherwise, as things were.
 		let mut file_lists = column![ text("Files:") ].spacing(20).padding(20);
 
 		let add_button = button(row![add_icon(), text("Add New File")].spacing(5))
 			.on_press(Message::Tag(TagMessage::AddFile))
+			.width(Length::Fill)
+			.style(theme::Button::Secondary);
+
+		let add_existing_button = button(row![add_icon(), text("Add Existing File")].spacing(5))
+			.on_press(Message::Tag(TagMessage::BeginAddExistingFile))
 			.width(Length::Fill)
 			.style(theme::Button::Secondary);
 
@@ -85,25 +96,57 @@ pub fn view(main: &Main) -> Column<Message> {
 		return column![
 			scrollable(file_lists).height(Length::Fill),
 			horizontal_rule(1),
-			column![ add_button, extra_add_buttons ].spacing(5).padding(20)
+			column![ add_button, add_existing_button, extra_add_buttons ].spacing(5).padding(20)
 		];
 	} else {
 		column![ text("(no tag selected)") ].padding(20)
 	}
 }
 
+pub fn view_adding_existing_file(main: &Main) -> Column<Message> {
+	let mut file_lists = column![ text("Files:") ].spacing(20).padding(20);
+	for (k, v) in main.files.iter().enumerate() {
+		let icon = file_icon(v.get_filetype());
+		let button_content = row![ icon, text(v.get_output_filename()) ];
+		let file_button = button(button_content)
+			.on_press(Message::Tag(TagMessage::AddExistingFile(k)));
+		file_lists = file_lists.push(file_button);
+	}
+	let cancel_button = button(text("Cancel"))
+		.on_press(Message::Tag(TagMessage::CancelModal))
+		.width(Length::Fill)
+		.style(theme::Button::Secondary);
+	column![
+		scrollable(file_lists).height(Length::Fill),
+		horizontal_rule(1),
+		column![ cancel_button ].spacing(5).padding(20)
+	]
+}
+
 fn section_header<'a>(icon: Text<'a>, title: &'a str) -> Row<'a, Message> {
 	row![ icon, text(title) ].spacing(5).align_items(Alignment::Center)
 }
 
-fn file_list_header<'a>(filetype: FileType) -> Row<'a, Message> {
+fn file_icon<'a>(filetype: FileType) -> Text<'static> {
 	match filetype {
-		FileType::Script => section_header(script_icon(), "Scripts"),
-		FileType::Sprite => section_header(sprite_icon(), "Sprites"),
-		FileType::Sound => section_header(sound_icon(), "Sounds"),
-		FileType::Catalogue => section_header(catalogue_icon(), "Catalogues"),
-		FileType::BodyData => section_header(bodydata_icon(), "Body Data"),
-		FileType::Genetics => section_header(genetics_icon(), "Genomes")
+		FileType::Script => script_icon(),
+		FileType::Sprite => sprite_icon(),
+		FileType::Sound => sound_icon(),
+		FileType::Catalogue => catalogue_icon(),
+		FileType::BodyData => bodydata_icon(),
+		FileType::Genetics => genetics_icon()
+	}
+}
+
+fn file_list_header<'a>(filetype: FileType) -> Row<'a, Message> {
+	let icon = file_icon(filetype);
+	match filetype {
+		FileType::Script => section_header(icon, "Scripts"),
+		FileType::Sprite => section_header(icon, "Sprites"),
+		FileType::Sound => section_header(icon, "Sounds"),
+		FileType::Catalogue => section_header(icon, "Catalogues"),
+		FileType::BodyData => section_header(icon, "Body Data"),
+		FileType::Genetics => section_header(icon, "Genomes")
 	}
 }
 

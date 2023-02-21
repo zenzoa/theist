@@ -25,7 +25,8 @@ pub struct Main {
 	selected_tag_index: Option<usize>,
 	selection: Selection,
 	alerts: Vec<Alert>,
-	modified: bool
+	modified: bool,
+	is_adding_existing_file: bool
 }
 
 impl Application for Main {
@@ -43,7 +44,8 @@ impl Application for Main {
 			selected_tag_index: None,
 			selection: Selection::None,
 			alerts: Vec::new(),
-			modified: false
+			modified: false,
+			is_adding_existing_file: false
 		}, Command::none())
 	}
 

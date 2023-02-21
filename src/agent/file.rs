@@ -10,7 +10,7 @@ use crate::file_helper;
 use std::error::Error;
 use bytes::Bytes;
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, Copy)]
 pub enum FileType {
 	Script,
 	Sprite,
