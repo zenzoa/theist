@@ -62,10 +62,8 @@ pub fn check_sprite_message(main: &mut Main, message: SpriteMessage) {
 			},
 
 			SpriteMessage::RemoveFrame(frame_index) => {
-				if confirm_remove_frame() {
-					if sprite.remove_frame(frame_index) {
-						main.modified = true;
-					}
+				if confirm_remove_frame() && sprite.remove_frame(frame_index) {
+					main.modified = true;
 				}
 			},
 
@@ -98,7 +96,7 @@ fn make_sprite_frame(main_path: &String, filepath: String) -> Result<Option<Spri
 		},
 		None => {
 			alert_wrong_folder();
-			return Ok(None)
+			Ok(None)
 		}
 	}
 }

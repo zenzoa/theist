@@ -24,20 +24,15 @@ pub fn decompile(contents: &[u8], convert_sprites_to_pngs: bool) -> Result<Decom
 
 	// first read all file blocks
 	let mut buffer_for_files = Bytes::copy_from_slice(contents);
-	if buffer_for_files.len() >= 4 {
-		if read_string(&mut buffer_for_files, 4) == "PRAY" {
-			while buffer_for_files.len() >= 144 {
-				let block_header = read_block_header(&mut buffer_for_files);
-				if buffer_for_files.len() >= block_header.size {
-					let mut block_contents = get_block_contents(&mut buffer_for_files, &block_header)?;
-					match block_header.block_type.as_str() {
-						"FILE" => {
-							files.append(
-								&mut read_file_block(&mut block_contents, &block_header.name, convert_sprites_to_pngs)?
-							);
-						},
-						_ => ()
-					}
+	if buffer_for_files.len() >= 4 && read_string(&mut buffer_for_files, 4) == "PRAY" {
+		while buffer_for_files.len() >= 144 {
+			let block_header = read_block_header(&mut buffer_for_files);
+			if buffer_for_files.len() >= block_header.size {
+				let mut block_contents = get_block_contents(&mut buffer_for_files, &block_header)?;
+				if block_header.block_type.as_str() == "FILE" {
+					files.append(
+						&mut read_file_block(&mut block_contents, &block_header.name, convert_sprites_to_pngs)?
+					);
 				}
 			}
 		}

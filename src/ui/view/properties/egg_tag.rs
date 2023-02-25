@@ -5,7 +5,7 @@ use crate::ui::icon::*;
 use crate::agent::egg_tag::{ EggTag, EggPreview };
 
 use iced::widget::{ button, checkbox, Column, column, horizontal_rule, horizontal_space, pick_list, row, text, text_input };
-use iced::{ Alignment, alignment, Length, theme };
+use iced::{ Alignment, Length, theme };
 
 pub fn egg_tag_props<'a>(main: &'a Main, egg_tag: &'a EggTag) -> Column<'a, Message> {
 	let mut props = column![
@@ -55,17 +55,17 @@ pub fn egg_tag_props<'a>(main: &'a Main, egg_tag: &'a EggTag) -> Column<'a, Mess
 		row![
 			text("Genome:").width(Length::FillPortion(1)),
 			pick_list(genome_names, Some(current_genome_name.clone()),
-				|x| Message::Tag(TagMessage::SetGenome(x.to_string())))
+				|x| Message::Tag(TagMessage::SetGenome(x)))
 				.width(Length::FillPortion(3))
 		].spacing(5).align_items(Alignment::Center)
 	].spacing(10);
 
-	if current_genome_name.clone().starts_with('e') {
+	if current_genome_name.starts_with('e') {
 		genome = genome.push(
 			column![ text("Note: the Ettin egg-layer may hatch eggs with this genome because it starts with \"e\"") ]
 				.padding([ 0, 0, 0, 20 ])
 		);
-	} else if current_genome_name.clone().starts_with('g') {
+	} else if current_genome_name.starts_with('g') {
 		genome = genome.push(
 			column![ text("Note: the Grendel egg-layer may hatch eggs with this genome because it starts with \"g\"") ]
 				.padding([ 0, 0, 0, 20 ])
@@ -113,7 +113,7 @@ pub fn egg_tag_props<'a>(main: &'a Main, egg_tag: &'a EggTag) -> Column<'a, Mess
 			row![
 				text("Male Sprite:").width(Length::FillPortion(1)),
 				pick_list(sprite_names.clone(), Some(sprite_male_name),
-					|x| Message::Tag(TagMessage::SetEggPreviewSpriteMale(x.to_string())))
+					|x| Message::Tag(TagMessage::SetEggPreviewSpriteMale(x)))
 					.width(Length::FillPortion(3))
 			].spacing(5).padding([ 0, 0, 0, 20 ]).align_items(Alignment::Center)
 		);
@@ -121,7 +121,7 @@ pub fn egg_tag_props<'a>(main: &'a Main, egg_tag: &'a EggTag) -> Column<'a, Mess
 			row![
 				text("Female Sprite:").width(Length::FillPortion(1)),
 				pick_list(sprite_names.clone(), Some(sprite_female_name),
-					|x| Message::Tag(TagMessage::SetEggPreviewSpriteFemale(x.to_string())))
+					|x| Message::Tag(TagMessage::SetEggPreviewSpriteFemale(x)))
 					.width(Length::FillPortion(3))
 			].spacing(5).padding([ 0, 0, 0, 20 ]).align_items(Alignment::Center)
 		);

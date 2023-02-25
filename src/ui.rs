@@ -198,45 +198,24 @@ impl Main {
 					Tag::Agent(agent_tag) => {
 						match self.selection {
 							Selection::Script(index) =>
-								match agent_tag.scripts.get(index) {
-									Some(file_index) => Some(file_index.clone()),
-									None => None
-								},
+								agent_tag.scripts.get(index).copied(),
 							Selection::Sprite(index) =>
-								match agent_tag.sprites.get(index) {
-									Some(file_index) => Some(file_index.clone()),
-									None => None
-								},
+								agent_tag.sprites.get(index).copied(),
 							Selection::Sound(index) =>
-								match agent_tag.sounds.get(index) {
-									Some(file_index) => Some(file_index.clone()),
-									None => None
-								},
+								agent_tag.sounds.get(index).copied(),
 							Selection::Catalogue(index) =>
-								match agent_tag.catalogues.get(index) {
-									Some(file_index) => Some(file_index.clone()),
-									None => None
-								},
+								agent_tag.catalogues.get(index).copied(),
 							_ => None
 						}
 					},
 					Tag::Egg(egg_tag) => {
 						match self.selection {
 							Selection::Sprite(index) =>
-								match egg_tag.sprites.get(index) {
-									Some(file_index) => Some(file_index.clone()),
-									None => None
-								},
+								egg_tag.sprites.get(index).copied(),
 							Selection::Genetics(index) =>
-								match egg_tag.genetics.get(index) {
-									Some(file_index) => Some(file_index.clone()),
-									None => None
-								},
+								egg_tag.genetics.get(index).copied(),
 							Selection::BodyData(index) =>
-								match egg_tag.bodydata.get(index) {
-									Some(file_index) => Some(file_index.clone()),
-									None => None
-								},
+								egg_tag.bodydata.get(index).copied(),
 							_ => None
 						}
 					},

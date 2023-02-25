@@ -22,13 +22,10 @@ pub fn decode(contents: &str) -> Result<DecodeResult, Box<dyn Error>> {
 	while i < lines.len() {
 		let tokens = parse_tokens(lines[i]);
 		for token in &tokens {
-			match token.as_str() {
-				"files" => {
-					let (mut new_files, lines_to_skip) = file::decode(Vec::from(&lines[i+1..]));
-					files.append(&mut new_files);
-					i += lines_to_skip;
-				},
-				_ => ()
+			if token.as_str() == "files" {
+				let (mut new_files, lines_to_skip) = file::decode(Vec::from(&lines[i+1..]));
+				files.append(&mut new_files);
+				i += lines_to_skip;
 			}
 		}
 		i += 1;

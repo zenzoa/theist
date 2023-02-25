@@ -3,7 +3,7 @@ use crate::ui::dialog::*;
 use crate::agent::tag::Tag;
 use crate::agent::agent_tag::{ AgentTag, SupportedGame, Preview, RemoveScript };
 use crate::agent::egg_tag::{ EggTag, EggPreview };
-use crate::agent::free_tag::FreeTag;
+// use crate::agent::free_tag::FreeTag;
 use crate::agent::script::Script;
 use crate::agent::sprite::{ Sprite, SpriteFrame };
 use crate::agent::sound::Sound;
@@ -156,7 +156,7 @@ pub fn check_tag_message(main: &mut Main, message: TagMessage) {
 
 					_ => {
 						if let Some(sprite_index) = agent_tag.get_first_sprite(&files) {
-							let mut new_sprite = sprite_index.clone();
+							let mut new_sprite = sprite_index;
 							let mut new_animation = "0".to_string();
 
 							if let Preview::Manual{ sprite, animation } = &agent_tag.preview_backup {
@@ -213,8 +213,8 @@ pub fn check_tag_message(main: &mut Main, message: TagMessage) {
 					true => {
 						match egg_tag.get_first_sprite(&files) {
 							Some(sprite_index) => {
-								let mut new_sprite_male = sprite_index.clone();
-								let mut new_sprite_female = sprite_index.clone();
+								let mut new_sprite_male = sprite_index;
+								let mut new_sprite_female = sprite_index;
 								let mut new_animation = "0".to_string();
 
 								if let EggPreview::Manual{ sprite_male, sprite_female, animation } = &egg_tag.preview_backup {
@@ -234,7 +234,6 @@ pub fn check_tag_message(main: &mut Main, message: TagMessage) {
 
 							None => {
 								main.add_alert(&"ERROR: Must have at least one sprite file to enable preview".to_string(), true);
-								return;
 							}
 						}
 					}
@@ -400,7 +399,7 @@ pub fn check_tag_message(main: &mut Main, message: TagMessage) {
 						_ => ()
 					}
 
-					tag.remove_file(&filetype, index.clone());
+					tag.remove_file(&filetype, index);
 					main.modified = true;
 				}
 			}
@@ -505,7 +504,6 @@ pub fn add_file_from_path(main: &mut Main, filepath: String, from_drop: bool) {
 
 					match file_from_data(&extension, &input_filename, &mut Bytes::from(contents)) {
 						Ok(file) => {
-							let filetype = file.get_filetype();
 							let mut file_index: Option<usize> = None;
 
 							for (i, existing_file) in main.files.iter().enumerate() {
@@ -514,7 +512,7 @@ pub fn add_file_from_path(main: &mut Main, filepath: String, from_drop: bool) {
 								}
 							}
 
-							if let None = file_index {
+							if file_index.is_none() {
 								main.files.push(file);
 								file_index = Some(main.files.len() - 1);
 							}
@@ -572,10 +570,8 @@ fn add_existing_file(main: &mut Main, file_index: usize) -> bool {
 
 			if file_added {
 				if let Some(Tag::Egg(egg_tag)) = main.get_selected_tag_mut() {
-					if let None = egg_tag.genome {
-						if extension == "gen" {
-							egg_tag.genome = Some(file_index);
-						}
+					if egg_tag.genome.is_none() && extension == "gen" {
+						egg_tag.genome = Some(file_index);
 					}
 				}
 			}
@@ -589,8 +585,8 @@ fn add_existing_file(main: &mut Main, file_index: usize) -> bool {
 	}
 }
 
-fn file_from_data(extension: &String, filename: &String, contents: &mut Bytes) -> Result<CreaturesFile, Box<dyn Error>> {
-	match extension.as_str() {
+fn file_from_data(extension: &str, filename: &String, contents: &mut Bytes) -> Result<CreaturesFile, Box<dyn Error>> {
+	match extension {
 		"cos" => Ok(CreaturesFile::Script(Script::new_from_data(filename, contents)?)),
 		"c16" => Ok(CreaturesFile::Sprite(Sprite::new_from_data_raw(filename, contents)?)),
 		"s16" => Ok(CreaturesFile::Sprite(Sprite::new_from_data_raw(filename, contents)?)),

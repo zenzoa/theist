@@ -4,11 +4,11 @@ use crate::agent::tag::Tag;
 
 use std::error::Error;
 
-pub fn encode(tags: &Vec<Tag>, files: &mut Vec<CreaturesFile>) -> Result<String, Box<dyn Error>> {
+pub fn encode(tags: &Vec<Tag>, files: &mut [CreaturesFile]) -> Result<String, Box<dyn Error>> {
 	let mut content = String::new();
 
 	for tag in tags {
-		content.push_str(&tag.encode(&files));
+		content.push_str(&tag.encode(files));
 	}
 
 	content.push('\n');

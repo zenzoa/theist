@@ -5,7 +5,7 @@ use crate::ui::icon::*;
 use crate::agent::agent_tag::{ AgentTag, SupportedGame, Preview, RemoveScript };
 
 use iced::widget::{ button, Column, column, horizontal_rule, horizontal_space, pick_list, radio, row, text, text_input };
-use iced::{ Alignment, alignment, Length, theme };
+use iced::{ Alignment, Length, theme };
 
 pub fn agent_tag_props<'a>(main: &'a Main, agent_tag: &'a AgentTag) -> Column<'a, Message> {
 	let supported_game_index = match agent_tag.supported_game {
@@ -103,7 +103,7 @@ pub fn agent_tag_props<'a>(main: &'a Main, agent_tag: &'a AgentTag) -> Column<'a
 		preview = preview.push(
 			row![
 				pick_list(sprite_names, Some(sprite_name),
-					|x| Message::Tag(TagMessage::SetPreviewSprite(x.to_string()))),
+					|x| Message::Tag(TagMessage::SetPreviewSprite(x))),
 				text_input("Animation String", animation,
 					|x| Message::Tag(TagMessage::SetPreviewAnimation(x)))
 			].spacing(5).align_items(Alignment::Center)
@@ -139,7 +139,7 @@ pub fn agent_tag_props<'a>(main: &'a Main, agent_tag: &'a AgentTag) -> Column<'a
 
 	if let RemoveScript::Manual(remove_script_string) = &agent_tag.remove_script {
 		remove_script = remove_script.push(
-			text_input("Remove Script", &remove_script_string, |x| Message::Tag(TagMessage::SetRemoveScript(x)))
+			text_input("Remove Script", remove_script_string, |x| Message::Tag(TagMessage::SetRemoveScript(x)))
 		);
 	}
 

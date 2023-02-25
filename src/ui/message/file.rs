@@ -98,7 +98,7 @@ pub fn open_file_from_path(main: &mut Main, filepath: String) {
 			} else {
 				match str::from_utf8(&contents) {
 					Ok(contents) => {
-						match decode_source(&contents) {
+						match decode_source(contents) {
 							Ok(result) => {
 
 								main.filename = filename;

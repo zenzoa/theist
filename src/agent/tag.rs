@@ -158,9 +158,9 @@ impl Tag {
 	}
 }
 
-pub fn split_tags(base_tags: &Vec<Tag>, base_files: &Vec<CreaturesFile>) -> (Vec<Tag>, Vec<CreaturesFile>) {
+pub fn split_tags(base_tags: &Vec<Tag>, base_files: &[CreaturesFile]) -> (Vec<Tag>, Vec<CreaturesFile>) {
 	let mut tags: Vec<Tag> = Vec::new();
-	let mut files: Vec<CreaturesFile> = base_files.clone();
+	let mut files: Vec<CreaturesFile> = base_files.to_owned();
 
 	for tag in base_tags {
 		if let Tag::Agent(agent_tag) = tag {
@@ -172,7 +172,7 @@ pub fn split_tags(base_tags: &Vec<Tag>, base_files: &Vec<CreaturesFile>) -> (Vec
 				ds_tag.name.push_str(" DS");
 
 				for (j, script) in agent_tag.scripts.iter().enumerate() {
-					if let Some(CreaturesFile::Script(script_file)) = base_files.get(script.clone()) {
+					if let Some(CreaturesFile::Script(script_file)) = base_files.get(*script) {
 						c3_tag.scripts.remove(j);
 						ds_tag.scripts.remove(j);
 

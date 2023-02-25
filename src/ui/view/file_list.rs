@@ -118,7 +118,7 @@ fn section_header<'a>(icon: Text<'a>, title: &'a str) -> Row<'a, Message> {
 	row![ icon, text(title) ].spacing(5).align_items(Alignment::Center)
 }
 
-fn file_icon<'a>(filetype: FileType) -> Text<'static> {
+fn file_icon(filetype: FileType) -> Text<'static> {
 	match filetype {
 		FileType::Script => script_icon(),
 		FileType::Sprite => sprite_icon(),
@@ -142,14 +142,14 @@ fn file_list_header<'a>(filetype: FileType) -> Row<'a, Message> {
 }
 
 fn file_list<'a>(
-	files: &'a Vec<CreaturesFile>,
+	files: &'a [CreaturesFile],
 	file_indexes: &'a Vec<usize>,
 	selected_index: Option<usize>
 ) -> Column<'a, Message>
 {
 	let mut list = column![].spacing(10);
 	for (i, file_index) in file_indexes.iter().enumerate() {
-		if let Some(file) = files.get(file_index.clone()) {
+		if let Some(file) = files.get(*file_index) {
 			let selected = if let Some(index) = selected_index { index == i } else { false };
 			list = list.push(file_button(file, i, file_indexes.len() > 1, selected));
 		}
@@ -164,7 +164,7 @@ fn file_button(
 	selected: bool
 ) -> Row<Message>
 {
-	let missing_data = if let None = file.get_data() { true } else { false };
+	let missing_data = matches!(file.get_data(), None);
 
 	let mut file_button_row = row![
 		button(file.get_output_filename_ref().as_str())

@@ -6,7 +6,7 @@ use crate::agent::tag::Tag;
 use std::error::Error;
 use bytes::{ Bytes, BytesMut };
 
-pub fn compile(tags: &Vec<Tag>, files: &mut Vec<CreaturesFile>) -> Result<Bytes, Box<dyn Error>> {
+pub fn compile(tags: &Vec<Tag>, files: &mut [CreaturesFile]) -> Result<Bytes, Box<dyn Error>> {
 	let mut buffer = BytesMut::new();
 
 	buffer.extend_from_slice(&write_string("PRAY", 4));

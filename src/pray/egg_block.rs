@@ -14,12 +14,12 @@ pub fn write_egg_block(tag: &EggTag, files: &[CreaturesFile]) -> Result<Bytes, B
 	int_values.push(IntValue("Agent Type".to_string(), 0));
 
 	if let EggPreview::Manual{ sprite_male, sprite_female, animation } = &tag.preview {
-		if let Some(sprite_male_file) = files.get(sprite_male.clone()) {
+		if let Some(sprite_male_file) = files.get(*sprite_male) {
 			let sprite_male_filename = sprite_male_file.get_output_filename();
 			str_values.push(StrValue("Egg Gallery male".to_string(), sprite_male_filename.to_string()));
 			str_values.push(StrValue("Egg Glyph File".to_string(), format!("{}.c16", &sprite_male_filename)));
 		}
-		if let Some(sprite_female_file) = files.get(sprite_female.clone()) {
+		if let Some(sprite_female_file) = files.get(*sprite_female) {
 			let sprite_female_filename = sprite_female_file.get_output_filename();
 			str_values.push(StrValue("Egg Gallery female".to_string(), sprite_female_filename.to_string()));
 			str_values.push(StrValue("Egg Glyph File 2".to_string(), format!("{}.c16", &sprite_female_filename)));
@@ -38,7 +38,7 @@ pub fn write_egg_block(tag: &EggTag, files: &[CreaturesFile]) -> Result<Bytes, B
 	}
 
 	for sprite in &tag.sprites {
-		if let Some(CreaturesFile::Sprite(sprite_file)) = files.get(sprite.clone()) {
+		if let Some(CreaturesFile::Sprite(sprite_file)) = files.get(*sprite) {
 			dependency_count += 1;
 			int_values.push(IntValue(format!("Dependency Category {}", dependency_count), 2));
 			str_values.push(StrValue(format!("Dependency {}", dependency_count), sprite_file.get_output_filename()));
@@ -46,7 +46,7 @@ pub fn write_egg_block(tag: &EggTag, files: &[CreaturesFile]) -> Result<Bytes, B
 	}
 
 	for bodydata in &tag.bodydata {
-		if let Some(CreaturesFile::BodyData(bodydata_file)) = files.get(bodydata.clone()) {
+		if let Some(CreaturesFile::BodyData(bodydata_file)) = files.get(*bodydata) {
 			dependency_count += 1;
 			int_values.push(IntValue(format!("Dependency Category {}", dependency_count), 4));
 			str_values.push(StrValue(format!("Dependency {}", dependency_count), bodydata_file.get_output_filename()));
@@ -54,7 +54,7 @@ pub fn write_egg_block(tag: &EggTag, files: &[CreaturesFile]) -> Result<Bytes, B
 	}
 
 	for genetics in &tag.genetics {
-		if let Some(CreaturesFile::Genetics(genetics_file)) = files.get(genetics.clone()) {
+		if let Some(CreaturesFile::Genetics(genetics_file)) = files.get(*genetics) {
 			dependency_count += 1;
 			int_values.push(IntValue(format!("Dependency Category {}", dependency_count), 3));
 			str_values.push(StrValue(format!("Dependency {}", dependency_count), genetics_file.get_output_filename()));

@@ -34,7 +34,7 @@ pub fn encode(tag: &AgentTag, files: &[CreaturesFile]) -> String {
 	}
 
 	if let Preview::Manual{ sprite, animation } = &tag.preview {
-		if let Some(CreaturesFile::Sprite(sprite_file)) = files.get(sprite.clone()) {
+		if let Some(CreaturesFile::Sprite(sprite_file)) = files.get(*sprite) {
 			content.push_str(&format!("\tpreview \"{}\" \"{}\"\n", sprite_file.get_output_filename(), &animation));
 		}
 	}
@@ -44,25 +44,25 @@ pub fn encode(tag: &AgentTag, files: &[CreaturesFile]) -> String {
 
 	} else {
 		for script in &tag.scripts {
-			if let Some(CreaturesFile::Script(script_file)) = files.get(script.clone()) {
+			if let Some(CreaturesFile::Script(script_file)) = files.get(*script) {
 				content.push_str(&format!("\tuse \"{}\"\n", script_file.get_output_filename()));
 			}
 		}
 
 		for sprite in &tag.sprites {
-			if let Some(CreaturesFile::Sprite(sprite_file)) = files.get(sprite.clone()) {
+			if let Some(CreaturesFile::Sprite(sprite_file)) = files.get(*sprite) {
 				content.push_str(&format!("\tuse \"{}\"\n", sprite_file.get_output_filename()));
 			}
 		}
 
 		for sound in &tag.sounds {
-			if let Some(CreaturesFile::Sound(sound_file)) = files.get(sound.clone()) {
+			if let Some(CreaturesFile::Sound(sound_file)) = files.get(*sound) {
 				content.push_str(&format!("\tuse \"{}\"\n", sound_file.get_output_filename()));
 			}
 		}
 
 		for catalogue in &tag.catalogues {
-			if let Some(CreaturesFile::Catalogue(catalogue_file)) = files.get(catalogue.clone()) {
+			if let Some(CreaturesFile::Catalogue(catalogue_file)) = files.get(*catalogue) {
 				content.push_str(&format!("\tuse \"{}\"\n", catalogue_file.get_output_filename()));
 			}
 		}
@@ -134,15 +134,13 @@ pub fn decode(lines: Vec<&str>, name: String, supported_game: SupportedGame, fil
 					while let Some(filename) = &tokens.get(token_index) {
 						if filename == &"all" {
 							use_all_files = true;
-						} else {
-							if let Some(file_index) = lookup_file_index(files, filename) {
-								match files[file_index].get_filetype() {
-									FileType::Script => scripts.push(file_index),
-									FileType::Sprite => sprites.push(file_index),
-									FileType::Sound => sounds.push(file_index),
-									FileType::Catalogue => catalogues.push(file_index),
-									_ => ()
-								}
+						} else if let Some(file_index) = lookup_file_index(files, filename) {
+							match files[file_index].get_filetype() {
+								FileType::Script => scripts.push(file_index),
+								FileType::Sprite => sprites.push(file_index),
+								FileType::Sound => sounds.push(file_index),
+								FileType::Catalogue => catalogues.push(file_index),
+								_ => ()
 							}
 						}
 						token_index += 1;

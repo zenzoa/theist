@@ -6,13 +6,13 @@ pub struct FreeTag {
 	pub contents: String
 }
 
-impl FreeTag {
-	pub fn new() -> FreeTag {
-		FreeTag {
-			name: "Untitled Tag".to_string(),
-			version: "".to_string(),
-			block_type: "".to_string(),
-			contents: "".to_string()
-		}
-	}
-}
+// impl FreeTag {
+// 	pub fn new() -> FreeTag {
+// 		FreeTag {
+// 			name: "Untitled Tag".to_string(),
+// 			version: "".to_string(),
+// 			block_type: "".to_string(),
+// 			contents: "".to_string()
+// 		}
+// 	}
+// }

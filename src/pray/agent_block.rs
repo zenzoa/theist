@@ -33,8 +33,8 @@ pub fn write_agent_block(tag: &AgentTag, files: &[CreaturesFile]) -> Result<Byte
 			}
 		},
 		Preview::Auto => {
-			if let Some(sprite) = tag.sprites.get(0) {
-				if let Some(CreaturesFile::Sprite(sprite_file)) = files.get(sprite.clone()) {
+			if let Some(sprite) = tag.sprites.first() {
+				if let Some(CreaturesFile::Sprite(sprite_file)) = files.get(*sprite) {
 					let sprite_filename = sprite_file.get_output_filename();
 					let sprite_title = file_helper::title(&sprite_filename);
 					if file_helper::extension(&sprite_filename) != "blk" {
@@ -51,7 +51,7 @@ pub fn write_agent_block(tag: &AgentTag, files: &[CreaturesFile]) -> Result<Byte
 	let mut first_script = "".to_string();
 	int_values.push(IntValue("Script Count".to_string(), tag.scripts.len() as u32));
 	for (i, script) in tag.scripts.iter().enumerate() {
-		if let Some(CreaturesFile::Script(script_file)) = files.get(script.clone()) {
+		if let Some(CreaturesFile::Script(script_file)) = files.get(*script) {
 			match script_file.get_data() {
 				Some(script_data) => {
 					let script_string = str::from_utf8(&script_data)?;

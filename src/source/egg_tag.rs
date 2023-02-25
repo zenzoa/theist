@@ -8,8 +8,8 @@ pub fn encode(tag: &EggTag, files: &[CreaturesFile]) -> String {
 	content.push_str(&format!("egg \"{}\"\n", &tag.name));
 
 	if let EggPreview::Manual{ sprite_male, sprite_female, animation } = &tag.preview {
-		if let Some(sprite_male_file) = files.get(sprite_male.clone()) {
-			if let Some(sprite_female_file) = files.get(sprite_female.clone()) {
+		if let Some(sprite_male_file) = files.get(*sprite_male) {
+			if let Some(sprite_female_file) = files.get(*sprite_female) {
 				content.push_str(&format!("\tpreview \"{}\" \"{}\" \"{}\"\n",
 					sprite_male_file.get_output_filename(),
 					sprite_female_file.get_output_filename(),
@@ -25,13 +25,13 @@ pub fn encode(tag: &EggTag, files: &[CreaturesFile]) -> String {
 	}
 
 	for sprite in &tag.sprites {
-		if let Some(CreaturesFile::Sprite(sprite_file)) = files.get(sprite.clone()) {
+		if let Some(CreaturesFile::Sprite(sprite_file)) = files.get(*sprite) {
 			content.push_str(&format!("\tuse \"{}\"\n", sprite_file.get_output_filename()));
 		}
 	}
 
 	for bodydata in &tag.bodydata {
-		if let Some(CreaturesFile::BodyData(bodydata_file)) = files.get(bodydata.clone()) {
+		if let Some(CreaturesFile::BodyData(bodydata_file)) = files.get(*bodydata) {
 			content.push_str(&format!("\tuse \"{}\"\n", bodydata_file.get_output_filename()));
 		}
 	}
@@ -101,14 +101,12 @@ pub fn decode(lines: Vec<&str>, name: String, files: &[CreaturesFile]) -> (EggTa
 					while let Some(filename) = &tokens.get(token_index) {
 						if filename == &"all" {
 							use_all_files = true;
-						} else {
-							if let Some(file_index) = lookup_file_index(files, filename) {
-								match files[file_index].get_filetype() {
-									FileType::Sprite => sprites.push(file_index),
-									FileType::BodyData => bodydata.push(file_index),
-									FileType::Genetics => genetics.push(file_index),
-									_ => ()
-								}
+						} else if let Some(file_index) = lookup_file_index(files, filename) {
+							match files[file_index].get_filetype() {
+								FileType::Sprite => sprites.push(file_index),
+								FileType::BodyData => bodydata.push(file_index),
+								FileType::Genetics => genetics.push(file_index),
+								_ => ()
 							}
 						}
 						token_index += 1;

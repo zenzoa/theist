@@ -41,10 +41,8 @@ pub fn check_catalogue_message(main: &mut Main, message: CatalogueMessage) {
 			},
 
 			CatalogueMessage::RemoveEntry(entry_index) => {
-				if confirm_remove_entry() {
-					if catalogue.remove_entry(entry_index) {
-						main.modified = true;
-					}
+				if confirm_remove_entry() && catalogue.remove_entry(entry_index) {
+					main.modified = true;
 				}
 			},
 

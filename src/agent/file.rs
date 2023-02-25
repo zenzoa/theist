@@ -73,13 +73,13 @@ impl CreaturesFile {
 		match self {
 			CreaturesFile::Script(script) => &script.output_filename,
 			CreaturesFile::Sprite(sprite) => match sprite {
-					Sprite::Raw{ output_filename, .. } => &output_filename,
-					Sprite::Png{ output_filename, .. } => &output_filename
+					Sprite::Raw{ output_filename, .. } => output_filename,
+					Sprite::Png{ output_filename, .. } => output_filename
 				},
 			CreaturesFile::Sound(sound) => &sound.output_filename,
 			CreaturesFile::Catalogue(catalogue) => match catalogue {
-					Catalogue::Raw{ output_filename, .. } => &output_filename,
-					Catalogue::Inline{ output_filename, .. } => &output_filename
+					Catalogue::Raw{ output_filename, .. } => output_filename,
+					Catalogue::Inline{ output_filename, .. } => output_filename
 				},
 			CreaturesFile::BodyData(bodydata) => &bodydata.output_filename,
 			CreaturesFile::Genetics(genetics) => &genetics.output_filename
@@ -158,7 +158,7 @@ pub fn lookup_file_index(files: &[CreaturesFile], filename: &String) -> Option<u
 	None
 }
 
-pub fn only_used_files(tags: &Vec<Tag>, files: &Vec<CreaturesFile>) -> Vec<CreaturesFile> {
+pub fn only_used_files(tags: &Vec<Tag>, files: &[CreaturesFile]) -> Vec<CreaturesFile> {
 	let mut used_files: Vec<CreaturesFile> = Vec::new();
 	for (i, file) in files.iter().enumerate() {
 		let mut is_used = false;

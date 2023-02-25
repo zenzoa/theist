@@ -11,7 +11,7 @@ use std::error::Error;
 
 pub fn encode(file: &CreaturesFile) -> Result<String, Box<dyn Error>> {
 	let mut content = String::new();
-	let output_filename = file.get_output_filename().to_string();
+	let output_filename = file.get_output_filename();
 
 	match file {
 		CreaturesFile::Script(script) => {
