@@ -18,15 +18,6 @@ pub fn confirm_remove_tag() -> bool {
 		.show()
 }
 
-pub fn confirm_convert_tag(name: &str) -> bool {
-	MessageDialog::new()
-		.set_title("Convert tag?")
-		.set_description(format!("Are you sure you want to convert this tag to {}?", name).as_str())
-		.set_level(MessageLevel::Warning)
-		.set_buttons(MessageButtons::YesNo)
-		.show()
-}
-
 pub fn confirm_remove_item(name: &str) -> bool {
 	MessageDialog::new()
 		.set_title(format!("Remove {}?", name).as_str())

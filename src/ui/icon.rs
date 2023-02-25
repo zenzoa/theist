@@ -9,7 +9,7 @@ const ICONS: Font = Font::External {
 fn icon(unicode: char) -> Text<'static> {
 	text(unicode.to_string())
 		.font(ICONS)
-		.width(Length::Units(20))
+		.width(Length::Fixed(20.0))
 		.horizontal_alignment(alignment::Horizontal::Center)
 		.size(20)
 }

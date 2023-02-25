@@ -2,10 +2,13 @@ pub mod alert;
 pub mod dialog;
 pub mod icon;
 pub mod message;
+pub mod modal;
 pub mod view;
 
 use alert::Alert;
+use modal::Modal;
 use message::{ Message, check_message };
+use message::tag::TagMessage;
 use view::alert_list;
 use view::file_list;
 use view::properties;
@@ -14,7 +17,7 @@ use view::toolbar;
 use crate::agent::file::CreaturesFile;
 use crate::agent::tag::Tag;
 
-use iced::widget::{ column, container, horizontal_rule, row, scrollable };
+use iced::widget::{ button, column, container, horizontal_rule, row, scrollable, text };
 use iced::{ Application, Command, Element, executor, Length, subscription, Subscription, Theme, theme };
 
 pub struct Main {
@@ -26,6 +29,7 @@ pub struct Main {
 	selection: Selection,
 	alerts: Vec<Alert>,
 	modified: bool,
+	is_adding_new_tag: bool,
 	is_adding_existing_file: bool
 }
 
@@ -45,6 +49,7 @@ impl Application for Main {
 			selection: Selection::None,
 			alerts: Vec::new(),
 			modified: false,
+			is_adding_new_tag: false,
 			is_adding_existing_file: false
 		}, Command::none())
 	}
@@ -68,7 +73,7 @@ impl Application for Main {
 	}
 
 	fn view(&self) -> Element<Message> {
-		column![
+		let content = column![
 
 			toolbar::view(self),
 
@@ -97,7 +102,63 @@ impl Application for Main {
 
 			alert_list::view(self)
 
-		].into()
+		];
+
+		if self.is_adding_new_tag {
+			let new_tag_modal = container(
+				column![
+					text("Add New Tag"),
+					horizontal_rule(1),
+					column![
+						button("Agent Tag")
+							.on_press(Message::Tag(TagMessage::AddAgentTag))
+							.width(Length::Fill),
+						button("Egg Tag")
+							.on_press(Message::Tag(TagMessage::AddEggTag))
+							.width(Length::Fill)
+					].spacing(10),
+					horizontal_rule(1),
+					button("Cancel")
+						.on_press(Message::HideNewTagDialog)
+						.width(Length::Fill)
+						.style(theme::Button::Secondary)
+				].spacing(20)
+			)
+				.width(300)
+				.padding(20)
+				.style(theme::Container::Box);
+
+			Modal::new(content, new_tag_modal)
+				.on_blur(Message::HideNewTagDialog)
+				.into()
+
+		} else if self.is_adding_existing_file {
+			let existing_file_modal = container(
+				container(
+					column![
+						text("Add Existing File"),
+						horizontal_rule(1),
+						scrollable(file_list::existing_file_list(self))
+							.height(Length::Fill),
+						horizontal_rule(1),
+						button("Cancel")
+							.on_press(Message::HideExistingFileDialog)
+							.width(Length::Fill)
+							.style(theme::Button::Secondary)
+					].spacing(20)
+				)
+					.width(500)
+					.padding(20)
+					.style(theme::Container::Box)
+			).padding(20);
+
+			Modal::new(content, existing_file_modal)
+				.on_blur(Message::HideExistingFileDialog)
+				.into()
+
+		} else {
+			content.into()
+		}
 	}
 }
 

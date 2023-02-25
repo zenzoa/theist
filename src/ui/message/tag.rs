@@ -22,11 +22,9 @@ use bytes::Bytes;
 #[derive(Debug, Clone)]
 pub enum TagMessage {
 	Select(usize),
-	Add,
+	AddAgentTag,
+	AddEggTag,
 	Remove,
-	ConvertToAgent,
-	ConvertToEgg,
-	ConvertToFree,
 	SetName(String),
 	SetDescription(String),
 	SetVersion(String),
@@ -51,9 +49,7 @@ pub enum TagMessage {
 	MoveFileDown(FileType, usize),
 	RemoveFile(FileType, usize, String),
 	AddFile,
-	BeginAddExistingFile,
 	AddExistingFile(usize),
-	CancelModal,
 	AddInlineCatalogue
 }
 
@@ -66,19 +62,22 @@ pub fn check_tag_message(main: &mut Main, message: TagMessage) {
 			}
 		},
 
-		TagMessage::Add => {
+		TagMessage::AddAgentTag => {
 			let mut new_tag = AgentTag::new();
 			if main.tags.is_empty() {
 				new_tag.use_all_files = true; // default to using all files for first tag
 			}
 			main.tags.push(Tag::Agent(new_tag));
-			main.tags.sort_by_key(|t| t.get_name().clone());
-			main.selected_tag_index = Some(main.tags.len() - 1);
-			main.selection = Selection::None;
-			main.modified = true;
-			if main.filename.is_empty() {
-				main.filename = "untitled.the".to_string();
+			finish_adding_tag(main);
+		},
+
+		TagMessage::AddEggTag => {
+			let mut new_tag = EggTag::new();
+			if main.tags.is_empty() {
+				new_tag.use_all_files = true; // default to using all files for first tag
 			}
+			main.tags.push(Tag::Egg(new_tag));
+			finish_adding_tag(main);
 		},
 
 		TagMessage::Remove => {
@@ -91,71 +90,6 @@ pub fn check_tag_message(main: &mut Main, message: TagMessage) {
 						main.selected_tag_index = Some(index - 1);
 					}
 					main.selection = Selection::None;
-					main.modified = true;
-				}
-			}
-		},
-
-		TagMessage::ConvertToAgent => {
-			if confirm_convert_tag("an Agent Tag") {
-				if let Some(tag) = main.get_selected_tag_mut() {
-					let mut agent_tag = AgentTag::new();
-					match tag {
-						Tag::Egg(egg_tag) => {
-							agent_tag.name = egg_tag.name.clone();
-							agent_tag.version = egg_tag.version.clone();
-							agent_tag.sprites = egg_tag.sprites.clone();
-						},
-						Tag::Free(free_tag) => {
-							agent_tag.name = free_tag.name.clone();
-							agent_tag.version = free_tag.version.clone();
-						},
-						_ => ()
-					}
-					*tag = Tag::Agent(agent_tag);
-					main.modified = true;
-				}
-			}
-		},
-
-		TagMessage::ConvertToEgg => {
-			if confirm_convert_tag("an Egg Tag") {
-				if let Some(tag) = main.get_selected_tag_mut() {
-					let mut egg_tag = EggTag::new();
-					match tag {
-						Tag::Agent(agent_tag) => {
-							egg_tag.name = agent_tag.name.clone();
-							egg_tag.version = agent_tag.version.clone();
-							egg_tag.sprites = agent_tag.sprites.clone();
-						},
-						Tag::Free(free_tag) => {
-							egg_tag.name = free_tag.name.clone();
-							egg_tag.version = free_tag.version.clone();
-						},
-						_ => ()
-					}
-					*tag = Tag::Egg(egg_tag);
-					main.modified = true;
-				}
-			}
-		},
-
-		TagMessage::ConvertToFree => {
-			if confirm_convert_tag("a Free-Form Tag") {
-				if let Some(tag) = main.get_selected_tag_mut() {
-					let mut free_tag = FreeTag::new();
-					match tag {
-						Tag::Agent(agent_tag) => {
-							free_tag.name = agent_tag.name.clone();
-							free_tag.version = agent_tag.version.clone();
-						},
-						Tag::Egg(egg_tag) => {
-							free_tag.name = egg_tag.name.clone();
-							free_tag.version = egg_tag.version.clone();
-						},
-						_ => ()
-					}
-					*tag = Tag::Free(free_tag);
 					main.modified = true;
 				}
 			}
@@ -476,17 +410,9 @@ pub fn check_tag_message(main: &mut Main, message: TagMessage) {
 			add_file(main);
 		},
 
-		TagMessage::BeginAddExistingFile => {
-			main.is_adding_existing_file = true;
-		},
-
 		TagMessage::AddExistingFile(file_index) => {
 			main.is_adding_existing_file = false;
 			add_existing_file(main, file_index);
-		},
-
-		TagMessage::CancelModal => {
-			main.is_adding_existing_file = false;
 		},
 
 		TagMessage::AddInlineCatalogue => {
@@ -505,6 +431,17 @@ pub fn check_tag_message(main: &mut Main, message: TagMessage) {
 				}
 			}
 		}
+	}
+}
+
+fn finish_adding_tag(main: &mut Main) {
+	main.is_adding_new_tag = false;
+	main.tags.sort_by_key(|t| t.get_name().clone());
+	main.selected_tag_index = Some(main.tags.len() - 1);
+	main.selection = Selection::None;
+	main.modified = true;
+	if main.filename.is_empty() {
+		main.filename = "untitled.the".to_string();
 	}
 }
 

@@ -27,6 +27,12 @@ pub enum Message {
 	EventOccurred(Event),
 	DismissAlert(usize),
 	File(FileMessage),
+
+	ShowNewTagDialog,
+	HideNewTagDialog,
+	ShowExistingFileDialog,
+	HideExistingFileDialog,
+
 	Tag(TagMessage),
 	Script(ScriptMessage),
 	Sprite(SpriteMessage),
@@ -100,6 +106,22 @@ pub fn check_message(main: &mut Main, message: Message) -> Command<Message> {
 
 		Message::DismissAlert(index) => {
 			main.alerts.remove(index);
+		},
+
+		Message::ShowNewTagDialog => {
+			main.is_adding_new_tag = true;
+		},
+
+		Message::HideNewTagDialog => {
+			main.is_adding_new_tag = false;
+		},
+
+		Message::ShowExistingFileDialog => {
+			main.is_adding_existing_file = true;
+		},
+
+		Message::HideExistingFileDialog => {
+			main.is_adding_existing_file = false;
 		},
 
 		Message::File(msg) => check_file_message(main, msg),

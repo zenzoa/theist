@@ -9,7 +9,7 @@ use iced::{ Alignment, Length, theme };
 pub fn view(main: &Main) -> Row<Message> {
 	let mut tag_list = row![
 		text("Tags:"),
-		horizontal_space(Length::Units(1))
+		horizontal_space(Length::Fixed(1.0))
 	].padding(20).spacing(5).align_items(Alignment::Center);
 
 	for (i, tag) in main.tags.iter().enumerate() {
@@ -28,7 +28,7 @@ pub fn view(main: &Main) -> Row<Message> {
 
 	tag_list = tag_list.push(
 		button(add_icon())
-			.on_press(Message::Tag(TagMessage::Add))
+			.on_press(Message::ShowNewTagDialog)
 			.style(theme::Button::Secondary)
 	);
 

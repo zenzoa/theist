@@ -145,11 +145,12 @@ pub fn agent_tag_props<'a>(main: &'a Main, agent_tag: &'a AgentTag) -> Column<'a
 
 	props = props.push(remove_script);
 
-	// ------------------
-	// Conversion buttons
-	// ==================
+	// -------------
+	// Delete Button
+	// =============
 
-	let mut buttons = column![
+	props = props.push(horizontal_rule(1));
+	props = props.push(
 		button(
 				row![
 					horizontal_space(Length::Fill),
@@ -161,36 +162,7 @@ pub fn agent_tag_props<'a>(main: &'a Main, agent_tag: &'a AgentTag) -> Column<'a
 			.on_press(Message::Tag(TagMessage::Remove))
 			.style(theme::Button::Secondary)
 			.width(Length::Fill)
-	].spacing(10);
-
-	if agent_tag.scripts.is_empty() && agent_tag.catalogues.is_empty() && agent_tag.sounds.is_empty() {
-		buttons = buttons.push(
-			button(
-				text("Convert to Egg Tag")
-					.horizontal_alignment(alignment::Horizontal::Center)
-					.width(Length::Fill)
-				)
-				.on_press(Message::Tag(TagMessage::ConvertToEgg))
-				.style(theme::Button::Secondary)
-				.width(Length::Fill)
-		);
-	}
-
-	// if agent_tag.scripts.is_empty() && agent_tag.sprites.is_empty() && agent_tag.catalogues.is_empty() && agent_tag.sounds.is_empty() {
-	// 	buttons = buttons.push(
-	// 		button(
-	// 			text("Convert to Free-Form Tag")
-	// 				.horizontal_alignment(alignment::Horizontal::Center)
-	// 				.width(Length::Fill)
-	// 			)
-	// 			.on_press(Message::Tag(TagMessage::ConvertToFree))
-	// 			.style(theme::Button::Secondary)
-	// 			.width(Length::Fill)
-	// 	);
-	// }
-
-	props = props.push(horizontal_rule(1));
-	props = props.push(buttons);
+	);
 
 	props
 }

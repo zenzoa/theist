@@ -10,12 +10,6 @@ use iced::{ Alignment, Length, theme };
 
 pub fn view(main: &Main) -> Column<Message> {
 	if let Some(tag) = main.get_selected_tag() {
-		// Adding an existing file acts as a modal dialog over the file list, so it gets special behaviour.
-		if main.is_adding_existing_file {
-			return view_adding_existing_file(main);
-		}
-
-		// Otherwise, as things were.
 		let mut file_lists = column![ text("Files:") ].spacing(20).padding(20);
 
 		let add_button = button(row![add_icon(), text("Add New File")].spacing(5))
@@ -24,7 +18,7 @@ pub fn view(main: &Main) -> Column<Message> {
 			.style(theme::Button::Secondary);
 
 		let add_existing_button = button(row![add_icon(), text("Add Existing File")].spacing(5))
-			.on_press(Message::Tag(TagMessage::BeginAddExistingFile))
+			.on_press(Message::ShowExistingFileDialog)
 			.width(Length::Fill)
 			.style(theme::Button::Secondary);
 
@@ -86,6 +80,10 @@ pub fn view(main: &Main) -> Column<Message> {
 					file_lists = file_lists.push(file_list_header(FileType::BodyData));
 					file_lists = file_lists.push(file_list(&main.files, &egg_tag.bodydata, selected_bodydata_index));
 				}
+
+				if egg_tag.genetics.is_empty() && egg_tag.sprites.is_empty() && egg_tag.bodydata.is_empty() {
+					file_lists = file_lists.push(text("(no files yet)"));
+				}
 			},
 
 			Tag::Free(_free_tag) => {
@@ -103,24 +101,17 @@ pub fn view(main: &Main) -> Column<Message> {
 	}
 }
 
-pub fn view_adding_existing_file(main: &Main) -> Column<Message> {
-	let mut file_lists = column![ text("Files:") ].spacing(20).padding(20);
+pub fn existing_file_list(main: &Main) -> Column<Message> {
+	let mut existing_files = column![].spacing(10);
 	for (k, v) in main.files.iter().enumerate() {
 		let icon = file_icon(v.get_filetype());
-		let button_content = row![ icon, text(v.get_output_filename()) ];
+		let button_content = row![ icon, text(v.get_output_filename()) ].spacing(5);
 		let file_button = button(button_content)
-			.on_press(Message::Tag(TagMessage::AddExistingFile(k)));
-		file_lists = file_lists.push(file_button);
+			.on_press(Message::Tag(TagMessage::AddExistingFile(k)))
+			.width(Length::Fill);
+		existing_files = existing_files.push(file_button);
 	}
-	let cancel_button = button(text("Cancel"))
-		.on_press(Message::Tag(TagMessage::CancelModal))
-		.width(Length::Fill)
-		.style(theme::Button::Secondary);
-	column![
-		scrollable(file_lists).height(Length::Fill),
-		horizontal_rule(1),
-		column![ cancel_button ].spacing(5).padding(20)
-	]
+	existing_files
 }
 
 fn section_header<'a>(icon: Text<'a>, title: &'a str) -> Row<'a, Message> {
