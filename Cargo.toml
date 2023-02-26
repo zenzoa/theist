@@ -1,6 +1,6 @@
 [package]
 name = "theist"
-version = "0.3.0"
+version = "1.0.0"
 edition = "2021"
 
 [dependencies]
@@ -11,3 +11,6 @@ iced = { version = "0.8.0", features = ["image"] }
 iced_native = "0.9.1"
 rfd = "0.10.0"
 libflate = "1.2.0"
+
+[build-dependencies]
+embed-resource = "1.8.0"
