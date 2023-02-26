@@ -33,10 +33,16 @@ pub fn encode(tag: &AgentTag, files: &[CreaturesFile]) -> String {
 		_ => ()
 	}
 
-	if let Preview::Manual{ sprite, animation } = &tag.preview {
-		if let Some(CreaturesFile::Sprite(sprite_file)) = files.get(*sprite) {
-			content.push_str(&format!("\tpreview \"{}\" \"{}\"\n", sprite_file.get_output_filename(), &animation));
-		}
+	match &tag.preview {
+		Preview::Auto => {
+			content.push_str("\tpreview auto\n");
+		},
+		Preview::Manual{ sprite, animation } => {
+			if let Some(CreaturesFile::Sprite(sprite_file)) = files.get(*sprite) {
+				content.push_str(&format!("\tpreview \"{}\" \"{}\"\n", sprite_file.get_output_filename(), &animation));
+			}
+		},
+		_ => ()
 	}
 
 	if tag.scripts.len() + tag.sprites.len() + tag.sounds.len() + tag.catalogues.len() == files.len() {
