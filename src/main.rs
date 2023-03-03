@@ -1,3 +1,5 @@
+#![windows_subsystem = "windows"]
+
 // FUTURE FEATURES
 // - support for free tags (since no big text box, may need individual tag lines)
 // - spritesheet support (esp. important for egg tags)
