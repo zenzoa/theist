@@ -166,9 +166,11 @@ pub fn split_tags(base_tags: &Vec<Tag>, base_files: &[CreaturesFile]) -> (Vec<Ta
 		if let Tag::Agent(agent_tag) = tag {
 			if agent_tag.supported_game == SupportedGame::C3DS {
 				let mut c3_tag = agent_tag.clone();
+				c3_tag.supported_game = SupportedGame::C3;
 				c3_tag.name.push_str(" C3");
 
 				let mut ds_tag = agent_tag.clone();
+				ds_tag.supported_game = SupportedGame::DS;
 				ds_tag.name.push_str(" DS");
 
 				for (j, script) in agent_tag.scripts.iter().enumerate() {

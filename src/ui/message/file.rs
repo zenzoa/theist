@@ -208,6 +208,10 @@ pub fn extract_files(main: &mut Main) {
 }
 
 pub fn compile(main: &mut Main) {
+	for file in &mut main.files {
+		file.fetch_data(&main.path).unwrap();
+	}
+
 	let (tags, mut files) = split_tags(&main.tags, &main.files);
 
 	let mut missing_files = false;
