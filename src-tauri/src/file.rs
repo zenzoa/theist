@@ -68,6 +68,8 @@ fn reset_file_modified(handle: &AppHandle) {
 			};
 		}
 	}
+
+	update_title(handle);
 }
 
 pub fn modify_file(handle: &AppHandle, add_to_history: bool) {
@@ -92,8 +94,16 @@ pub fn modify_file(handle: &AppHandle, add_to_history: bool) {
 
 #[tauri::command]
 pub fn new_file(handle: AppHandle) {
-	check_file_modified(handle, PathBuf::new(), FileModifiedCallback { func: |_handle, _| {
-		println!("new file");
+	check_file_modified(handle, PathBuf::new(), FileModifiedCallback { func: |handle, _| {
+		let file_state: State<FileState> = handle.state();
+		*file_state.path.lock().unwrap() = None;
+		*file_state.dependencies.lock().unwrap() = Vec::new();
+		*file_state.tags.lock().unwrap() = Vec::new();
+		*file_state.selected_tag.lock().unwrap() = None;
+		reset_history(&handle);
+		reset_file_modified(&handle);
+		handle.emit("update_tag_list", (0, Vec::<String>::new())).unwrap();
+		handle.emit("update_dependency_list", Vec::<String>::new()).unwrap();
 	}});
 }
 
@@ -202,7 +212,6 @@ fn save_file_to_path(handle: AppHandle, file_path: &Path) {
 			match fs::write(file_path, &bytes) {
 				Ok(()) => {
 					reset_file_modified(&handle);
-					update_title(&handle);
 					handle.emit("show_notification", "Agent file saved").unwrap();
 				}
 				Err(why) => {

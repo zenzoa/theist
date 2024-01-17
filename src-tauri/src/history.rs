@@ -27,6 +27,7 @@ pub fn reset_history(handle: &AppHandle) {
 	let history_state: State<HistoryState> = handle.state();
 	history_state.undo_stack.lock().unwrap().clear();
 	history_state.redo_stack.lock().unwrap().clear();
+	update_history_menu_items(handle);
 }
 
 pub fn add_history_state(handle: &AppHandle) {

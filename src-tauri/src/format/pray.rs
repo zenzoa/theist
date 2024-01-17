@@ -202,7 +202,6 @@ pub fn read_tag_block(buffer: &mut Bytes) -> Result<Tag, Box<dyn Error>> {
 		let name_len = read_u32(buffer)?;
 		let name = read_string(buffer, name_len as usize)?;
 		let value = read_u32(buffer)?;
-		println!("{} = {}", &name, &value);
 		int_values.insert(name, value);
 	}
 
@@ -213,7 +212,6 @@ pub fn read_tag_block(buffer: &mut Bytes) -> Result<Tag, Box<dyn Error>> {
 		let name = read_string(buffer, name_len as usize)?;
 		let value_len = read_u32(buffer)?;
 		let value = read_string(buffer, value_len as usize)?;
-		println!("{} = {}", &name, &value);
 		str_values.insert(name, value);
 	}
 

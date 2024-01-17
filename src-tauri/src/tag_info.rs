@@ -13,7 +13,6 @@ use crate::format::agent_block::{ GameSupport, Language, Description };
 
 #[tauri::command]
 pub fn update_prop_str(handle: AppHandle, file_state: State<FileState>, prop: &str, value: &str) {
-	println!("update {} to {}", prop, value);
 	modify_file(&handle, true);
 	if let Some(selected_tag) = *file_state.selected_tag.lock().unwrap() {
 		if let Some(tag) = file_state.tags.lock().unwrap().get_mut(selected_tag) {
@@ -105,7 +104,6 @@ pub fn update_prop_str(handle: AppHandle, file_state: State<FileState>, prop: &s
 
 #[tauri::command]
 pub fn update_prop_int(handle: AppHandle, file_state: State<FileState>, prop: &str, value: u32) {
-	println!("update {} to {}", prop, value);
 	modify_file(&handle, true);
 	if let Some(selected_tag) = *file_state.selected_tag.lock().unwrap() {
 		if let Some(tag) = file_state.tags.lock().unwrap().get_mut(selected_tag) {
@@ -151,7 +149,6 @@ pub fn generate_remove_script(handle: AppHandle, file_state: State<FileState>) {
 		if let Some(Block::Agent(agent_tag)) = file_state.tags.lock().unwrap().get(selected_tag) {
 			for dependency in file_state.dependencies.lock().unwrap().iter() {
 				if &dependency.extension == "cos" && agent_tag.dependencies.contains(&dependency.filename()) {
-					println!("found a script file {}", dependency.filename());
 					if let Ok(script) = str::from_utf8(&dependency.data) {
 						if let Some(captures) = remove_script_pattern.captures(script) {
 							if let Some(raw_remove_script) = captures.get(1) {
