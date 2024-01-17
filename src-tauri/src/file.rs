@@ -12,6 +12,7 @@ use tauri::menu::MenuItemKind;
 
 use rfd::{ AsyncFileDialog, AsyncMessageDialog, MessageButtons, MessageDialogResult };
 
+use crate::error_dialog;
 use crate::update_title;
 use crate::format::pray::{ Block, encode, decode };
 use crate::format::file_block::File;
@@ -124,7 +125,7 @@ pub fn open_file_dialog(handle: &AppHandle) {
 		if let Some(file_handle) = file_handle {
 			match open_file_from_path(&handle, &file_handle.path().to_path_buf()) {
 				Ok(()) => {},
-				Err(why) => println!("error: {}", why)
+				Err(why) => error_dialog(why.to_string())
 			};
 		}
 	});
@@ -214,14 +215,10 @@ fn save_file_to_path(handle: AppHandle, file_path: &Path) {
 					reset_file_modified(&handle);
 					handle.emit("show_notification", "Agent file saved").unwrap();
 				}
-				Err(why) => {
-					println!("error: {}", why);
-				}
+				Err(why) => error_dialog(why.to_string())
 			}
 		},
-		Err(why) => {
-			println!("error: {}", why)
-		}
+		Err(why) => error_dialog(why.to_string())
 	}
 }
 
@@ -231,7 +228,7 @@ pub fn drop_file(handle: &AppHandle, paths: &Vec<PathBuf>) -> Result<(), Box<dyn
 		if first_extension == "agent" || first_extension == "agents" {
 			check_file_modified(handle.clone(), first_path.clone(), FileModifiedCallback { func: |handle, path| {
 				if let Err(why) = open_file_from_path(&handle, &path) {
-					println!("error: {}", why);
+					error_dialog(why.to_string());
 				}
 			}});
 		} else {

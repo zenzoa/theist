@@ -22,6 +22,10 @@ use tauri::menu::{
 	MenuId
 };
 
+use tauri::async_runtime::spawn;
+
+use rfd::{ AsyncMessageDialog, MessageButtons };
+
 mod file;
 mod format;
 mod tag;
@@ -43,7 +47,7 @@ fn main() {
 				WindowEvent::FileDrop(FileDropEvent::Dropped{ paths, position: _ }) => {
 					if !paths.is_empty() {
 						if let Err(why) = file::drop_file(event.window().app_handle(), paths) {
-							println!("error: {}", why);
+							error_dialog(why.to_string());
 						}
 					}
 				},
@@ -202,4 +206,15 @@ pub fn update_title(handle: &AppHandle) {
 			window.set_title("Theist").unwrap();
 		}
 	}
+}
+
+pub fn error_dialog(error_message: String) {
+	spawn(async move {
+		AsyncMessageDialog::new()
+			.set_title("Error")
+			.set_description(error_message)
+			.set_buttons(MessageButtons::Ok)
+			.show()
+			.await;
+	});
 }

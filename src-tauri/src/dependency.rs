@@ -13,6 +13,7 @@ use rfd::{ AsyncFileDialog, AsyncMessageDialog, MessageDialog, MessageButtons, M
 
 use bytes::Bytes;
 
+use crate::error_dialog;
 use crate::file::{ FileState, modify_file };
 use crate::format::pray::Block;
 use crate::format::file_block::File;
@@ -29,7 +30,7 @@ pub fn add_dependency(handle: AppHandle) {
 		if let Some(file_handle) = file_handle {
 			match add_dependency_from_path(&handle, file_handle.path().to_path_buf()) {
 				Ok(()) => {},
-				Err(why) => println!("error: {}", why)
+				Err(why) => error_dialog(why.to_string())
 			};
 		}
 	});
@@ -133,7 +134,7 @@ pub fn extract_dependency(handle: AppHandle, selected_dependencies: Vec<u32>) {
 				for (i, dependency) in dependencies.iter().enumerate() {
 					if let Some(dependency_path) = dependency_paths.get(&i) {
 						if let Err(why) = fs::write(dependency_path, &dependency.data) {
-							println!("error: {}", why)
+							error_dialog(why.to_string());
 						}
 					}
 				}
@@ -202,7 +203,7 @@ pub fn reload_dependency(handle: AppHandle, file_state: State<FileState>, select
 	};
 
 	if let Err(why) = do_reload(handle) {
-		println!("error: {}", why);
+		error_dialog(why.to_string());
 	}
 }
 
