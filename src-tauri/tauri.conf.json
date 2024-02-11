@@ -1,24 +1,39 @@
 {
+	"productName": "Theist",
+	"version": "1.9.1",
+	"identifier": "thing.zenzoa.theist",
+	"app": {
+		"withGlobalTauri": true,
+		"security": {
+			"assetProtocol": {
+				"enable": false,
+				"scope": []
+			},
+			"dangerousDisableAssetCspModification": false,
+			"freezePrototype": false,
+			"pattern": {
+				"use": "brownfield"
+			}
+		},
+		"macOSPrivateApi": false,
+		"windows": [
+			{
+				"title": "Theist",
+				"width": 800,
+				"height": 600,
+				"fullscreen": false,
+				"resizable": true
+			}
+		]
+	},
 	"build": {
-		"beforeBuildCommand": "",
-		"beforeDevCommand": "",
-		"devPath": "../ui",
-		"distDir": "../ui",
-		"withGlobalTauri": true
+		"frontendDist": "../ui"
 	},
-	"package": {
-		"productName": "Theist",
-		"version": "1.9.0"
-	},
-	"tauri": {
-		"bundle": {
+	"bundle": {
 		"active": true,
 		"category": "Utility",
-		"copyright": "",
-		"deb": {
-			"depends": []
-		},
-		"externalBin": [],
+		"longDescription": "An agent editor for the Creatures game series",
+		"shortDescription": "",
 		"icon": [
 			"icons/32x32.png",
 			"icons/128x128.png",
@@ -26,35 +41,52 @@
 			"icons/icon.icns",
 			"icons/icon.ico"
 		],
-		"identifier": "thing.zenzoa.theist",
-		"longDescription": "An agent editor for the Creatures game series",
-		"macOS": {
-			"entitlements": null,
-			"exceptionDomain": "",
-			"frameworks": [],
-			"providerShortName": null,
-			"signingIdentity": null
-		},
-		"resources": [],
-		"shortDescription": "",
 		"targets": "all",
 		"windows": {
+			"allowDowngrades": true,
 			"certificateThumbprint": null,
-			"digestAlgorithm": "sha256",
-			"timestampUrl": ""
-		}
+			"digestAlgorithm": null,
+			"nsis": null,
+			"timestampUrl": null,
+			"tsp": false,
+			"webviewFixedRuntimePath": null,
+			"webviewInstallMode": {
+				"silent": true,
+				"type": "downloadBootstrapper"
+				},
+			"wix": null
 		},
-		"security": {
-		"csp": null
+		"macOS": {
+			"dmg": {
+				"appPosition": {
+					"x": 180,
+					"y": 170
+				},
+				"applicationFolderPosition": {
+					"x": 480,
+					"y": 170
+				},
+				"windowSize": {
+					"width": 800,
+					"height": 600
+				}
+			},
+			"files": {},
+			"minimumSystemVersion": "10.13"
 		},
-		"windows": [
-		{
-			"fullscreen": false,
-			"height": 600,
-			"resizable": true,
-			"title": "Theist",
-			"width": 800
+		"linux": {
+			"appimage": {
+				"bundleMediaFramework": false,
+				"files": {}
+			},
+			"deb": {
+				"files": {}
+			},
+			"rpm": {
+				"epoch": 0,
+				"files": {},
+				"release": "1"
+			}
 		}
-		]
 	}
   }

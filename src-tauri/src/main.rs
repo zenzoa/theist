@@ -42,18 +42,18 @@ fn main() {
 
 	Builder::default()
 
-		.on_window_event(|event| {
-			match event.event() {
+		.on_window_event(|window, event| {
+			match event {
 				WindowEvent::FileDrop(FileDropEvent::Dropped{ paths, position: _ }) => {
 					if !paths.is_empty() {
-						if let Err(why) = file::drop_file(event.window().app_handle(), paths) {
+						if let Err(why) = file::drop_file(window.app_handle(), &paths) {
 							error_dialog(why.to_string());
 						}
 					}
 				},
 				WindowEvent::CloseRequested { api, .. } => {
 					api.prevent_close();
-					try_quit(event.window().app_handle().clone());
+					try_quit(window.app_handle().clone());
 				}
 				_ => {}
 			}
@@ -63,27 +63,27 @@ fn main() {
 			Menu::with_id_and_items(handle, "main", &[
 
 				&Submenu::with_id_and_items(handle, "file", "File", true, &[
-					&MenuItem::with_id(handle, "new", "New", true, Some("CmdOrCtrl+N")),
-					&MenuItem::with_id(handle, "open", "Open", true, Some("CmdOrCtrl+O")),
-					&PredefinedMenuItem::separator(handle),
-					&MenuItem::with_id(handle, "save", "Save", false, Some("CmdOrCtrl+S")),
-					&MenuItem::with_id(handle, "save_as", "Save As", true, Some("CmdOrCtrl+Shift+S")),
-					&PredefinedMenuItem::separator(handle),
-					&MenuItem::with_id(handle, "quit", "Quit", true, Some("CmdOrCtrl+Q")),
+					&MenuItem::with_id(handle, "new", "New", true, Some("CmdOrCtrl+N"))?,
+					&MenuItem::with_id(handle, "open", "Open", true, Some("CmdOrCtrl+O"))?,
+					&PredefinedMenuItem::separator(handle)?,
+					&MenuItem::with_id(handle, "save", "Save", false, Some("CmdOrCtrl+S"))?,
+					&MenuItem::with_id(handle, "save_as", "Save As", true, Some("CmdOrCtrl+Shift+S"))?,
+					&PredefinedMenuItem::separator(handle)?,
+					&MenuItem::with_id(handle, "quit", "Quit", true, Some("CmdOrCtrl+Q"))?,
 				])?,
 
 				&Submenu::with_id_and_items(handle, "edit", "Edit", true, &[
-					&MenuItem::with_id(handle, "undo", "Undo", false, Some("CmdOrCtrl+Z")),
-					&MenuItem::with_id(handle, "redo", "Redo", false, Some("CmdOrCtrl+Shift+Z")),
-					&PredefinedMenuItem::separator(handle),
-					&MenuItem::with_id(handle, "add_tag", "Add Tag", true, Some("CmdOrCtrl+Shift+N")),
+					&MenuItem::with_id(handle, "undo", "Undo", false, Some("CmdOrCtrl+Z"))?,
+					&MenuItem::with_id(handle, "redo", "Redo", false, Some("CmdOrCtrl+Shift+Z"))?,
+					&PredefinedMenuItem::separator(handle)?,
+					&MenuItem::with_id(handle, "add_tag", "Add Tag", true, Some("CmdOrCtrl+Shift+N"))?,
 				])?,
 
 				&Submenu::with_id_and_items(handle, "view", "View", true, &[
 					&Submenu::with_id_and_items(handle, "theme", "Theme", true, &[
-						&CheckMenuItem::with_id(handle, "theme_dark", "Dark", true, true, None),
-						&CheckMenuItem::with_id(handle, "theme_light", "Light", true, false, None),
-						&CheckMenuItem::with_id(handle, "theme_purple", "Purple", true, false, None),
+						&CheckMenuItem::with_id(handle, "theme_dark", "Dark", true, true, None::<&str>)?,
+						&CheckMenuItem::with_id(handle, "theme_light", "Light", true, false, None::<&str>)?,
+						&CheckMenuItem::with_id(handle, "theme_purple", "Purple", true, false, None::<&str>)?,
 					])?,
 				])?,
 
@@ -182,14 +182,14 @@ fn main() {
 #[tauri::command]
 fn try_quit(handle: AppHandle) {
 	check_file_modified(handle, PathBuf::new(), FileModifiedCallback { func: |handle, _| {
-		if let Some(window) = handle.get_window("main") {
+		if let Some(window) = handle.get_webview_window("main") {
 			window.close().unwrap();
 		};
 	}});
 }
 
 pub fn update_title(handle: &AppHandle) {
-	if let Some(window) = handle.get_window("main") {
+	if let Some(window) = handle.get_webview_window("main") {
 		let file_state: State<FileState> = handle.state();
 		let is_modified = *file_state.is_modified.lock().unwrap();
 		let modified_indicator = if is_modified { "*" } else { "" };

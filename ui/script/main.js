@@ -66,6 +66,9 @@ window.addEventListener('load', () => {
 
 	tauri_listen('show_notification', showNotification)
 
+	tauri_listen('show_spinner', showSpinner)
+	tauri_listen('hide_spinner', hideSpinner)
+
 	tauri_listen('enable_save_button', enableButton.bind(this, 'save-file-button'))
 	tauri_listen('enable_undo_button', enableButton.bind(this, 'undo-button'))
 	tauri_listen('enable_redo_button', enableButton.bind(this, 'redo-button'))
@@ -131,6 +134,16 @@ const showNotification = (event) => {
 	notificationEl.innerText = event.payload
 	notificationEl.classList.add('on')
 	setTimeout(() => notificationEl.classList.remove('on'), 2000)
+}
+
+const showSpinner = (event) => {
+	const notificationEl = document.getElementById('spinner')
+	notificationEl.classList.add('on')
+}
+
+const hideSpinner = (event) => {
+	const notificationEl = document.getElementById('spinner')
+	notificationEl.classList.remove('on')
 }
 
 const setTheme = (event) => {

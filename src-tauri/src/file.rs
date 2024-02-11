@@ -132,6 +132,8 @@ pub fn open_file_dialog(handle: &AppHandle) {
 }
 
 pub fn open_file_from_path(handle: &AppHandle, file_path: &PathBuf) -> Result<(), Box<dyn Error>> {
+	handle.emit("show_spinner", ()).unwrap();
+
 	let bytes = fs::read(file_path)?;
 	let blocks = decode(&bytes)?;
 
@@ -171,6 +173,9 @@ pub fn open_file_from_path(handle: &AppHandle, file_path: &PathBuf) -> Result<()
 
 	*file_state.dependencies.lock().unwrap() = dependencies;
 	*file_state.tags.lock().unwrap() = tags;
+
+	handle.emit("hide_spinner", ()).unwrap();
+
 	Ok(())
 }
 
