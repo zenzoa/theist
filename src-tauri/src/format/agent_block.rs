@@ -45,6 +45,12 @@ pub struct Description {
 	pub text: String
 }
 
+impl Description {
+	pub fn new(language: Language, text: String) -> Self {
+		Self { language, text }
+	}
+}
+
 #[derive(Clone, PartialEq, serde::Serialize)]
 pub enum GameSupport {
 	Creatures3,

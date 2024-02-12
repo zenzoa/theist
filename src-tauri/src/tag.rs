@@ -5,7 +5,7 @@ use rfd::{ AsyncMessageDialog, MessageButtons, MessageDialogResult };
 
 use crate::file::{ FileState, modify_file };
 use crate::format::pray::Block;
-use crate::format::agent_block::{ Agent, GameSupport };
+use crate::format::agent_block::{ Agent, GameSupport, Description, Language };
 use crate::format::egg_block::Egg;
 use crate::format::gb_block::GardenBox;
 use crate::dependency::check_dependencies_for_tag;
@@ -25,7 +25,7 @@ pub fn add_agent_tag(handle: AppHandle, file_state: State<FileState>) {
 	let new_agent_tag = Block::Agent(Agent {
 		name: "Agent".to_string(),
 		game_support: GameSupport::DockingStation,
-		descriptions: Vec::new(),
+		descriptions: vec![Description::new(Language::English, String::new())],
 		bioenergy: 0,
 		web_label: String::new(),
 		web_url: String::new(),
