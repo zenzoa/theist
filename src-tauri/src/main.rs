@@ -183,7 +183,7 @@ fn main() {
 fn try_quit(handle: AppHandle) {
 	check_file_modified(handle, PathBuf::new(), FileModifiedCallback { func: |handle, _| {
 		if let Some(window) = handle.get_webview_window("main") {
-			window.close().unwrap();
+			window.destroy().unwrap();
 		};
 	}});
 }
