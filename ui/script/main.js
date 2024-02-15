@@ -116,8 +116,12 @@ window.addEventListener('load', () => {
 			openAddTagDialog()
 
 		} else if (CTRL && KEY === 'A') {
-			event.preventDefault()
-			selectAllDependencies()
+			const activeEl = document.activeElement
+			const activeElIsTextInput = activeEl ? activeEl.tagName === 'INPUT' || activeEl.tagName === 'TEXTAREA' : false
+			if (!activeElIsTextInput) {
+				event.preventDefault()
+				selectAllDependencies()
+			}
 
 		} else if (CTRL && KEY === 'D') {
 			event.preventDefault()
