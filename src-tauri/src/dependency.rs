@@ -17,6 +17,14 @@ use crate::error_dialog;
 use crate::file::{ FileState, modify_file };
 use crate::format::pray::Block;
 use crate::format::file_block::File;
+use crate::sprite::{ blk, c16, s16, image_error };
+
+#[derive(Clone, serde::Serialize)]
+struct DependencyInfo {
+	filename: String,
+	text: String,
+	framecount: usize
+}
 
 static SUPPORTED_EXTENSIONS: [&str; 10] = ["cos", "wav", "mng", "c16", "s16", "blk", "gen", "gno", "att", "catalogue"];
 
@@ -304,6 +312,54 @@ pub fn check_dependency(handle: AppHandle, file_state: State<FileState>, checked
 				Block::GardenBox(ref mut t) => { t.dependencies = tag_dependencies; }
 				_ => {}
 			}
+		}
+	}
+}
+
+#[tauri::command]
+pub fn select_dependency(handle: AppHandle, file_state: State<FileState>, selected_dependency: usize) {
+	let dependencies = file_state.dependencies.lock().unwrap();
+	let mut image_cache = file_state.image_cache.lock().unwrap();
+	if let Some(dependency) = dependencies.get(selected_dependency) {
+		let no_contents = DependencyInfo { filename: dependency.filename(), text: "".to_string(), framecount: 0 };
+		let info = match dependency.extension.as_str() {
+			"cos" | "catalogue" => DependencyInfo {
+				filename: dependency.filename(),
+				text: String::from_utf8_lossy(&dependency.data).to_string(),
+				framecount: 0
+			},
+			"c16" | "s16" | "blk" => {
+				match image_cache.get(&dependency.filename()) {
+					Some(cache) => DependencyInfo { filename: dependency.filename(), text: String::new(), framecount: cache.len() },
+					None => {
+						let frame_result = match dependency.extension.as_str() {
+							"blk" => blk::decode(&dependency.data),
+							"c16" => c16::decode(&dependency.data),
+							"s16" => s16::decode(&dependency.data),
+							_ => Err(image_error()),
+						};
+						match frame_result {
+							Ok(frames) => {
+								let framecount = frames.len();
+								image_cache.insert(dependency.filename(), frames);
+								DependencyInfo { filename: dependency.filename(), text: String::new(), framecount }
+							},
+							Err(_) => no_contents
+						}
+					}
+				}
+			},
+			_ => no_contents
+		};
+		handle.emit("update_dependency_info", info).unwrap();
+	}
+}
+
+#[tauri::command]
+pub fn deselect_dependency(handle: AppHandle, file_state: State<FileState>) {
+	if let Some(selected_tag) = *file_state.selected_tag.lock().unwrap() {
+		if let Some(tag) = file_state.tags.lock().unwrap().get_mut(selected_tag) {
+			handle.emit("update_tag_info", &tag).unwrap();
 		}
 	}
 }

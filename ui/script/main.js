@@ -1,6 +1,7 @@
 const Tauri = window.__TAURI__
 const tauri_listen = Tauri.event.listen
 const tauri_invoke = Tauri.core.invoke
+const convertFileSrc = Tauri.core.convertFileSrc
 
 let tags = []
 let selectedTag = 0
@@ -9,6 +10,9 @@ let dependencies = []
 let lastSelectedDependency = 0
 let selectedDependencies = []
 let checkedDependencies = []
+
+let selectedFrames = []
+let lastSelectedFrame = 0
 
 window.addEventListener('load', () => {
 
@@ -63,15 +67,13 @@ window.addEventListener('load', () => {
 
 	tauri_listen('update_dependency_list', updateDependencyList)
 	tauri_listen('update_checked_dependencies', updateCheckedDependencies)
+	tauri_listen('deselect_dependencies', deselectAllDependencies)
+	tauri_listen('update_dependency_info', updateDependencyInfo)
 
 	tauri_listen('show_notification', showNotification)
 
 	tauri_listen('show_spinner', showSpinner)
 	tauri_listen('hide_spinner', hideSpinner)
-
-	tauri_listen('enable_save_button', enableButton.bind(this, 'save-file-button'))
-	tauri_listen('enable_undo_button', enableButton.bind(this, 'undo-button'))
-	tauri_listen('enable_redo_button', enableButton.bind(this, 'redo-button'))
 
 	tauri_listen('set_theme', setTheme)
 
@@ -120,12 +122,20 @@ window.addEventListener('load', () => {
 			const activeElIsTextInput = activeEl ? activeEl.tagName === 'INPUT' || activeEl.tagName === 'TEXTAREA' : false
 			if (!activeElIsTextInput) {
 				event.preventDefault()
-				selectAllDependencies()
+				if (selectedFrames.length) {
+					selectAllFrames()
+				} else {
+					selectAllDependencies()
+				}
 			}
 
 		} else if (CTRL && KEY === 'D') {
 			event.preventDefault()
-			deselectAllDependencies()
+			if (selectedFrames.length) {
+				deselectAllFrames()
+			} else {
+				deselectAllDependencies()
+			}
 
 		} else if (KEY === 'ESCAPE' && document.getElementById('add-tag-dialog').classList.contains('open')){
 			closeAddTagDialog()
@@ -141,13 +151,13 @@ const showNotification = (event) => {
 }
 
 const showSpinner = (event) => {
-	const notificationEl = document.getElementById('spinner')
-	notificationEl.classList.add('on')
+	const spinnerEl = document.getElementById('spinner')
+	spinnerEl.classList.add('on')
 }
 
 const hideSpinner = (event) => {
-	const notificationEl = document.getElementById('spinner')
-	notificationEl.classList.remove('on')
+	const spinnerEl = document.getElementById('spinner')
+	spinnerEl.classList.remove('on')
 }
 
 const setTheme = (event) => {

@@ -1,10 +1,11 @@
 {
 	"productName": "Theist",
-	"version": "1.9.1",
+	"version": "2.1.0",
 	"identifier": "thing.zenzoa.theist",
 	"app": {
 		"withGlobalTauri": true,
 		"security": {
+			"csp": "default-src 'self'; img-src 'self' getimage: https://getimage.localhost",
 			"assetProtocol": {
 				"enable": false,
 				"scope": []

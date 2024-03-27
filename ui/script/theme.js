@@ -21,6 +21,9 @@ class Theme {
 
 		"focus-outline": "#939393",
 
+		"frame-bg": "#292929",
+		"frame-outline": "#ffffff",
+
 		"text-color": "#ffffff",
 		"icon-filter": "invert(1)",
 	}
@@ -47,6 +50,9 @@ class Theme {
 
 		"focus-outline": "#9d9d9d",
 
+		"frame-bg": "#b0b0b0",
+		"frame-outline": "#222222",
+
 		"text-color": "#222222",
 		"icon-filter": "invert(0.2)"
 	}
@@ -72,6 +78,9 @@ class Theme {
 		"input-shadow": "#3F3A63",
 
 		"focus-outline": "#737190",
+
+		"frame-bg": "#201E35",
+		"frame-outline": "#ffffff",
 
 		"text-color": "#eaeaef",
 		"icon-filter": "invert(1)"

@@ -17,6 +17,7 @@ pub fn select_tag(handle: AppHandle, file_state: State<FileState>, selected_tag:
 		let checked_dependencies = check_dependencies_for_tag(tag, &mut file_state.dependencies.lock().unwrap());
 		handle.emit("update_tag_info", &tag).unwrap();
 		handle.emit("update_checked_dependencies", &checked_dependencies).unwrap();
+		handle.emit("deselect_dependencies", ()).unwrap();
 	}
 }
 
@@ -76,6 +77,7 @@ fn add_tag(handle: AppHandle, file_state: State<FileState>, new_tag: Block) {
 	*file_state.selected_tag.lock().unwrap() = Some(selected_tag);
 	handle.emit("update_tag_list", (selected_tag, tags.to_owned())).unwrap();
 	handle.emit("update_checked_dependencies", Vec::<u32>::new()).unwrap();
+	handle.emit("deselect_dependencies", ()).unwrap();
 }
 
 #[tauri::command]
@@ -96,6 +98,7 @@ pub fn duplicate_tag(handle: AppHandle, file_state: State<FileState>) {
 			tags.insert(selected_tag_index + 1, tag_copy);
 			*file_state.selected_tag.lock().unwrap() = Some(selected_tag_index + 1);
 			handle.emit("update_tag_list", (selected_tag_index + 1, tags.to_owned())).unwrap();
+			handle.emit("deselect_dependencies", ()).unwrap();
 		}
 	}
 }
@@ -122,6 +125,7 @@ pub fn remove_tag(handle: AppHandle) {
 				if let Some(tag) = tags.get(selected_tag_index) {
 					let checked_dependencies = check_dependencies_for_tag(tag, &mut file_state.dependencies.lock().unwrap());
 					handle.emit("update_checked_dependencies", &checked_dependencies).unwrap();
+					handle.emit("deselect_dependencies", ()).unwrap();
 				}
 				handle.emit("update_tag_list", (selected_tag_index, tags.to_owned())).unwrap();
 			}

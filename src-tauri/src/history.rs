@@ -2,7 +2,6 @@ use std::sync::Mutex;
 use std::path::PathBuf;
 
 use tauri::{ Manager, AppHandle, State };
-use tauri::menu::MenuItemKind;
 
 use crate::update_title;
 use crate::file::{ FileState, modify_file };
@@ -27,7 +26,6 @@ pub fn reset_history(handle: &AppHandle) {
 	let history_state: State<HistoryState> = handle.state();
 	history_state.undo_stack.lock().unwrap().clear();
 	history_state.redo_stack.lock().unwrap().clear();
-	update_history_menu_items(handle);
 }
 
 pub fn add_history_state(handle: &AppHandle) {
@@ -35,7 +33,6 @@ pub fn add_history_state(handle: &AppHandle) {
 	let current_state = get_current_state(handle);
 	history_state.undo_stack.lock().unwrap().push(current_state);
 	history_state.redo_stack.lock().unwrap().clear();
-	update_history_menu_items(handle);
 }
 
 #[tauri::command]
@@ -86,23 +83,4 @@ fn set_current_state(handle: &AppHandle, history_item: &HistoryItem) {
 	select_tag(handle.clone(), file_state, history_item.selected_tag.unwrap_or(0) as u32);
 
 	update_title(handle);
-	update_history_menu_items(handle);
-}
-
-fn update_history_menu_items(handle: &AppHandle) {
-	let history_state: State<HistoryState> = handle.state();
-	if let Some(menu) = handle.menu() {
-		if let Some(MenuItemKind::Submenu(edit_menu)) = menu.get("edit") {
-			if let Some(MenuItemKind::MenuItem(menu_item)) = edit_menu.get("undo") {
-				let enable_undo = history_state.undo_stack.lock().unwrap().len() > 0;
-				menu_item.set_enabled(enable_undo).unwrap();
-				handle.emit("enable_undo_button", enable_undo).unwrap();
-			};
-			if let Some(MenuItemKind::MenuItem(menu_item)) = edit_menu.get("redo") {
-				let enable_redo = history_state.redo_stack.lock().unwrap().len() > 0;
-				menu_item.set_enabled(enable_redo).unwrap();
-				handle.emit("enable_redo_button", enable_redo).unwrap();
-			};
-		}
-	}
 }

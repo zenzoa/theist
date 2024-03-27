@@ -1,6 +1,7 @@
 // Prevents additional console window on Windows in release, DO NOT REMOVE!!
 #![cfg_attr(not(debug_assertions), windows_subsystem = "windows")]
 
+use std::io::Cursor;
 use std::sync::Mutex;
 use std::path::PathBuf;
 
@@ -28,6 +29,7 @@ use rfd::{ AsyncMessageDialog, MessageButtons };
 
 mod file;
 mod format;
+mod sprite;
 mod tag;
 mod tag_info;
 mod dependency;
@@ -66,15 +68,15 @@ fn main() {
 					&MenuItem::with_id(handle, "new", "New", true, Some("CmdOrCtrl+N"))?,
 					&MenuItem::with_id(handle, "open", "Open", true, Some("CmdOrCtrl+O"))?,
 					&PredefinedMenuItem::separator(handle)?,
-					&MenuItem::with_id(handle, "save", "Save", false, Some("CmdOrCtrl+S"))?,
+					&MenuItem::with_id(handle, "save", "Save", true, Some("CmdOrCtrl+S"))?,
 					&MenuItem::with_id(handle, "save_as", "Save As", true, Some("CmdOrCtrl+Shift+S"))?,
 					&PredefinedMenuItem::separator(handle)?,
 					&MenuItem::with_id(handle, "quit", "Quit", true, Some("CmdOrCtrl+Q"))?,
 				])?,
 
 				&Submenu::with_id_and_items(handle, "edit", "Edit", true, &[
-					&MenuItem::with_id(handle, "undo", "Undo", false, Some("CmdOrCtrl+Z"))?,
-					&MenuItem::with_id(handle, "redo", "Redo", false, Some("CmdOrCtrl+Shift+Z"))?,
+					&MenuItem::with_id(handle, "undo", "Undo", true, Some("CmdOrCtrl+Z"))?,
+					&MenuItem::with_id(handle, "redo", "Redo", true, Some("CmdOrCtrl+Shift+Z"))?,
 					&PredefinedMenuItem::separator(handle)?,
 					&MenuItem::with_id(handle, "add_tag", "Add Tag", true, Some("CmdOrCtrl+Shift+N"))?,
 				])?,
@@ -123,6 +125,7 @@ fn main() {
 			dependencies: Mutex::new(Vec::new()),
 			tags: Mutex::new(Vec::new()),
 			selected_tag: Mutex::new(None),
+			image_cache: Mutex::new(file::ImageCache::new())
 		})
 
 		.manage(HistoryState {
@@ -167,10 +170,41 @@ fn main() {
 			dependency::reload_dependency,
 			dependency::remove_dependency,
 			dependency::check_dependency,
+			dependency::select_dependency,
+			dependency::deselect_dependency,
 		])
 
 		.on_page_load(|window, _| {
 			config::load_config_file(window.app_handle());
+		})
+
+		.register_uri_scheme_protocol("getimage", |app, request| {
+			let not_found = http::Response::builder().body(Vec::new()).unwrap();
+
+			let uri = request.uri().path();
+			let uri_parts:Vec<&str> = uri.split('/').collect();
+			if let Some(filename) = uri_parts.get(2) {
+				if let Some(frame_index_str) = uri_parts.get(3) {
+					let frame_index_result: Result<usize, _> = frame_index_str.parse();
+					if let Ok(frame_index) = frame_index_result {
+						let file_state: State<file::FileState> = app.state();
+						let image_cache = file_state.image_cache.lock().unwrap();
+						if let Some(frames) = image_cache.get(&filename) {
+							if let Some(frame) = frames.get(frame_index) {
+								let mut data = Cursor::new(Vec::new());
+								if let Ok(()) = frame.write_to(&mut data, image::ImageOutputFormat::Png) {
+									return http::Response::builder()
+										.header("Content-Type", "image/png")
+										.body(data.into_inner())
+										.unwrap()
+								}
+							}
+						}
+					}
+				}
+			}
+
+			not_found
 		})
 
 		.run(tauri::generate_context!())

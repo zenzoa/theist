@@ -22,6 +22,9 @@
 
 	--focus-outline: #939393;
 
+	--frame-bg: #292929;
+	--frame-outline: #ffffff;
+
 	--text-color: #ffffff;
 	--icon-filter: invert(1);
 }
@@ -496,6 +499,7 @@ main {
 #dependency-panel {
 	width: 33%;
 	min-width: 300px;
+	flex-shrink: 0;
 	background: var(--sidebar-bg);
 	padding: 12px;
 	padding-top: 0;
@@ -532,4 +536,63 @@ main {
 	white-space: nowrap;
 	overflow: hidden;
 	text-overflow: ellipsis;
+}
+
+.dependency-info {
+	border-radius: 1px;
+	padding: 12px;
+	margin-right: -8px;
+	background-color: var(--sidebar-bg);
+}
+
+.dependency-title {
+	display: flex;
+	flex-direction: row;
+	align-items: center;
+	margin-bottom: 12px;
+}
+
+.dependency-title span {
+	flex-grow: 1;
+}
+
+.dependency-contents-text {
+	padding: 8px 12px;
+	border-radius: 1px;
+	background: var(--text-color);
+	color: var(--main-bg);
+	white-space: pre-wrap;
+	user-select: auto;
+	-webkit-user-select: auto;
+	cursor: text;
+	font-family: monospace;
+}
+
+.dependency-contents-frames {
+	display: flex;
+	flex-wrap: wrap;
+	margin-bottom: -12px;
+	margin-right: -12px;
+}
+
+.frame {
+	display: flex;
+	align-items: center;
+	justify-content: center;
+	min-width: 48px;
+	min-height: 48px;
+	border-radius: 1px;
+	margin-bottom: 12px;
+	margin-right: 12px;
+	padding: 12px;
+	background-color: var(--frame-bg);
+}
+
+.frame.selected {
+	outline: 3px solid var(--frame-outline);
+}
+
+.frame img {
+	display: block;
+	background-color: black;
 }

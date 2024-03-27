@@ -3,14 +3,16 @@ use std::{
 	error::Error,
 	path::{ Path, PathBuf },
 	sync::Mutex,
-	ffi::OsStr
+	ffi::OsStr,
+	collections::HashMap
 };
 
 use tauri::{ AppHandle, State, Manager };
 use tauri::async_runtime::spawn;
-use tauri::menu::MenuItemKind;
 
 use rfd::{ AsyncFileDialog, AsyncMessageDialog, MessageButtons, MessageDialogResult };
+
+use image::RgbaImage;
 
 use crate::error_dialog;
 use crate::update_title;
@@ -32,10 +34,25 @@ pub struct FileState {
 	pub dependencies: Mutex<Vec<File>>,
 	pub tags: Mutex<Vec<Block>>,
 	pub selected_tag: Mutex<Option<usize>>,
+	pub image_cache: Mutex<ImageCache>
 }
 
 pub struct FileModifiedCallback {
 	pub func: fn(AppHandle, PathBuf)
+}
+
+pub struct ImageCache(HashMap<String, Vec<RgbaImage>>);
+
+impl ImageCache {
+	pub fn new() -> Self {
+		Self(HashMap::<String, Vec<RgbaImage>>::new())
+	}
+	pub fn get(&self, key: &str) -> Option<&Vec<RgbaImage>> {
+		self.0.get(key)
+	}
+	pub fn insert(&mut self, key: String, value: Vec<RgbaImage>) -> Option<Vec<RgbaImage>> {
+		self.0.insert(key, value)
+	}
 }
 
 pub fn check_file_modified(handle: AppHandle, path: PathBuf, callback: FileModifiedCallback) {
@@ -61,15 +78,6 @@ fn reset_file_modified(handle: &AppHandle) {
 	let file_state: State<FileState> = handle.state();
 	*file_state.is_modified.lock().unwrap() = false;
 
-	if let Some(menu) = handle.menu() {
-		if let Some(MenuItemKind::Submenu(file_menu)) = menu.get("file") {
-			if let Some(MenuItemKind::MenuItem(menu_item)) = file_menu.get("save") {
-				menu_item.set_enabled(false).unwrap();
-				handle.emit("enable_save_button", false).unwrap();
-			};
-		}
-	}
-
 	update_title(handle);
 }
 
@@ -80,15 +88,6 @@ pub fn modify_file(handle: &AppHandle, add_to_history: bool) {
 
 	let file_state: State<FileState> = handle.state();
 	*file_state.is_modified.lock().unwrap() = true;
-
-	if let Some(menu) = handle.menu() {
-		if let Some(MenuItemKind::Submenu(file_menu)) = menu.get("file") {
-			if let Some(MenuItemKind::MenuItem(menu_item)) = file_menu.get("save") {
-				menu_item.set_enabled(true).unwrap();
-				handle.emit("enable_save_button", true).unwrap();
-			};
-		}
-	}
 
 	update_title(handle);
 }
