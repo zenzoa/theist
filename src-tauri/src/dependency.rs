@@ -9,12 +9,12 @@ use std::{
 use tauri::{ Manager, AppHandle, State };
 use tauri::async_runtime::spawn;
 
-use rfd::{ AsyncFileDialog, AsyncMessageDialog, MessageDialog, MessageButtons, MessageDialogResult };
+use rfd::{ AsyncMessageDialog, MessageDialog, MessageButtons, MessageDialogResult };
 
 use bytes::Bytes;
 
 use crate::error_dialog;
-use crate::file::{ FileState, modify_file };
+use crate::file::{ FileState, modify_file, create_file_dialog };
 use crate::format::pray::Block;
 use crate::format::file_block::File;
 use crate::sprite::{ blk, c16, s16, image_error };
@@ -28,10 +28,11 @@ struct DependencyInfo {
 
 static SUPPORTED_EXTENSIONS: [&str; 10] = ["cos", "wav", "mng", "c16", "s16", "blk", "gen", "gno", "att", "catalogue"];
 
+
 #[tauri::command]
 pub fn add_dependency(handle: AppHandle) {
 	spawn(async move {
-		let file_handle = AsyncFileDialog::new()
+		let file_handle = create_file_dialog(&handle)
 			.add_filter("Dependencies", &SUPPORTED_EXTENSIONS)
 			.pick_file()
 			.await;
@@ -93,7 +94,7 @@ pub fn add_dependency_from_path(handle: &AppHandle, file_path: PathBuf) -> Resul
 #[tauri::command]
 pub fn extract_dependency(handle: AppHandle, selected_dependencies: Vec<u32>) {
 	spawn(async move {
-		let file_handle = AsyncFileDialog::new()
+		let file_handle = create_file_dialog(&handle)
 			.pick_folder()
 			.await;
 		if let Some(file_handle) = file_handle {

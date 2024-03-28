@@ -43,32 +43,32 @@ const updateDropdownLists = () => {
 	if (tags[selectedTag] != null) {
 		const tag = tags[selectedTag]
 
-		const animationFileList = document.getElementById("prop-animation-file")
+		const animationFileList = document.getElementById('prop-animation-file')
 		if (animationFileList != null) {
 			animationFileList.innerHTML = generateDropdownList('c16', tag.animation_file)
 		}
 
-		const maleSpriteList = document.getElementById("prop-sprite-file-male")
+		const maleSpriteList = document.getElementById('prop-sprite-file-male')
 		if (maleSpriteList != null) {
 			maleSpriteList.innerHTML = generateDropdownList('c16', tag.sprite_file_male)
 		}
 
-		const femaleSpriteList = document.getElementById("prop-sprite-file-female")
+		const femaleSpriteList = document.getElementById('prop-sprite-file-female')
 		if (femaleSpriteList != null) {
 			femaleSpriteList.innerHTML = generateDropdownList('c16', tag.sprite_file_female)
 		}
 
-		const geneticsFileList = document.getElementById("prop-genetics-file")
+		const geneticsFileList = document.getElementById('prop-genetics-file')
 		if (geneticsFileList != null) {
 			geneticsFileList.innerHTML = generateDropdownList('gen', tag.genetics_file)
 		}
 
-		const motherGeneticsFileList = document.getElementById("prop-genetics-file-mother")
+		const motherGeneticsFileList = document.getElementById('prop-genetics-file-mother')
 		if (motherGeneticsFileList != null) {
 			motherGeneticsFileList.innerHTML = generateDropdownList('gen', tag.genetics_file_mother)
 		}
 
-		const fatherGeneticsFileList = document.getElementById("prop-genetics-file-father")
+		const fatherGeneticsFileList = document.getElementById('prop-genetics-file-father')
 		if (fatherGeneticsFileList != null) {
 			fatherGeneticsFileList.innerHTML = generateDropdownList('gen', tag.genetics_file_father)
 		}
@@ -137,7 +137,10 @@ const selectDependency = (i, event) => {
 			tauri_invoke('deselect_dependency')
 		} else {
 			selectedDependencies = [i]
-			showSpinner()
+			const ext = dependencies[i].extension
+			if (ext === 'c16' || ext === 's16' || ext === 'blk') {
+				showSpinner()
+			}
 			setTimeout(() => {
 				tauri_invoke('select_dependency', { selectedDependency: i })
 			}, 100)

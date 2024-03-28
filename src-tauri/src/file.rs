@@ -92,6 +92,19 @@ pub fn modify_file(handle: &AppHandle, add_to_history: bool) {
 	update_title(handle);
 }
 
+pub fn create_file_dialog(handle: &AppHandle) -> AsyncFileDialog{
+	let mut file_dialog = AsyncFileDialog::new();
+
+	let file_state: State<FileState> = handle.state();
+	if let Some(file_path) = file_state.path.lock().unwrap().clone() {
+		if let Some(parent_dir) = file_path.parent() {
+			file_dialog = file_dialog.set_directory(parent_dir);
+		}
+	}
+
+	file_dialog
+}
+
 #[tauri::command]
 pub fn new_file(handle: AppHandle) {
 	check_file_modified(handle, PathBuf::new(), FileModifiedCallback { func: |handle, _| {
@@ -117,7 +130,7 @@ pub fn open_file(handle: AppHandle) {
 pub fn open_file_dialog(handle: &AppHandle) {
 	let handle = handle.clone();
 	spawn(async move {
-		let file_handle = AsyncFileDialog::new()
+		let file_handle = create_file_dialog(&handle)
 			.add_filter("Agents", &["agent", "agents"])
 			.pick_file()
 			.await;
@@ -197,7 +210,7 @@ pub fn save_file(handle: AppHandle) {
 #[tauri::command]
 pub fn save_file_as(handle: AppHandle) {
 	spawn(async move {
-		let file_handle = AsyncFileDialog::new()
+		let file_handle = create_file_dialog(&handle)
 			.add_filter("Agents", &["agent", "agents"])
 			.save_file()
 			.await;
