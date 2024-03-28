@@ -1,30 +1,42 @@
-const setupAddTagDialog = () => {
-	tauri_listen('open_add_tag_dialog', openAddTagDialog)
+class AddTagDialog {
+	static isOpen() {
+		return document.getElementById('add-tag-dialog').classList.contains('open')
+	}
 
-	document.getElementById('add-tag-button').addEventListener('click', openAddTagDialog)
+	static open() {
+		document.getElementById('add-tag-dialog').classList.add('open')
+		document.getElementById('add-agent-tag-button').focus()
+	}
 
-	document.getElementById('add-tag-close-button').addEventListener('click', closeAddTagDialog)
-	document.getElementById('add-tag-cancel-button').addEventListener('click', closeAddTagDialog)
+	static close() {
+		document.getElementById('add-tag-dialog').classList.remove('open')
+	}
 
-	document.getElementById('add-agent-tag-button').addEventListener('click', () => {
-		tauri_invoke('add_agent_tag', {})
-		closeAddTagDialog()
-	})
-	document.getElementById('add-egg-tag-button').addEventListener('click', () => {
-		tauri_invoke('add_egg_tag', {})
-		closeAddTagDialog()
-	})
-	document.getElementById('add-gb-tag-button').addEventListener('click', () => {
-		tauri_invoke('add_gb_tag', {})
-		closeAddTagDialog()
-	})
-}
+	static setup() {
+		document.getElementById('add-tag-button')
+			.addEventListener('click', AddTagDialog.open)
 
-const openAddTagDialog = () => {
-	document.getElementById('add-tag-dialog').classList.add('open')
-	document.getElementById('add-agent-tag-button').focus()
-}
+		document.getElementById('add-tag-close-button')
+			.addEventListener('click', AddTagDialog.close)
 
-const closeAddTagDialog = () => {
-	document.getElementById('add-tag-dialog').classList.remove('open')
+		document.getElementById('add-tag-cancel-button')
+			.addEventListener('click', AddTagDialog.close)
+
+		document.getElementById('add-agent-tag-button').addEventListener('click', () => {
+			tauri_invoke('add_agent_tag', {})
+			AddTagDialog.close()
+		})
+
+		document.getElementById('add-egg-tag-button').addEventListener('click', () => {
+			tauri_invoke('add_egg_tag', {})
+			AddTagDialog.close()
+		})
+
+		document.getElementById('add-gb-tag-button').addEventListener('click', () => {
+			tauri_invoke('add_gb_tag', {})
+			AddTagDialog.close()
+		})
+
+		tauri_listen('show_add_tag_dialog', AddTagDialog.open)
+	}
 }

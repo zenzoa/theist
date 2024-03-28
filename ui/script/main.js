@@ -77,8 +77,6 @@ window.addEventListener('load', () => {
 
 	tauri_listen('set_theme', setTheme)
 
-	setupAddTagDialog()
-
 	document.body.addEventListener('keydown', (event) => {
 		const KEY = event.key.toUpperCase()
 		const ONLY = !event.ctrlKey && !event.shiftKey && !event.altKey
@@ -115,7 +113,7 @@ window.addEventListener('load', () => {
 
 		} else if (CTRL_SHIFT && KEY === 'N') {
 			event.preventDefault()
-			openAddTagDialog()
+			AddTagDialog.open()
 
 		} else if (CTRL && KEY === 'A') {
 			const activeEl = document.activeElement
@@ -137,10 +135,14 @@ window.addEventListener('load', () => {
 				deselectAllDependencies()
 			}
 
-		} else if (KEY === 'ESCAPE' && document.getElementById('add-tag-dialog').classList.contains('open')){
-			closeAddTagDialog()
+		} else if (KEY === 'ESCAPE' && (AddTagDialog.isOpen() || AboutDialog.isOpen())){
+			AddTagDialog.close()
+			AboutDialog.close()
 		}
 	})
+
+	AddTagDialog.setup()
+	AboutDialog.setup()
 })
 
 const showNotification = (event) => {

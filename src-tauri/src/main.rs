@@ -89,6 +89,10 @@ fn main() {
 					])?,
 				])?,
 
+				&Submenu::with_id_and_items(handle, "help", "Help", true, &[
+					&MenuItem::with_id(handle, "about", "About", true, None::<&str>)?,
+				])?,
+
 			])
 		})
 
@@ -107,11 +111,13 @@ fn main() {
 					"undo" => history::undo(handle),
 					"redo" => history::redo(handle),
 
-					"add_tag" => handle.emit("open_add_tag_dialog", ()).unwrap(),
+					"add_tag" => handle.emit("show_add_tag_dialog", ()).unwrap(),
 
 					"theme_dark" => config::set_theme(&handle, "dark", false),
 					"theme_light" => config::set_theme(&handle, "light", false),
 					"theme_purple" => config::set_theme(&handle, "purple", false),
+
+					"about" => handle.emit("show_about_dialog", "").unwrap(),
 
 					_ => {}
 				}

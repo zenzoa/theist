@@ -18,6 +18,7 @@
 		<script src="./script/egg_tag.js"></script>
 		<script src="./script/gb_tag.js"></script>
 		<script src="./script/theme.js"></script>
+		<script src="./script/about.js"></script>
 	</head>
 
 	<body>
@@ -115,6 +116,35 @@
 						</button>
 						<button id="add-tag-cancel-button" class="text-button">
 							Cancel
+						</button>
+					</div>
+				</div>
+			</div>
+		</div>
+
+
+		<!-- ABOUT -->
+		<div id="about-dialog" class="dialog">
+			<div class="dialog-content">
+				<div class="dialog-header">
+					<span class="dialog-title">
+						About Theist
+					</span>
+					<button id="about-close-button" class="dialog-close-button" title="Close Dialog">
+						<img src="library/fluent/close.svg" alt="Close Dialog">
+					</button>
+				</div>
+				<div class="dialog-body about-dialog">
+					<img src="icon.png">
+					<p><strong>Theist <span id="about-version">x.x.x<span></strong></p>
+					<p>
+						An agent editor for the Creatures game series
+						<br>
+						<em>https://github.com/zenzoa/theist</em>
+					</p>
+					<div class="input-row button-row">
+						<button id="about-ok-button" class="text-button primary">
+							Ok
 						</button>
 					</div>
 				</div>
