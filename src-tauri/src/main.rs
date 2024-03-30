@@ -178,6 +178,7 @@ fn main() {
 			dependency::check_dependency,
 			dependency::select_dependency,
 			dependency::deselect_dependency,
+			dependency::export_dependency,
 		])
 
 		.on_page_load(|window, _| {

@@ -3,7 +3,7 @@ const updateDependencyInfo = (event) => {
 	lastSelected = 0
 
 	if (event && event.payload != null) {
-		const { filename, text, framecount } = event.payload
+		const { index, filename, text, framecount } = event.payload
 
 		const tagInfoEl = document.getElementById('tag-info')
 		tagInfoEl.innerHTML = ''
@@ -20,31 +20,30 @@ const updateDependencyInfo = (event) => {
 		const exportButton = document.createElement('button')
 		exportButton.title = 'Export File'
 		exportButton.innerHTML = '<img src="library/fluent/export.svg" alt="Export File">'
+		exportButton.addEventListener('click', () =>
+			tauri_invoke('export_dependency', { index })
+		)
 
 		const contentsEl = document.createElement('div')
 
 		if (text) {
 			contentsEl.className = 'dependency-contents-text'
 			contentsEl.innerHTML = text
-
 			titleEl.append(exportButton)
 
 		} else if (framecount) {
 			const timestamp = Date.now()
 			contentsEl.className = 'dependency-contents-frames'
-
 			Array(framecount).fill(0).forEach((_, i) => {
 				const frameEl = document.createElement('div')
 				frameEl.id = `frame-${i}`
 				frameEl.className = 'frame'
 				frameEl.addEventListener('click', selectFrame.bind(this, i))
 				contentsEl.append(frameEl)
-
 				const img = document.createElement('img')
 				img.src = convertFileSrc(`${timestamp}`, 'getimage') + `/${filename}/${i}`
 				frameEl.append(img)
 			})
-
 			titleEl.append(exportButton)
 
 		} else {

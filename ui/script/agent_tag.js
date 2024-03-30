@@ -141,9 +141,9 @@ const updateAgentInfo = (tag) => {
 	setupPropEvent('sprite_first_image', false)
 	setupPropEvent('remove_script', true)
 
-	document.getElementById('generate-remove-script-button').addEventListener('click', () => {
+	document.getElementById('generate-remove-script-button').addEventListener('click', () =>
 		tauri_invoke('generate_remove_script', {})
-	})
+	)
 
 	tag.descriptions.forEach((description, i) => {
 		const languageEl = document.getElementById(`prop-description-language-${i}`)
@@ -170,16 +170,16 @@ const updateAgentInfo = (tag) => {
 
 		const removeDescriptionButton = document.getElementById(`remove-description-button-${i}`)
 		if (removeDescriptionButton != null) {
-			removeDescriptionButton.addEventListener('click', () => {
+			removeDescriptionButton.addEventListener('click', () =>
 				tauri_invoke('remove_description', { index: i })
-			})
+			)
 		}
 	})
 
 	const addDescriptionButton = document.getElementById('add-description-button')
 	if (addDescriptionButton != null) {
-		addDescriptionButton.addEventListener('click', () => {
+		addDescriptionButton.addEventListener('click', () =>
 			tauri_invoke('add_description', {})
-		})
+		)
 	}
 }

@@ -17,10 +17,11 @@ use crate::error_dialog;
 use crate::file::{ FileState, modify_file, create_file_dialog };
 use crate::format::pray::Block;
 use crate::format::file_block::File;
-use crate::sprite::{ blk, c16, s16, image_error };
+use crate::sprite::{ blk, c16, s16, image_error, export_sprite };
 
 #[derive(Clone, serde::Serialize)]
 struct DependencyInfo {
+	index: usize,
 	filename: String,
 	text: String,
 	framecount: usize
@@ -154,7 +155,42 @@ pub fn extract_dependency(handle: AppHandle, selected_dependencies: Vec<u32>) {
 }
 
 #[tauri::command]
-pub fn reload_dependency(handle: AppHandle, file_state: State<FileState>, selected_dependencies: Vec<u32>) {
+pub fn export_dependency(handle: AppHandle, file_state: State<FileState>, index: usize) {
+	let dependencies = file_state.dependencies.lock().unwrap();
+	let file_dialog_opt = match dependencies.get(index) {
+		Some(dependency) => {
+			let new_file_name = match dependency.extension.to_lowercase().as_str() {
+				"c16" | "s16" | "blk" => format!("{}.png", dependency.name),
+				_ => format!("{}_{}.txt", dependency.name, dependency.extension)
+			};
+			Some(create_file_dialog(&handle).set_file_name(new_file_name))
+		},
+		None => None
+	};
+	spawn(async move {
+		if let Some(file_dialog) = file_dialog_opt {
+			let file_handle = file_dialog.save_file().await;
+			if let Some(file_handle) = file_handle {
+				let file_state: State<FileState> = handle.state();
+				let dependencies = file_state.dependencies.lock().unwrap();
+				if let Some(dependency) = dependencies.get(index) {
+					match dependency.extension.to_lowercase().as_str() {
+						"c16" | "s16" | "blk" => export_sprite(&dependency, &file_handle),
+						_ => {
+							let file_path = file_handle.path();
+							if let Err(why) = fs::write(file_path, &dependency.data) {
+								error_dialog(why.to_string());
+							}
+						}
+					}
+				}
+			}
+		}
+	});
+}
+
+#[tauri::command]
+pub fn reload_dependency(handle: AppHandle, file_state: State<FileState>, selected_dependencies: Vec<usize>) {
 	let do_reload = |handle: AppHandle| -> Result<(), Box<dyn Error>> {
 		let file_path = file_state.path.lock().unwrap().clone().unwrap_or(PathBuf::from(""));
 		let root_path = file_path.parent().unwrap_or(Path::new(""));
@@ -166,7 +202,7 @@ pub fn reload_dependency(handle: AppHandle, file_state: State<FileState>, select
 		let mut dependency_names: HashMap<usize, String> = HashMap::new();
 		let mut dependency_paths: HashMap<usize, PathBuf> = HashMap::new();
 		for (i, dependency) in dependencies.iter().enumerate() {
-			if selected_dependencies.contains(&(i as u32)) {
+			if selected_dependencies.contains(&i) {
 				let dependency_name = dependency.filename();
 				let long_path = root_path.join(file_name_folder).join(&dependency_name);
 				let short_path = root_path.join(&dependency_name);
@@ -322,16 +358,27 @@ pub fn select_dependency(handle: AppHandle, file_state: State<FileState>, select
 	let dependencies = file_state.dependencies.lock().unwrap();
 	let mut image_cache = file_state.image_cache.lock().unwrap();
 	if let Some(dependency) = dependencies.get(selected_dependency) {
-		let no_contents = DependencyInfo { filename: dependency.filename(), text: "".to_string(), framecount: 0 };
+		let no_contents = DependencyInfo {
+			index: selected_dependency,
+			filename: dependency.filename(),
+			text: "".to_string(),
+			framecount: 0
+		};
 		let info = match dependency.extension.as_str() {
 			"cos" | "catalogue" => DependencyInfo {
+				index: selected_dependency,
 				filename: dependency.filename(),
 				text: String::from_utf8_lossy(&dependency.data).to_string(),
 				framecount: 0
 			},
 			"c16" | "s16" | "blk" => {
 				match image_cache.get(&dependency.filename()) {
-					Some(cache) => DependencyInfo { filename: dependency.filename(), text: String::new(), framecount: cache.len() },
+					Some(cache) => DependencyInfo {
+						index: selected_dependency,
+						filename: dependency.filename(),
+						text: String::new(),
+						framecount: cache.len()
+					},
 					None => {
 						let frame_result = match dependency.extension.as_str() {
 							"blk" => blk::decode(&dependency.data),
@@ -343,7 +390,12 @@ pub fn select_dependency(handle: AppHandle, file_state: State<FileState>, select
 							Ok(frames) => {
 								let framecount = frames.len();
 								image_cache.insert(dependency.filename(), frames);
-								DependencyInfo { filename: dependency.filename(), text: String::new(), framecount }
+								DependencyInfo {
+									index: selected_dependency,
+									filename: dependency.filename(),
+									text: String::new(),
+									framecount
+								}
 							},
 							Err(_) => no_contents
 						}

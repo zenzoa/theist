@@ -22,45 +22,45 @@ window.addEventListener('load', () => {
 		return false
 	}, false)
 
-	document.getElementById('new-file-button').addEventListener('click', () => {
+	document.getElementById('new-file-button').addEventListener('click', () =>
 		tauri_invoke('new_file')
-	})
+	)
 
-	document.getElementById('open-file-button').addEventListener('click', () => {
+	document.getElementById('open-file-button').addEventListener('click', () =>
 		tauri_invoke('open_file')
-	})
+	)
 
-	document.getElementById('save-file-button').addEventListener('click', () => {
+	document.getElementById('save-file-button').addEventListener('click', () =>
 		tauri_invoke('save_file')
-	})
+	)
 
-	document.getElementById('save-as-file-button').addEventListener('click', () => {
+	document.getElementById('save-as-file-button').addEventListener('click', () =>
 		tauri_invoke('save_file_as')
-	})
+	)
 
-	document.getElementById('undo-button').addEventListener('click', () => {
+	document.getElementById('undo-button').addEventListener('click', () =>
 		tauri_invoke('undo')
-	})
+	)
 
-	document.getElementById('redo-button').addEventListener('click', () => {
+	document.getElementById('redo-button').addEventListener('click', () =>
 		tauri_invoke('redo')
-	})
+	)
 
-	document.getElementById('add-dependency-button').addEventListener('click', () => {
+	document.getElementById('add-dependency-button').addEventListener('click', () =>
 		tauri_invoke('add_dependency')
-	})
+	)
 
-	document.getElementById('extract-dependency-button').addEventListener('click', () => {
+	document.getElementById('extract-dependency-button').addEventListener('click', () =>
 		tauri_invoke('extract_dependency', { selectedDependencies })
-	})
+	)
 
-	document.getElementById('reload-dependency-button').addEventListener('click', () => {
+	document.getElementById('reload-dependency-button').addEventListener('click', () =>
 		tauri_invoke('reload_dependency', { selectedDependencies })
-	})
+	)
 
-	document.getElementById('remove-dependency-button').addEventListener('click', () => {
+	document.getElementById('remove-dependency-button').addEventListener('click', () =>
 		tauri_invoke('remove_dependency', { selectedDependencies })
-	})
+	)
 
 	tauri_listen('update_tag_list', updateTagList)
 	tauri_listen('update_tag_info', updateTagInfo)
@@ -138,6 +138,9 @@ window.addEventListener('load', () => {
 		} else if (KEY === 'ESCAPE' && (AddTagDialog.isOpen() || AboutDialog.isOpen())){
 			AddTagDialog.close()
 			AboutDialog.close()
+		} else if (KEY === 'ESCAPE' && selectedDependencies.length) {
+			hideSpinner()
+			deselectAllDependencies()
 		}
 	})
 
