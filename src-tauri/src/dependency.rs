@@ -155,7 +155,7 @@ pub fn extract_dependency(handle: AppHandle, selected_dependencies: Vec<u32>) {
 }
 
 #[tauri::command]
-pub fn export_dependency(handle: AppHandle, file_state: State<FileState>, index: usize) {
+pub fn export_dependency(handle: AppHandle, file_state: State<FileState>, index: usize, selected_frames: Vec<usize>) {
 	let dependencies = file_state.dependencies.lock().unwrap();
 	let file_dialog_opt = match dependencies.get(index) {
 		Some(dependency) => {
@@ -175,7 +175,7 @@ pub fn export_dependency(handle: AppHandle, file_state: State<FileState>, index:
 				let dependencies = file_state.dependencies.lock().unwrap();
 				if let Some(dependency) = dependencies.get(index) {
 					match dependency.extension.to_lowercase().as_str() {
-						"c16" | "s16" | "blk" => export_sprite(&dependency, &file_handle),
+						"c16" | "s16" | "blk" => export_sprite(&dependency, &file_handle, &selected_frames),
 						_ => {
 							let file_path = file_handle.path();
 							if let Err(why) = fs::write(file_path, &dependency.data) {

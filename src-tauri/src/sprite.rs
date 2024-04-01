@@ -27,7 +27,7 @@ pub fn parse_pixel_565(pixel: u16) -> Rgba<u8> {
 	Rgba([r, g, b, 255])
 }
 
-pub fn export_sprite(file: &File, file_handle: &FileHandle) {
+pub fn export_sprite(file: &File, file_handle: &FileHandle, frame_indexes: &[usize]) {
 	let decode_result = match file.extension.as_str() {
 		"c16" => c16::decode(&file.data),
 		"s16" => s16::decode(&file.data),
@@ -37,10 +37,15 @@ pub fn export_sprite(file: &File, file_handle: &FileHandle) {
 	match decode_result {
 		Ok(frames) => {
 			for (i, frame) in frames.iter().enumerate() {
-				let file_name = file_handle.file_name().replace(".png", &format!("_{}.png", i));
-				let file_path = file_handle.path().with_file_name(file_name);
-				if let Err(why) = frame.save(file_path) {
-					error_dialog(why.to_string());
+				if frame_indexes.contains(&i) {
+					let file_name = match frame_indexes.len() {
+						1 => file_handle.file_name(),
+						_ => file_handle.file_name().replace(".png", &format!("_{}.png", i))
+					};
+					let file_path = file_handle.path().with_file_name(file_name);
+					if let Err(why) = frame.save(file_path) {
+						error_dialog(why.to_string());
+					}
 				}
 			}
 		},

@@ -21,7 +21,7 @@ const updateDependencyInfo = (event) => {
 		exportButton.title = 'Export File'
 		exportButton.innerHTML = '<img src="library/fluent/export.svg" alt="Export File">'
 		exportButton.addEventListener('click', () =>
-			tauri_invoke('export_dependency', { index })
+			tauri_invoke('export_dependency', { index, selectedFrames })
 		)
 
 		const contentsEl = document.createElement('div')
