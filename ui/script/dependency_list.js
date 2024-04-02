@@ -88,14 +88,15 @@ const generateDropdownList = (extension, prop_value) => {
 }
 
 const checkDependency = (i, event) => {
+	let checkedState = false
+	if (checkedDependencies.includes(i)) {
+		checkedDependencies = checkedDependencies.filter(f => f !== i)
+	} else {
+		checkedDependencies.push(i)
+		checkedState = true
+	}
+
 	if (selectedDependencies.includes(i)) {
-		let checkedState = false
-		if (checkedDependencies.includes(i)) {
-			checkedDependencies = checkedDependencies.filter(f => f !== i)
-		} else {
-			checkedDependencies.push(i)
-			checkedState = true
-		}
 		selectedDependencies.forEach(s => {
 			if (checkedState && !checkedDependencies.includes(s)) {
 				checkedDependencies.push(s)
@@ -103,12 +104,6 @@ const checkDependency = (i, event) => {
 				checkedDependencies = checkedDependencies.filter(f => f !== s)
 			}
 		})
-	} else {
-		if (!checkedDependencies.includes(i)) {
-			checkedDependencies.push(i)
-		}
-		selectedDependencies = []
-		tauri_invoke('deselect_dependency')
 	}
 
 	updateSelectedDependencies()
@@ -123,6 +118,7 @@ const selectDependency = (i, event) => {
 		for (let j = Math.min(i, lastSelectedDependency); j <= Math.max(i, lastSelectedDependency); j++) {
 			selectedDependencies.push(j)
 		}
+
 	} else if (event.ctrlKey) {
 		if (selectedDependencies.includes(i)) {
 			selectedDependencies = selectedDependencies.filter(s => s !== i)
@@ -130,9 +126,10 @@ const selectDependency = (i, event) => {
 			selectedDependencies.push(i)
 		}
 		lastSelectedDependency = i
+
 	} else {
 		lastSelectedDependency = i
-		if (selectedDependencies.includes(i)) {
+		if (selectedDependencies.includes(i) && selectedDependencies.length == 1) {
 			selectedDependencies = []
 			tauri_invoke('deselect_dependency')
 		} else {
