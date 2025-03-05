@@ -9,9 +9,10 @@ use tauri::{
 	Builder,
 	AppHandle,
 	WindowEvent,
-	FileDropEvent,
+	DragDropEvent,
 	Manager,
-	State
+	State,
+	Emitter
 };
 
 use tauri::menu::{
@@ -23,9 +24,7 @@ use tauri::menu::{
 	MenuId
 };
 
-use tauri::async_runtime::spawn;
-
-use rfd::{ AsyncMessageDialog, MessageButtons };
+use rfd::{ MessageDialog, MessageButtons };
 
 mod file;
 mod format;
@@ -46,9 +45,9 @@ fn main() {
 
 		.on_window_event(|window, event| {
 			match event {
-				WindowEvent::FileDrop(FileDropEvent::Dropped{ paths, position: _ }) => {
+				WindowEvent::DragDrop(DragDropEvent::Drop{ paths, position: _ }) => {
 					if !paths.is_empty() {
-						if let Err(why) = file::drop_file(window.app_handle(), &paths) {
+						if let Err(why) = file::drop_file(window.app_handle(), paths) {
 							error_dialog(why.to_string());
 						}
 					}
@@ -185,7 +184,9 @@ fn main() {
 			config::load_config_file(window.app_handle());
 		})
 
-		.register_uri_scheme_protocol("getimage", |app, request| {
+		.register_uri_scheme_protocol("getimage", |context, request| {
+			let handle = context.app_handle();
+
 			let not_found = http::Response::builder().body(Vec::new()).unwrap();
 
 			let uri = request.uri().path();
@@ -194,12 +195,12 @@ fn main() {
 				if let Some(frame_index_str) = uri_parts.get(3) {
 					let frame_index_result: Result<usize, _> = frame_index_str.parse();
 					if let Ok(frame_index) = frame_index_result {
-						let file_state: State<file::FileState> = app.state();
+						let file_state: State<file::FileState> = handle.state();
 						let image_cache = file_state.image_cache.lock().unwrap();
-						if let Some(frames) = image_cache.get(&filename) {
+						if let Some(frames) = image_cache.get(filename) {
 							if let Some(frame) = frames.get(frame_index) {
 								let mut data = Cursor::new(Vec::new());
-								if let Ok(()) = frame.write_to(&mut data, image::ImageOutputFormat::Png) {
+								if let Ok(()) = frame.write_to(&mut data, image::ImageFormat::Png) {
 									return http::Response::builder()
 										.header("Content-Type", "image/png")
 										.body(data.into_inner())
@@ -250,12 +251,9 @@ pub fn update_title(handle: &AppHandle) {
 }
 
 pub fn error_dialog(error_message: String) {
-	spawn(async move {
-		AsyncMessageDialog::new()
-			.set_title("Error")
-			.set_description(error_message)
-			.set_buttons(MessageButtons::Ok)
-			.show()
-			.await;
-	});
+	MessageDialog::new()
+		.set_title("Error")
+		.set_description(error_message)
+		.set_buttons(MessageButtons::Ok)
+		.show();
 }

@@ -6,8 +6,6 @@ use super::{ image_error, parse_pixel_555, parse_pixel_565 };
 
 struct FileHeader {
 	pixel_format: u32, // 2 = 555, 3 = 565
-	cols: u16,
-	rows: u16,
 	image_count: u16
 }
 
@@ -19,12 +17,11 @@ struct ImageHeader {
 
 fn read_file_header(buffer: &mut Bytes) -> Result<FileHeader, Box<dyn Error>> {
 	if buffer.remaining() < 6 { return Err(image_error()); }
-	Ok(FileHeader {
-		pixel_format: buffer.get_u32_le(),
-		cols: buffer.get_u16_le(),
-		rows: buffer.get_u16_le(),
-		image_count: buffer.get_u16_le() // this should equal cols * rows
-	})
+	let pixel_format = buffer.get_u32_le();
+	let _cols = buffer.get_u16_le();
+	let _rows = buffer.get_u16_le();
+	let image_count = buffer.get_u16_le(); // this should equal cols * rows
+	Ok(FileHeader { pixel_format, image_count })
 }
 
 fn read_image_header(buffer: &mut Bytes) -> Result<ImageHeader, Box<dyn Error>> {

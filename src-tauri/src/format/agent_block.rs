@@ -162,7 +162,7 @@ pub fn get_scripts(tag: &Tag, block_name: &str) -> Vec<Block> {
 			scripts.push(Block::File(File {
 				name: if i == 1 { block_name.to_string() } else { format!("{} {}", block_name, i) },
 				extension: "cos".to_string(),
-				data: Bytes::from(script_text.clone()),
+				data: Bytes::from(script_text.clone()).to_vec(),
 				is_checked: false
 			}));
 		}

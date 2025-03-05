@@ -6,12 +6,9 @@ use std::{
 	collections::HashMap
 };
 
-use tauri::{ Manager, AppHandle, State };
-use tauri::async_runtime::spawn;
+use tauri::{ Manager, AppHandle, State, Emitter };
 
-use rfd::{ AsyncMessageDialog, MessageDialog, MessageButtons, MessageDialogResult };
-
-use bytes::Bytes;
+use rfd::{ MessageDialog, MessageButtons, MessageDialogResult };
 
 use crate::error_dialog;
 use crate::file::{ FileState, modify_file, create_file_dialog };
@@ -32,18 +29,15 @@ static SUPPORTED_EXTENSIONS: [&str; 10] = ["cos", "wav", "mng", "c16", "s16", "b
 
 #[tauri::command]
 pub fn add_dependency(handle: AppHandle) {
-	spawn(async move {
-		let file_handle = create_file_dialog(&handle)
-			.add_filter("Dependencies", &SUPPORTED_EXTENSIONS)
-			.pick_file()
-			.await;
-		if let Some(file_handle) = file_handle {
-			match add_dependency_from_path(&handle, file_handle.path().to_path_buf()) {
-				Ok(()) => {},
-				Err(why) => error_dialog(why.to_string())
-			};
-		}
-	});
+	let file_handle = create_file_dialog(&handle)
+		.add_filter("Dependencies", &SUPPORTED_EXTENSIONS)
+		.pick_file();
+	if let Some(file_handle) = file_handle {
+		match add_dependency_from_path(&handle, file_handle.as_path().to_path_buf()) {
+			Ok(()) => {},
+			Err(why) => error_dialog(why.to_string())
+		};
+	}
 }
 
 pub fn add_dependency_from_path(handle: &AppHandle, file_path: PathBuf) -> Result<(), Box<dyn Error>> {
@@ -62,7 +56,7 @@ pub fn add_dependency_from_path(handle: &AppHandle, file_path: PathBuf) -> Resul
 			let new_dependency = File {
 				name: name.to_string(),
 				extension: extension.to_string(),
-				data: Bytes::copy_from_slice(&bytes),
+				data: bytes,
 				is_checked: true
 			};
 
@@ -94,64 +88,62 @@ pub fn add_dependency_from_path(handle: &AppHandle, file_path: PathBuf) -> Resul
 
 #[tauri::command]
 pub fn extract_dependency(handle: AppHandle, selected_dependencies: Vec<u32>) {
-	spawn(async move {
-		let file_handle = create_file_dialog(&handle)
-			.pick_folder()
-			.await;
-		if let Some(file_handle) = file_handle {
-			let file_path = file_handle.path().to_path_buf();
-			let file_state: State<FileState> = handle.state();
-			let dependencies = file_state.dependencies.lock().unwrap();
+	let file_handle = create_file_dialog(&handle)
+		.pick_folder();
 
-			let mut ok_to_save = true;
-			let mut num_files_to_overwrite: u32 = 0;
-			let mut first_file_to_overwrite = String::new();
-			let mut dependency_paths: HashMap<usize, PathBuf> = HashMap::new();
+	if let Some(file_handle) = file_handle {
+		let file_path = file_handle.as_path().to_path_buf();
+		let file_state: State<FileState> = handle.state();
+		let dependencies = file_state.dependencies.lock().unwrap();
 
-			for (i, dependency) in dependencies.iter().enumerate() {
-				if selected_dependencies.contains(&(i as u32)) {
-					let dependency_name = dependency.filename();
-					let mut dependency_path = file_path.clone();
-					dependency_path.push(dependency_name.clone());
-					if let Ok(path_exists) = dependency_path.try_exists() {
-						if path_exists {
-							num_files_to_overwrite += 1;
-							if first_file_to_overwrite.is_empty() {
-								first_file_to_overwrite = dependency_name.clone();
-							}
-						}
-					}
-					dependency_paths.insert(i, dependency_path);
-				}
-			}
+		let mut ok_to_save = true;
+		let mut num_files_to_overwrite: u32 = 0;
+		let mut first_file_to_overwrite = String::new();
+		let mut dependency_paths: HashMap<usize, PathBuf> = HashMap::new();
 
-			if num_files_to_overwrite > 0 {
-				let result = MessageDialog::new()
-					.set_title(if num_files_to_overwrite == 1 { "Overwrite File" } else { "Overwrite Files" })
-					.set_description(match num_files_to_overwrite {
-						1 => format!("Ok to overwrite \"{}\"?", &first_file_to_overwrite),
-						2 => format!("Ok to overwrite \"{}\" and 1 other file?", &first_file_to_overwrite),
-						_ => format!("Ok to overwrite \"{}\" and {} other files?", &first_file_to_overwrite, num_files_to_overwrite - 1)
-						})
-					.set_buttons(MessageButtons::YesNo)
-					.show();
-				if let MessageDialogResult::No = result {
-					ok_to_save = false;
-				}
-			}
-
-			if ok_to_save {
-				for (i, dependency) in dependencies.iter().enumerate() {
-					if let Some(dependency_path) = dependency_paths.get(&i) {
-						if let Err(why) = fs::write(dependency_path, &dependency.data) {
-							error_dialog(why.to_string());
+		for (i, dependency) in dependencies.iter().enumerate() {
+			if selected_dependencies.contains(&(i as u32)) {
+				let dependency_name = dependency.filename();
+				let mut dependency_path = file_path.clone();
+				dependency_path.push(dependency_name.clone());
+				if let Ok(path_exists) = dependency_path.try_exists() {
+					if path_exists {
+						num_files_to_overwrite += 1;
+						if first_file_to_overwrite.is_empty() {
+							first_file_to_overwrite = dependency_name.clone();
 						}
 					}
 				}
-				handle.emit("show_notification", if selected_dependencies.len() == 1 { "Dependency extracted" } else { "Dependencies extracted" }).unwrap();
+				dependency_paths.insert(i, dependency_path);
 			}
 		}
-	});
+
+		if num_files_to_overwrite > 0 {
+			let result = MessageDialog::new()
+				.set_title(if num_files_to_overwrite == 1 { "Overwrite File" } else { "Overwrite Files" })
+				.set_description(match num_files_to_overwrite {
+					1 => format!("Ok to overwrite \"{}\"?", &first_file_to_overwrite),
+					2 => format!("Ok to overwrite \"{}\" and 1 other file?", &first_file_to_overwrite),
+					_ => format!("Ok to overwrite \"{}\" and {} other files?", &first_file_to_overwrite, num_files_to_overwrite - 1)
+					})
+				.set_buttons(MessageButtons::YesNo)
+				.show();
+			if let MessageDialogResult::No = result {
+				ok_to_save = false;
+			}
+		}
+
+		if ok_to_save {
+			for (i, dependency) in dependencies.iter().enumerate() {
+				if let Some(dependency_path) = dependency_paths.get(&i) {
+					if let Err(why) = fs::write(dependency_path, &dependency.data) {
+						error_dialog(why.to_string());
+					}
+				}
+			}
+			handle.emit("show_notification", if selected_dependencies.len() == 1 { "Dependency extracted" } else { "Dependencies extracted" }).unwrap();
+		}
+	}
 }
 
 #[tauri::command]
@@ -167,26 +159,24 @@ pub fn export_dependency(handle: AppHandle, file_state: State<FileState>, index:
 		},
 		None => None
 	};
-	spawn(async move {
-		if let Some(file_dialog) = file_dialog_opt {
-			let file_handle = file_dialog.save_file().await;
-			if let Some(file_handle) = file_handle {
-				let file_state: State<FileState> = handle.state();
-				let dependencies = file_state.dependencies.lock().unwrap();
-				if let Some(dependency) = dependencies.get(index) {
-					match dependency.extension.to_lowercase().as_str() {
-						"c16" | "s16" | "blk" => export_sprite(&dependency, &file_handle, &selected_frames),
-						_ => {
-							let file_path = file_handle.path();
-							if let Err(why) = fs::write(file_path, &dependency.data) {
-								error_dialog(why.to_string());
-							}
+	if let Some(file_dialog) = file_dialog_opt {
+		let file_handle = file_dialog.save_file();
+		if let Some(file_handle) = file_handle {
+			let file_state: State<FileState> = handle.state();
+			let dependencies = file_state.dependencies.lock().unwrap();
+			if let Some(dependency) = dependencies.get(index) {
+				let file_path = file_handle.as_path();
+				match dependency.extension.to_lowercase().as_str() {
+					"c16" | "s16" | "blk" => export_sprite(dependency, &file_handle, &selected_frames),
+					_ => {
+						if let Err(why) = fs::write(file_path, &dependency.data) {
+							error_dialog(why.to_string());
 						}
 					}
 				}
 			}
 		}
-	});
+	}
 }
 
 #[tauri::command]
@@ -215,34 +205,31 @@ pub fn reload_dependency(handle: AppHandle, file_state: State<FileState>, select
 			}
 		}
 
-		spawn(async move {
-			let confirm_reload = AsyncMessageDialog::new()
-				.set_title(if selected_dependencies.len() == 1 { "Reload Dependency" } else { "Reload Dependencies" })
-				.set_description(if selected_dependencies.len() == 1 {
-						format!("Replace \"{}\" in agent with version from disk?",
-							dependency_names.get(&(selected_dependencies[0] as usize)).unwrap_or(&"?".to_string()))
-					} else {
-						format!("Replace {} dependencies in agent with versions from disk?",
-							selected_dependencies.len())
-					})
-				.set_buttons(MessageButtons::YesNo)
-				.show()
-				.await;
+		let confirm_reload = MessageDialog::new()
+			.set_title(if selected_dependencies.len() == 1 { "Reload Dependency" } else { "Reload Dependencies" })
+			.set_description(if selected_dependencies.len() == 1 {
+					format!("Replace \"{}\" in agent with version from disk?",
+						dependency_names.get(&(selected_dependencies[0])).unwrap_or(&"?".to_string()))
+				} else {
+					format!("Replace {} dependencies in agent with versions from disk?",
+						selected_dependencies.len())
+				})
+			.set_buttons(MessageButtons::YesNo)
+			.show();
 
-			if let MessageDialogResult::Yes = confirm_reload {
-				modify_file(&handle, true);
-				let file_state: State<FileState> = handle.state();
-				let mut dependencies = file_state.dependencies.lock().unwrap();
-				for (i, dependency) in dependencies.iter_mut().enumerate() {
-					if let Some(dependency_path) = dependency_paths.get(&i) {
-						if let Ok(data) = fs::read(dependency_path) {
-							dependency.data = Bytes::from(data);
-						}
+		if let MessageDialogResult::Yes = confirm_reload {
+			modify_file(&handle, true);
+			let file_state: State<FileState> = handle.state();
+			let mut dependencies = file_state.dependencies.lock().unwrap();
+			for (i, dependency) in dependencies.iter_mut().enumerate() {
+				if let Some(dependency_path) = dependency_paths.get(&i) {
+					if let Ok(data) = fs::read(dependency_path) {
+						dependency.data = data;
 					}
 				}
-				handle.emit("show_notification", if selected_dependencies.len() == 1 { "Dependency reloaded" } else { "Dependencies reloaded" }).unwrap();
 			}
-		});
+			handle.emit("show_notification", if selected_dependencies.len() == 1 { "Dependency reloaded" } else { "Dependencies reloaded" }).unwrap();
+		}
 
 		Ok(())
 	};
@@ -259,35 +246,32 @@ pub fn remove_dependency(handle: AppHandle, file_state: State<FileState>, select
 
 	if let Some(filename) = filename {
 		let handle = handle.clone();
-		spawn(async move {
-			let confirm_remove = AsyncMessageDialog::new()
-				.set_title(if selected_dependencies.len() == 1 { "Remove Dependency" } else { "Remove Dependencies" })
-				.set_description(if selected_dependencies.len() == 1 {
-						format!("Remove {} from the agent? This won't delete the original file.", filename)
-					} else {
-						format!("Remove {} dependencies from the agent? This won't delete the original files.", selected_dependencies.len())
-					})
-				.set_buttons(MessageButtons::YesNo)
-				.show()
-				.await;
+		let confirm_remove = MessageDialog::new()
+			.set_title(if selected_dependencies.len() == 1 { "Remove Dependency" } else { "Remove Dependencies" })
+			.set_description(if selected_dependencies.len() == 1 {
+					format!("Remove {} from the agent? This won't delete the original file.", filename)
+				} else {
+					format!("Remove {} dependencies from the agent? This won't delete the original files.", selected_dependencies.len())
+				})
+			.set_buttons(MessageButtons::YesNo)
+			.show();
 
-			if let MessageDialogResult::Yes = confirm_remove {
-				modify_file(&handle, true);
-				let file_state: State<FileState> = handle.state();
-				let dependencies = file_state.dependencies.lock().unwrap().clone();
-				let mut new_dependencies: Vec<File> = Vec::new();
-				for (i, dependency) in dependencies.iter().enumerate() {
-					if !selected_dependencies.contains(&(i as u32)) {
-						new_dependencies.push(dependency.clone());
-					}
+		if let MessageDialogResult::Yes = confirm_remove {
+			modify_file(&handle, true);
+			let file_state: State<FileState> = handle.state();
+			let dependencies = file_state.dependencies.lock().unwrap().clone();
+			let mut new_dependencies: Vec<File> = Vec::new();
+			for (i, dependency) in dependencies.iter().enumerate() {
+				if !selected_dependencies.contains(&(i as u32)) {
+					new_dependencies.push(dependency.clone());
 				}
-
-				remove_missing_dependencies(&file_state, &new_dependencies);
-
-				handle.emit("update_dependency_list", new_dependencies.clone()).unwrap();
-				*file_state.dependencies.lock().unwrap() = new_dependencies.clone();
 			}
-		});
+
+			remove_missing_dependencies(&file_state, &new_dependencies);
+
+			handle.emit("update_dependency_list", new_dependencies.clone()).unwrap();
+			*file_state.dependencies.lock().unwrap() = new_dependencies.clone();
+		}
 	}
 }
 

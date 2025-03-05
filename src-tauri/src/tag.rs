@@ -1,7 +1,6 @@
-use tauri::{ Manager, AppHandle, State };
-use tauri::async_runtime::spawn;
+use tauri::{ Manager, AppHandle, State, Emitter };
 
-use rfd::{ AsyncMessageDialog, MessageButtons, MessageDialogResult };
+use rfd::{ MessageDialog, MessageButtons, MessageDialogResult };
 
 use crate::file::{ FileState, modify_file };
 use crate::format::pray::Block;
@@ -105,30 +104,27 @@ pub fn duplicate_tag(handle: AppHandle, file_state: State<FileState>) {
 
 #[tauri::command]
 pub fn remove_tag(handle: AppHandle) {
-	spawn(async move {
-		let confirm_remove = AsyncMessageDialog::new()
-			.set_title("Remove Tag")
-			.set_description("Are you sure you want to remove this tag?")
-			.set_buttons(MessageButtons::YesNo)
-			.show()
-			.await;
+	let confirm_remove = MessageDialog::new()
+		.set_title("Remove Tag")
+		.set_description("Are you sure you want to remove this tag?")
+		.set_buttons(MessageButtons::YesNo)
+		.show();
 
-		if let MessageDialogResult::Yes = confirm_remove {
-			let file_state: State<FileState> = handle.state();
-			let selected_tag = *file_state.selected_tag.lock().unwrap();
-			if let Some(selected_tag_index) = selected_tag {
-				modify_file(&handle, true);
-				let mut tags = file_state.tags.lock().unwrap();
-				tags.remove(selected_tag_index);
-				let selected_tag_index = if selected_tag_index >= 1 { selected_tag_index - 1 } else { 0 };
-				*file_state.selected_tag.lock().unwrap() = if tags.is_empty() { None } else { Some(selected_tag_index) };
-				if let Some(tag) = tags.get(selected_tag_index) {
-					let checked_dependencies = check_dependencies_for_tag(tag, &mut file_state.dependencies.lock().unwrap());
-					handle.emit("update_checked_dependencies", &checked_dependencies).unwrap();
-					handle.emit("deselect_dependencies", ()).unwrap();
-				}
-				handle.emit("update_tag_list", (selected_tag_index, tags.to_owned())).unwrap();
+	if let MessageDialogResult::Yes = confirm_remove {
+		let file_state: State<FileState> = handle.state();
+		let selected_tag = *file_state.selected_tag.lock().unwrap();
+		if let Some(selected_tag_index) = selected_tag {
+			modify_file(&handle, true);
+			let mut tags = file_state.tags.lock().unwrap();
+			tags.remove(selected_tag_index);
+			let selected_tag_index = if selected_tag_index >= 1 { selected_tag_index - 1 } else { 0 };
+			*file_state.selected_tag.lock().unwrap() = if tags.is_empty() { None } else { Some(selected_tag_index) };
+			if let Some(tag) = tags.get(selected_tag_index) {
+				let checked_dependencies = check_dependencies_for_tag(tag, &mut file_state.dependencies.lock().unwrap());
+				handle.emit("update_checked_dependencies", &checked_dependencies).unwrap();
+				handle.emit("deselect_dependencies", ()).unwrap();
 			}
+			handle.emit("update_tag_list", (selected_tag_index, tags.to_owned())).unwrap();
 		}
-	});
+	}
 }

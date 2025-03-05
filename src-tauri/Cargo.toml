@@ -1,6 +1,6 @@
 [package]
-name = "app"
-version = "0.1.0"
+name = "tauri"
+version = "2.1.2"
 description = "A Tauri App"
 authors = ["you"]
 license = ""
@@ -9,23 +9,24 @@ edition = "2021"
 rust-version = "1.70"
 
 [build-dependencies]
-tauri-build = { version = "2.0.0-beta.10", features = [] }
+tauri-build = { version = "2.0.6", features = [] }
 
 [dependencies]
 serde_json = "1.0"
 serde = { version = "1.0", features = ["derive"] }
-tauri = { version = "2.0.0-beta.13", features = [] }
-bytes = "1.5.0"
-png = "0.17.10"
-image = "0.24.8"
-arboard = "3.2.1"
-libflate = "2.0.0"
-rfd = "0.13.0"
-regex = "1.10.2"
-http = "0.2.12"
+tauri = { version = "2.3.1", features = [] }
+bytes = "1.10.0"
+png = "0.17.16"
+image = "0.25.5"
+rfd = "0.14.1"
+regex = "1.11.1"
+http = "1.2.0"
+libflate = "2.1.0"
 
 [features]
-# this feature is used for production builds or when `devPath` points to the filesystem and the built-in dev server is disabled.
-# If you use cargo directly instead of tauri's cli you can use this feature flag to switch between tauri's `dev` and `build` modes.
-# DO NOT REMOVE!!
+# by default Tauri runs in production mode
+# when `tauri dev` runs it is executed with `cargo run --no-default-features` if `devPath` is an URL
+default = [ "custom-protocol" ]
+# this feature is used for production builds where `devPath` points to the filesystem
+# DO NOT remove this
 custom-protocol = [ "tauri/custom-protocol" ]

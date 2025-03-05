@@ -11,7 +11,7 @@ use super::pray::{
 pub struct File {
 	pub name: String,
 	pub extension: String,
-	pub data: Bytes,
+	pub data: Vec<u8>,
 	pub is_checked: bool
 }
 

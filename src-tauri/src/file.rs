@@ -7,10 +7,9 @@ use std::{
 	collections::HashMap
 };
 
-use tauri::{ AppHandle, State, Manager };
-use tauri::async_runtime::spawn;
+use tauri::{ AppHandle, State, Manager, Emitter };
 
-use rfd::{ AsyncFileDialog, AsyncMessageDialog, MessageButtons, MessageDialogResult };
+use rfd::{ FileDialog, MessageDialog, MessageButtons, MessageDialogResult };
 
 use image::RgbaImage;
 
@@ -58,17 +57,14 @@ impl ImageCache {
 pub fn check_file_modified(handle: AppHandle, path: PathBuf, callback: FileModifiedCallback) {
 	let file_state: State<FileState> = handle.state();
 	if *file_state.is_modified.lock().unwrap() {
-		spawn(async move {
-			let confirm_reload = AsyncMessageDialog::new()
-				.set_title("File modified")
-				.set_description("Do you want to continue anyway and lose any unsaved work?")
-				.set_buttons(MessageButtons::YesNo)
-				.show()
-				.await;
-			if let MessageDialogResult::Yes = confirm_reload {
-				(callback.func)(handle, path);
-			}
-		});
+		let confirm_reload = MessageDialog::new()
+			.set_title("File modified")
+			.set_description("Do you want to continue anyway and lose any unsaved work?")
+			.set_buttons(MessageButtons::YesNo)
+			.show();
+		if let MessageDialogResult::Yes = confirm_reload {
+			(callback.func)(handle, path);
+		}
 	} else {
 		(callback.func)(handle, path);
 	}
@@ -92,8 +88,8 @@ pub fn modify_file(handle: &AppHandle, add_to_history: bool) {
 	update_title(handle);
 }
 
-pub fn create_file_dialog(handle: &AppHandle) -> AsyncFileDialog{
-	let mut file_dialog = AsyncFileDialog::new();
+pub fn create_file_dialog(handle: &AppHandle) -> FileDialog {
+	let mut file_dialog = FileDialog::new();
 
 	let file_state: State<FileState> = handle.state();
 	if let Some(file_path) = file_state.path.lock().unwrap().clone() {
@@ -129,18 +125,15 @@ pub fn open_file(handle: AppHandle) {
 
 pub fn open_file_dialog(handle: &AppHandle) {
 	let handle = handle.clone();
-	spawn(async move {
-		let file_handle = create_file_dialog(&handle)
-			.add_filter("Agents", &["agent", "agents"])
-			.pick_file()
-			.await;
-		if let Some(file_handle) = file_handle {
-			match open_file_from_path(&handle, &file_handle.path().to_path_buf()) {
-				Ok(()) => {},
-				Err(why) => error_dialog(why.to_string())
-			};
-		}
-	});
+	let file_handle = create_file_dialog(&handle)
+		.add_filter("Agents", &["agent", "agents"])
+		.pick_file();
+	if let Some(file_handle) = file_handle {
+		match open_file_from_path(&handle, &file_handle.as_path().to_path_buf()) {
+			Ok(()) => {},
+			Err(why) => error_dialog(why.to_string())
+		};
+	}
 }
 
 pub fn open_file_from_path(handle: &AppHandle, file_path: &PathBuf) -> Result<(), Box<dyn Error>> {
@@ -209,15 +202,12 @@ pub fn save_file(handle: AppHandle) {
 
 #[tauri::command]
 pub fn save_file_as(handle: AppHandle) {
-	spawn(async move {
-		let file_handle = create_file_dialog(&handle)
-			.add_filter("Agents", &["agent", "agents"])
-			.save_file()
-			.await;
-		if let Some(file_handle) = file_handle {
-			save_file_to_path(handle, file_handle.path());
-		}
-	});
+	let file_handle = create_file_dialog(&handle)
+		.add_filter("Agents", &["agent", "agents"])
+		.save_file();
+	if let Some(file_handle) = file_handle {
+		save_file_to_path(handle, file_handle.as_path());
+	}
 }
 
 fn save_file_to_path(handle: AppHandle, file_path: &Path) {

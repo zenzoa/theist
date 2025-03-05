@@ -1,7 +1,7 @@
 use std::sync::Mutex;
 use std::path::PathBuf;
 
-use tauri::{ Manager, AppHandle, State };
+use tauri::{ Manager, AppHandle, State, Emitter };
 
 use crate::update_title;
 use crate::file::{ FileState, modify_file };

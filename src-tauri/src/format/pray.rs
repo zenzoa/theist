@@ -95,7 +95,7 @@ pub fn read_block(buffer: &mut Bytes) -> Result<Vec<Block>, Box<dyn Error>> {
 			Ok(vec![Block::File(File {
 				name: name.to_str().unwrap_or("").to_string(),
 				extension: extension.to_str().unwrap_or("").to_string(),
-				data: block_contents,
+				data: block_contents.to_vec(),
 				is_checked: false
 			})])
 		}
@@ -120,7 +120,7 @@ pub fn read_block(buffer: &mut Bytes) -> Result<Vec<Block>, Box<dyn Error>> {
 			Ok(vec![Block::Generic(GenericBlock {
 				id: block_header.id,
 				name: block_header.name,
-				data: block_contents
+				data: block_contents.to_vec()
 			})])
 		}
 	}
@@ -188,11 +188,11 @@ pub fn read_block_contents(buffer: &mut Bytes, block_header: &BlockHeader) -> Re
 	}
 }
 
-pub fn compress_block_contents(block_contents: &Bytes) -> Result<Bytes, Box<dyn Error>> {
+pub fn compress_block_contents(block_contents: &[u8]) -> Result<Vec<u8>, Box<dyn Error>> {
 	let mut encoder = zlib::Encoder::new(Vec::new())?;
 	encoder.write_all(block_contents)?;
 	let compressed_data = encoder.finish().into_result()?;
-	Ok(Bytes::from(compressed_data))
+	Ok(compressed_data)
 }
 
 pub fn read_tag_block(buffer: &mut Bytes) -> Result<Tag, Box<dyn Error>> {

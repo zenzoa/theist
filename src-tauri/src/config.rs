@@ -1,11 +1,7 @@
 use std::sync::Mutex;
 use std::{ fs, fmt };
 
-use tauri::{
-	AppHandle,
-	Manager,
-	State
-};
+use tauri::{ AppHandle, Manager, State, Emitter };
 use tauri::menu::MenuItemKind;
 
 pub struct ConfigState {

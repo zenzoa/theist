@@ -10,7 +10,7 @@ use super::pray::{
 pub struct GenericBlock {
 	pub id: String,
 	pub name: String,
-	pub data: Bytes
+	pub data: Vec<u8>
 }
 
 pub fn write_generic_block(generic_block: &GenericBlock) -> Result<Bytes, Box<dyn Error>> {

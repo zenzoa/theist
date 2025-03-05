@@ -2,10 +2,9 @@ use std::str;
 
 use regex::Regex;
 
-use tauri::{ Manager, AppHandle, State };
-use tauri::async_runtime::spawn;
+use tauri::{ Manager, AppHandle, State, Emitter };
 
-use rfd::{ AsyncMessageDialog, MessageButtons, MessageDialogResult };
+use rfd::{ MessageDialog, MessageButtons, MessageDialogResult };
 
 use crate::file::{ FileState, modify_file };
 use crate::format::pray::Block;
@@ -141,7 +140,7 @@ pub fn generate_remove_script(handle: AppHandle, file_state: State<FileState>) {
 	let mut script_file_name = String::new();
 	let mut remove_script = String::new();
 
-	let remove_script_pattern = Regex::new(r"[\n\r]rscr[\n\r]([\s\S]*)").unwrap();
+	let remove_script_pattern = Regex::new(r"[\n\r]\s*rscr[\n\r]([\s\S]*)").unwrap();
 	let remove_comments_pattern = Regex::new(r"(?m)^\s+\*.*$").unwrap();
 	let remove_newlines_pattern = Regex::new(r"\s+").unwrap();
 
@@ -164,38 +163,33 @@ pub fn generate_remove_script(handle: AppHandle, file_state: State<FileState>) {
 	}
 
 	if remove_script.is_empty() {
-		spawn(async {
-			AsyncMessageDialog::new()
-				.set_title("Remove Script Not Found")
-				.set_description("No remove script found in any of this tag's COS files.")
-				.show()
-				.await;
-		});
+		MessageDialog::new()
+			.set_title("Remove Script Not Found")
+			.set_description("No remove script found in any of this tag's COS files.")
+			.show();
 
 	} else {
 		let handle = handle.clone();
-		spawn(async move {
-			let confirm_overwrite = AsyncMessageDialog::new()
-				.set_title("Overwrite Remove Script")
-				.set_description(format!("Replace current remove script with the one in {}?", script_file_name))
-				.set_buttons(MessageButtons::YesNo)
-				.show()
-				.await;
 
-			if let MessageDialogResult::Yes = confirm_overwrite {
-				modify_file(&handle, true);
-				let file_state: State<FileState> = handle.state();
-				let selected_tag = *file_state.selected_tag.lock().unwrap();
-				if let Some(selected_tag) = selected_tag {
-					if let Some(tag) = file_state.tags.lock().unwrap().get_mut(selected_tag) {
-						if let Block::Agent(agent_tag) = tag {
-							agent_tag.remove_script = remove_script;
-							handle.emit("update_tag_info", &tag).unwrap();
-						}
+		let confirm_overwrite = MessageDialog::new()
+			.set_title("Overwrite Remove Script")
+			.set_description(format!("Replace current remove script with the one in {}?", script_file_name))
+			.set_buttons(MessageButtons::YesNo)
+			.show();
+
+		if let MessageDialogResult::Yes = confirm_overwrite {
+			modify_file(&handle, true);
+			let file_state: State<FileState> = handle.state();
+			let selected_tag = *file_state.selected_tag.lock().unwrap();
+			if let Some(selected_tag) = selected_tag {
+				if let Some(tag) = file_state.tags.lock().unwrap().get_mut(selected_tag) {
+					if let Block::Agent(agent_tag) = tag {
+						agent_tag.remove_script = remove_script;
+						handle.emit("update_tag_info", &tag).unwrap();
 					}
 				}
 			}
-		});
+		}
 	}
 }
 
@@ -233,28 +227,25 @@ pub fn update_description_text(handle: AppHandle, file_state: State<FileState>, 
 
 #[tauri::command]
 pub fn remove_description(handle: AppHandle, index: usize) {
-	spawn(async move {
-		let confirm_remove = AsyncMessageDialog::new()
-			.set_title("Remove Description")
-			.set_description("Are you sure you want to remove this description?")
-			.set_buttons(MessageButtons::YesNo)
-			.show()
-			.await;
+	let confirm_remove = MessageDialog::new()
+		.set_title("Remove Description")
+		.set_description("Are you sure you want to remove this description?")
+		.set_buttons(MessageButtons::YesNo)
+		.show();
 
-		if let MessageDialogResult::Yes = confirm_remove {
-			modify_file(&handle, true);
-			let file_state: State<FileState> = handle.state();
-			let selected_tag = *file_state.selected_tag.lock().unwrap();
-			if let Some(selected_tag) = selected_tag {
-				if let Some(tag) = file_state.tags.lock().unwrap().get_mut(selected_tag) {
-					if let Block::Agent(agent_tag) = tag {
-						agent_tag.descriptions.remove(index);
-						handle.emit("update_tag_info", &tag).unwrap();
-					}
+	if let MessageDialogResult::Yes = confirm_remove {
+		modify_file(&handle, true);
+		let file_state: State<FileState> = handle.state();
+		let selected_tag = *file_state.selected_tag.lock().unwrap();
+		if let Some(selected_tag) = selected_tag {
+			if let Some(tag) = file_state.tags.lock().unwrap().get_mut(selected_tag) {
+				if let Block::Agent(agent_tag) = tag {
+					agent_tag.descriptions.remove(index);
+					handle.emit("update_tag_info", &tag).unwrap();
 				}
 			}
 		}
-	});
+	}
 }
 
 #[tauri::command]
