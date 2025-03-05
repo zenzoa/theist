@@ -105,14 +105,18 @@ pub fn write_agent_block(agent_block: &Agent, dependencies: &Vec<File>) -> Resul
 
 	int_values.push(("Agent Type".to_string(), 0));
 
-	str_values.push(("Agent Animation Gallery".to_string(), file_stem(&agent_block.animation_file)));
-	str_values.push(("Agent Animation File".to_string(), agent_block.animation_file.clone()));
-	str_values.push(("Agent Animation String".to_string(), agent_block.animation_string.clone()));
+	if file_stem(&agent_block.animation_file) != "" {
+		str_values.push(("Agent Animation Gallery".to_string(), file_stem(&agent_block.animation_file)));
+		str_values.push(("Agent Animation File".to_string(), agent_block.animation_file.clone()));
+		str_values.push(("Agent Animation String".to_string(), agent_block.animation_string.clone()));
+		if agent_block.game_support != GameSupport::Creatures3 {
+			int_values.push(("Agent Sprite First Image".to_string(), agent_block.sprite_first_image));
+		}
+	}
 
 	if agent_block.game_support == GameSupport::Creatures3 {
 		int_values.push(("Agent Bioenergy Value".to_string(), agent_block.bioenergy));
 	} else {
-		int_values.push(("Agent Sprite First Image".to_string(), agent_block.sprite_first_image));
 		str_values.push(("Web Label".to_string(), agent_block.web_label.clone()));
 		str_values.push(("Web URL".to_string(), agent_block.web_url.clone()));
 		for description in &agent_block.descriptions {

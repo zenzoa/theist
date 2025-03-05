@@ -1,6 +1,6 @@
 {
 	"productName": "Theist",
-	"version": "2.2",
+	"version": "2.2.0",
 	"identifier": "thing.zenzoa.theist",
 	"app": {
 		"withGlobalTauri": true,

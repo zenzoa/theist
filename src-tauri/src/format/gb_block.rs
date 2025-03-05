@@ -74,9 +74,12 @@ pub fn write_gb_block(gb_block: &GardenBox, dependencies: &Vec<File>) -> Result<
 	str_values.push(("Agent Description".to_string(), gb_block.description.clone()));
 	str_values.push(("Agent Author".to_string(), gb_block.author.clone()));
 	int_values.push(("GB_Category".to_string(), gb_block.category));
-	str_values.push(("Agent Animation Gallery".to_string(), file_stem(&gb_block.animation_file)));
-	str_values.push(("Agent Animation File".to_string(), gb_block.animation_file.clone()));
-	int_values.push(("Agent Sprite First Image".to_string(), gb_block.sprite_first_image));
+
+	if file_stem(&gb_block.animation_file) != "" {
+		str_values.push(("Agent Animation Gallery".to_string(), file_stem(&gb_block.animation_file)));
+		str_values.push(("Agent Animation File".to_string(), gb_block.animation_file.clone()));
+		int_values.push(("Agent Sprite First Image".to_string(), gb_block.sprite_first_image));
+	}
 
 	write_dependencies(&mut int_values, &mut str_values, &tag_dependencies);
 
