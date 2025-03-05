@@ -7,6 +7,7 @@ use std::{
 };
 
 use tauri::{ Manager, AppHandle, State, Emitter };
+use tauri::async_runtime::spawn;
 
 use rfd::{ MessageDialog, MessageButtons, MessageDialogResult };
 
@@ -162,19 +163,21 @@ pub fn export_dependency(handle: AppHandle, file_state: State<FileState>, index:
 	if let Some(file_dialog) = file_dialog_opt {
 		let file_handle = file_dialog.save_file();
 		if let Some(file_handle) = file_handle {
-			let file_state: State<FileState> = handle.state();
-			let dependencies = file_state.dependencies.lock().unwrap();
-			if let Some(dependency) = dependencies.get(index) {
-				let file_path = file_handle.as_path();
-				match dependency.extension.to_lowercase().as_str() {
-					"c16" | "s16" | "blk" => export_sprite(dependency, &file_handle, &selected_frames),
-					_ => {
-						if let Err(why) = fs::write(file_path, &dependency.data) {
-							error_dialog(why.to_string());
+			spawn(async move {
+				let file_state: State<FileState> = handle.state();
+				let dependencies = file_state.dependencies.lock().unwrap();
+				if let Some(dependency) = dependencies.get(index) {
+					let file_path = file_handle.as_path();
+					match dependency.extension.to_lowercase().as_str() {
+						"c16" | "s16" | "blk" => export_sprite(dependency, &file_handle, &selected_frames),
+						_ => {
+							if let Err(why) = fs::write(file_path, &dependency.data) {
+								error_dialog(why.to_string());
+							}
 						}
 					}
 				}
-			}
+			});
 		}
 	}
 }
@@ -218,17 +221,19 @@ pub fn reload_dependency(handle: AppHandle, file_state: State<FileState>, select
 			.show();
 
 		if let MessageDialogResult::Yes = confirm_reload {
-			modify_file(&handle, true);
-			let file_state: State<FileState> = handle.state();
-			let mut dependencies = file_state.dependencies.lock().unwrap();
-			for (i, dependency) in dependencies.iter_mut().enumerate() {
-				if let Some(dependency_path) = dependency_paths.get(&i) {
-					if let Ok(data) = fs::read(dependency_path) {
-						dependency.data = data;
+			spawn(async move {
+				modify_file(&handle, true);
+				let file_state: State<FileState> = handle.state();
+				let mut dependencies = file_state.dependencies.lock().unwrap();
+				for (i, dependency) in dependencies.iter_mut().enumerate() {
+					if let Some(dependency_path) = dependency_paths.get(&i) {
+						if let Ok(data) = fs::read(dependency_path) {
+							dependency.data = data;
+						}
 					}
 				}
-			}
-			handle.emit("show_notification", if selected_dependencies.len() == 1 { "Dependency reloaded" } else { "Dependencies reloaded" }).unwrap();
+				handle.emit("show_notification", if selected_dependencies.len() == 1 { "Dependency reloaded" } else { "Dependencies reloaded" }).unwrap();
+			});
 		}
 
 		Ok(())
@@ -257,20 +262,22 @@ pub fn remove_dependency(handle: AppHandle, file_state: State<FileState>, select
 			.show();
 
 		if let MessageDialogResult::Yes = confirm_remove {
-			modify_file(&handle, true);
-			let file_state: State<FileState> = handle.state();
-			let dependencies = file_state.dependencies.lock().unwrap().clone();
-			let mut new_dependencies: Vec<File> = Vec::new();
-			for (i, dependency) in dependencies.iter().enumerate() {
-				if !selected_dependencies.contains(&(i as u32)) {
-					new_dependencies.push(dependency.clone());
+			spawn(async move {
+				modify_file(&handle, true);
+				let file_state: State<FileState> = handle.state();
+				let dependencies = file_state.dependencies.lock().unwrap().clone();
+				let mut new_dependencies: Vec<File> = Vec::new();
+				for (i, dependency) in dependencies.iter().enumerate() {
+					if !selected_dependencies.contains(&(i as u32)) {
+						new_dependencies.push(dependency.clone());
+					}
 				}
-			}
 
-			remove_missing_dependencies(&file_state, &new_dependencies);
+				remove_missing_dependencies(&file_state, &new_dependencies);
 
-			handle.emit("update_dependency_list", new_dependencies.clone()).unwrap();
-			*file_state.dependencies.lock().unwrap() = new_dependencies.clone();
+				handle.emit("update_dependency_list", new_dependencies.clone()).unwrap();
+				*file_state.dependencies.lock().unwrap() = new_dependencies.clone();
+			});
 		}
 	}
 }
